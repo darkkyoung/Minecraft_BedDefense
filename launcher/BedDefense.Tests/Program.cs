@@ -238,7 +238,7 @@ internal static class Program
             {
                 var outside = Temp();
                 try { var link = Path.Combine(root, "linked"); Directory.CreateSymbolicLink(link, outside); Reject(() => SafePaths.Under(root, "linked/file.jar"), "symlink escape rejected"); Directory.Delete(link);
-                    Directory.CreateSymbolicLink(link, Path.Combine(outside, "missing")); Reject(() => SafePaths.Under(root, "linked/file.jar"), "dangling symlink escape rejected"); Directory.Delete(link); }
+                    Directory.CreateSymbolicLink(link, Path.Combine(outside, "missing")); Reject(() => SafePaths.Under(root, "linked/file.jar"), "dangling symlink escape rejected"); File.Delete(link); }
                 finally { Directory.Delete(outside, true); }
             }
         }

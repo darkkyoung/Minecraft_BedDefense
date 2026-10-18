@@ -127,7 +127,14 @@ jobs:
         run: |
           dotnet run --project launcher/BedDefense.Tests -c Release -- --live-release
           if ($LASTEXITCODE -ne 0) { throw 'Published release validation failed' }
-          $p = Start-Process ./publish/BedDefense-Setup.exe -ArgumentList '--smoke-test' -PassThru
+          $tag = (Get-Content release/tag.txt -Raw).Trim()
+          $url = "https://github.com/darkkyoung/Minecraft_BedDefense/releases/download/$tag/BedDefense-Setup.exe"
+          New-Item -ItemType Directory -Path public-download -Force | Out-Null
+          Invoke-WebRequest -Uri $url -OutFile public-download/BedDefense-Setup.exe
+          $expected = (Get-FileHash publish/BedDefense-Setup.exe -Algorithm SHA256).Hash
+          $actual = (Get-FileHash public-download/BedDefense-Setup.exe -Algorithm SHA256).Hash
+          if ($actual -ne $expected) { throw 'Public EXE checksum mismatch' }
+          $p = Start-Process ./public-download/BedDefense-Setup.exe -ArgumentList '--smoke-test' -PassThru
           if (-not $p.WaitForExit(120000)) { $p.Kill(); throw 'Live WPF query timed out' }
           if ($p.ExitCode -ne 0) { Get-Content launcher-smoke.txt; throw 'Live WPF query failed' }
           Get-Content launcher-smoke.txt
