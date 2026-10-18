@@ -35,6 +35,8 @@ public static class FabricVersions
         }
         return x.Length.CompareTo(y.Length);
     }
+    public static int CompareVersions(string a, string b) => Compare(Parse(a), Parse(b));
+
     private static bool Term(string version, string token)
     {
         if (token is "*" or "x" or "X") return true;
@@ -142,16 +144,44 @@ public static class ModCompatibility
             new JsonObject { ["depends"] = new JsonObject { ["minecraft"] = "~26.3", ["fabricloader"] = ">=" + manifest.LoaderVersion, ["java"] = ">=25", ["fabric-api"] = "*" } }, "새 Bed Defense", false) : Read(incoming)[0];
         all.Add(bed);
         var versions = new Dictionary<string, string>(StringComparer.Ordinal) { ["minecraft"] = "26.3", ["java"] = "25", ["fabricloader"] = profile.LoaderVersion };
+        var activeMods = new List<ModInfo>();
         foreach (var group in all.GroupBy(m => m.Id))
         {
-            if (group.Count(m => !m.Nested) > 1 || group.Select(m => m.Version).Distinct().Count() > 1 || versions.ContainsKey(group.Key))
-                throw new IOException("중복 또는 여러 버전의 모드를 발견했습니다: " + group.Key);
-            versions[group.Key] = group.First().Version;
+            // Independent top-level JARs with one mod ID are true duplicates.
+            // Different *nested* versions are candidates, not duplicate installations:
+            // Fabric Loader itself resolves the best compatible nested dependency.
+            var topLevel = group.Where(m => !m.Nested).ToArray();
+            if (topLevel.Length > 1 || versions.ContainsKey(group.Key))
+                throw new IOException("동일한 모드를 중복 설치했습니다: " + group.Key);
+            var candidates = topLevel.Length == 1 ? topLevel : group.ToArray();
+            var ordered = candidates.OrderByDescending(m => m.Version,
+                Comparer<string>.Create(FabricVersions.CompareVersions)).ToArray();
+            ModInfo? selected = null;
+            foreach (var candidate in ordered)
+            {
+                try
+                {
+                    // Only candidates usable on this MC, Java and Loader can be active.
+                    var deps = candidate.Metadata["depends"]?.AsObject();
+                    if ((deps?["minecraft"] is not null && !FabricVersions.Matches("26.3", deps["minecraft"])) ||
+                        (deps?["java"] is not null && !FabricVersions.Matches("25", deps["java"])) ||
+                        (deps?["fabricloader"] is not null && !FabricVersions.Matches(profile.LoaderVersion, deps["fabricloader"])))
+                        continue;
+                    selected = candidate;
+                    break;
+                }
+                catch (IOException) { /* Try another nested candidate. */ }
+            }
+            if (selected is null)
+                throw new IOException("현재 게임 버전과 호환되는 모듈 후보가 없습니다: " + group.Key);
+            versions[group.Key] = selected.Version;
+            activeMods.Add(selected);
         }
-        foreach (var mod in all)
+        // Resolve constraints on the selected candidates, never on unselected nested copies.
+        foreach (var mod in activeMods)
             foreach (var alias in mod.Metadata["provides"]?.AsArray() ?? [])
             { var name = alias?.GetValue<string>() ?? ""; if (!versions.TryAdd(name, mod.Version) && versions[name] != mod.Version) throw new IOException("모드 별칭 충돌: " + name); }
-        foreach (var mod in all)
+        foreach (var mod in activeMods)
         {
             foreach (var dependency in mod.Metadata["depends"]?.AsObject() ?? [])
                 if (!versions.TryGetValue(dependency.Key, out var found) || !FabricVersions.Matches(found, dependency.Value))

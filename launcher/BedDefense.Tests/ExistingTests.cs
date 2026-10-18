@@ -123,6 +123,27 @@ internal static partial class Program
             File.WriteAllBytes(allblocks, Mod("allblocks", mc: "~26.2"));
             await RejectAsync(() => new Installer(downloads2, () => { }).Install(i, newer), "incompatible AllBlocks 26.2 blocks install");
             File.WriteAllBytes(allblocks, Mod("allblocks"));
+            // Real Fabric API + Iris/Sodium may carry different versions of one nested
+            // dependency. Fabric Loader resolves these candidates; they are not extra
+            // top-level copies installed by the player.
+            File.WriteAllBytes(sodium, Mod("sodium", nested: new() {
+                ["META-INF/jars/base-old.jar"] = Mod("fabric-api-base", "0.4.1+26.3")
+            }));
+            File.WriteAllBytes(iris, Mod("iris", extra: new JsonObject { ["depends"] =
+                new JsonObject { ["minecraft"] = "26.3", ["sodium"] = ">=1.0",
+                                  ["fabric-api"] = ">=0.163.0" } }, nested: new() {
+                ["META-INF/jars/base-new.jar"] = Mod("fabric-api-base", "0.4.2+26.3")
+            }));
+            Check(ModCompatibility.Check(i, newer).Summary.Contains("재사용"),
+                "different nested fabric-api-base versions are candidates, not duplicate top-level installs");
+            // Preserve unrelated files: these remain byte-identical after the update.
+            var nestedBefore = Snapshot(new[] { sodium, iris, api });
+            await new Installer(downloads2, () => { }).Install(i, newer);
+            Check(Same(nestedBefore), "nested candidate fix does not touch Sodium Iris or Fabric API");
+            File.WriteAllBytes(sodium, Mod("sodium"));
+            File.WriteAllBytes(iris, Mod("iris", extra: new JsonObject { ["depends"] =
+                new JsonObject { ["minecraft"] = "26.3", ["sodium"] = ">=1.0",
+                                  ["fabric-api"] = ">=0.163.0" } }));
             var compatibleApi = File.ReadAllBytes(api);
             File.WriteAllBytes(api, Mod("fabric-api", "0.162.0+26.2", "~26.2"));
             await RejectAsync(() => new Installer(downloads2, () => { }).Install(i, newer), "incompatible API blocked and never replaced");
