@@ -180,6 +180,17 @@ internal static class Program
             Reject(() => new FileTransaction(installation).Apply(newer, [new(target, source)], afterWrite: _ => throw new IOException("injected failure")), "replacement failure reports rollback");
             Check(Downloads.Hash(target) == before, "rollback restored previous bytes");
             Check(!File.Exists(Path.Combine(installation.Control, "transaction.json")), "rollback journal cleared");
+            var apiTarget = installation.Target(newer.Files[1], newer);
+            var apiBefore = Downloads.Hash(apiTarget);
+            var profileTarget = installation.ProfilePaths()[0];
+            var profileBefore = Downloads.Hash(profileTarget);
+            Reject(() => new FileTransaction(installation).Apply(newer, [new(target, source), new(apiTarget, source), new(profileTarget, source)], afterWrite: n => { if (n == 2) throw new IOException("failure after profile update"); }), "multi-file apply fails after profile write");
+            Check(Downloads.Hash(target) == before && Downloads.Hash(apiTarget) == apiBefore && Downloads.Hash(profileTarget) == profileBefore, "whole transaction restores mod, API and launcher profile");
+            Reject(() => new FileTransaction(installation).Apply(newer, [new(target, source, RequireAbsent: true)]), "create-only target refuses an existing file");
+            Check(Downloads.Hash(target) == before, "create-only collision preserves bytes");
+            Reject(() => new FileTransaction(installation).Apply(newer, [new(profileTarget, source, new string('0', 64))]), "concurrent profile edit detected before swap");
+            Check(Downloads.Hash(profileTarget) == profileBefore, "concurrent profile conflict preserves profile");
+
             var conflict = Path.Combine(installation.Instance, "mods", "manually-installed.jar"); File.WriteAllBytes(conflict, Jar("beddefense", "9.0"));
             await RejectAsync(() => new Installer(downloads2, () => { }).Install(installation, newer), "duplicate mod id blocked without deletion");
             Check(File.Exists(conflict), "manual conflicting JAR preserved"); File.Delete(conflict);
@@ -208,10 +219,26 @@ internal static class Program
             };
             using var listing = new Downloads(new FakeHttp(releaseData));
             Check((await new ReleaseClient(listing).Latest()).BuildNumber == 11, "select highest complete compatible dev release");
-            if (!OperatingSystem.IsWindows())
+            if (OperatingSystem.IsWindows())
             {
                 var outside = Temp();
-                try { var link = Path.Combine(root, "linked"); Directory.CreateSymbolicLink(link, outside); Reject(() => SafePaths.Under(root, "linked/file.jar"), "symlink escape rejected"); Directory.Delete(link); }
+                var link = Path.Combine(root, "junction");
+                try
+                {
+                    var junction = new ProcessStartInfo("cmd.exe") { UseShellExecute = false, RedirectStandardOutput = true };
+                    foreach (var a in new[] { "/c", "mklink", "/J", link, outside }) junction.ArgumentList.Add(a);
+                    using var process = Process.Start(junction)!;
+                    await process.WaitForExitAsync();
+                    Check(process.ExitCode == 0, "Windows junction test fixture created");
+                    Reject(() => SafePaths.Under(root, "junction/file.jar"), "Windows junction escape rejected");
+                }
+                finally { if (Directory.Exists(link)) Directory.Delete(link); Directory.Delete(outside, true); }
+            }
+            else
+            {
+                var outside = Temp();
+                try { var link = Path.Combine(root, "linked"); Directory.CreateSymbolicLink(link, outside); Reject(() => SafePaths.Under(root, "linked/file.jar"), "symlink escape rejected"); Directory.Delete(link);
+                    Directory.CreateSymbolicLink(link, Path.Combine(outside, "missing")); Reject(() => SafePaths.Under(root, "linked/file.jar"), "dangling symlink escape rejected"); Directory.Delete(link); }
                 finally { Directory.Delete(outside, true); }
             }
         }

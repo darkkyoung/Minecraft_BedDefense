@@ -100,8 +100,13 @@ public static class SafePaths
         var current = Path.GetFullPath(path);
         while (!string.IsNullOrEmpty(current))
         {
-            if ((File.Exists(current) || Directory.Exists(current)) && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
-                throw new IOException("링크/정션 경로에는 설치할 수 없습니다: " + current);
+            try
+            {
+                if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                    throw new IOException("링크/정션 경로에는 설치할 수 없습니다: " + current);
+            }
+            catch (FileNotFoundException) { }
+            catch (DirectoryNotFoundException) { }
             current = Path.GetDirectoryName(current);
         }
     }
