@@ -1,17 +1,15 @@
 # Changelog
 
-## 0.1.0-alpha.2+26.3 — Frameless HUD prototype
-- Introduced box-free top-left DAY, coordinates, bedtime countdown, biome and dimension overlay.
-- Added top-right bed UI placeholder; HP remains unavailable until gameplay is implemented.
-- Added server-authoritative Overworld clock networking for cross-dimension HUD consistency.
-- Added local `/bdhud` visibility and `/bdhud preview` mock raid/bed layout toggles.
-- Retained existing cobblestone block crack visual debug command.
-- **Still not a playable 100-day raid mod.** No real Bed HP or raid mechanics in this build.
+## v0.1.0-alpha.3+26.3 — Korean HUD v2
+- Orange n일차; white XYZ, elapsed world game-time stopwatch, Korean biome.
+- Removed English countdown and dimension row.
+- Upper-center one-minute raid warning (visual only, provisional bedtime).
+- Custom HP bar: yellow unavailable, green mock installed, red mock destroyed.
+- Updated /bdhud preview to cycle visual test states; no actual raid or bed mechanics.
+- Added Korean names for 66 vanilla biomes.
 
-## 0.1.0-alpha.1+26.3 — Technical prototype
-- Initial Minecraft Java 26.3 Fabric project.
-- GitHub Actions CI build and test artifact.
-- Native block cracking 0–9 stage visual smoke-test command for cobblestone.
-- Design, versioning, and acceptance docs.
+## v0.1.0-alpha.2+26.3 — Initial frameless HUD
+- First HUD, clock sync, client commands.
 
-**Not a complete/playable Bed Defense survival mod yet.**
+## v0.1.0-alpha.1+26.3 — Technical prototype
+- Fabric project, Actions build, cobblestone cracking visual.

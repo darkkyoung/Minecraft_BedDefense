@@ -1,38 +1,22 @@
-# Frameless HUD — Minecraft 26.3 prototype
+# HUD v2 — Korean, frameless (Minecraft 26.3)
 
-## Agreed in-game layout
+## Layout agreement
+- All HUD labels in Korean; white text except the **large pale orange** day.
+- Upper left, in order: `n일차`, `XYZ : x / y / z`, `플레이 시간 : HH:MM:SS`, `생물 군계 : <한글 이름>`.
+- Dimension line removed.
+- Stopwatch counts **world elapsed game-time ticks**, sourced from the server Overworld and synchronized across dimensions. It is **not a timer to next night** and is not yet anchored to a formal challenge-start event.
+- Upper center: `레이드까지 M:SS초...`, appearing only in the final 60 seconds before the **provisional sleep-available tick** 12542. This is currently a **visual scheduling prototype**, not a working mob event.
+- Upper right: **one custom horizontal HP bar**, NO numeric labels or status text. Bright green proportional fill when installed; **yellow full** for absent/unplaced bed; **red full** for destroyed bed. As there is not yet a persistent Spawn Bed implementation, normal mode displays yellow full by default.
+- No rectangular text backdrops/panels anywhere. The thin bar track is permitted as the HP indicator.
 
-**No boxes/panels/opaque backgrounds.** Vanilla pixel font and light shadow only.
+## Test commands
+- `/bdhud` toggles the whole HUD.
+- `/bdhud preview` cycles demonstration states: green 86% installed -> yellow full unplaced -> red full destroyed -> off (normal yellow full).
+- While preview is enabled the center shows mock `[미리보기] 레이드 몬스터 12 / 16` and, for installed preview, `스폰 침대 공격 중! [미리보기]`. No state mutation or real mob spawning.
+- The original `/beddefense debug cracks` cobblestone test remains intact.
 
-- Upper-left, descending: **large DAY n / 100**, real X/Y/Z block coordinates, global Overworld countdown until bedtime, biome, current dimension.
-- Upper-right: **large Spawn Bed HP**, small installation state below.
-- Raid active (future): centered raid indicator / remaining opponents; warning when Spawn Bed attacked.
-- True bed registration, HP, active raid, player loss/success states have **not yet been implemented**.
-
-## Executable prototype
-
-- HUD renders automatically on Minecraft Java 26.3 Fabric.
-- Live coordinates & biome and dimension from the client.
-- Day and countdown are synced from the server's *Overworld* clock (not the local Nether/End sky); 0-based Minecraft day 0 is displayed as DAY 1.
-- Countdown is labeled `NIGHT IN`, not `RAID IN`, because real raid scheduling is not yet implemented. Uses a provisional vanilla bedtime tick 12542 and normal 20 TPS.
-- Bed shows `BED -- / --` and `NOT REGISTERED (PROTOTYPE)`, **not dummy HP**.
-- `/bdhud` toggles HUD locally.
-- `/bdhud preview` toggles a clearly marked illustrative raid overlay and dummy bed HP (86/100) for layout acceptance. Preview never causes raid spawning, changes to world, HP or player state.
-- F1 hides the entire HUD.
-- Dates and timer reflect actual world time in singleplayer and modded dedicated-server sessions when time is synced; until first server time message, show CLOCK SYNC....
-
-## Visual acceptance
-
-1. Join Minecraft 26.3 test world, with Fabric API and Bed Defense installed.
-2. Confirm upper-left day, coordinates, NIGHT IN, biome, and dimension respond appropriately; upper-right bed remains placeholder.
-3. Run `/bdhud preview` to preview raid center and bed state text, without panels.
-4. Run `/bdhud preview` again to revert, `/bdhud` to toggle, F1 to hide.
-5. Travel across dimensions (if accessible) and verify day/time continuity.
-6. Test narrow window and GUI Scale settings, and confirm no collision with vanilla bossbars.
-7. The existing `/beddefense debug cracks` remains independently usable.
-
-## Open integration tasks
-- Connect HUD to server-side Spawn Bed state and real raid schedule, warning and raid results.
-- Set Bed damage text color based on live HP only when actual bed state exists.
-- Account for sleep/time skips, tick rate, and multiplayer correctness; client interpolation is cosmetic.
-- Decide configurable layout and user-specific persisted preferences.
+## Testing notes
+- Screen layout can be inspected immediately after installing the newest Action artifact.
+- Run `/time set 11500` with cheats in a throwaway world to inspect countdown near the last minute; night trigger remains an approximation.
+- Check Korean glyph rendering, GUI scaling, and the cross-dimension stopwatch.
+- Spawning raids, actual HP, HP warnings tied to real damage, final dragon timer freeze, and challenge start/reset are **not implemented**.

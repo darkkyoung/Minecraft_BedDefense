@@ -17,10 +17,7 @@ import net.minecraft.world.phys.HitResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * 26.3 technical prototype: server Overworld time sync, cobblestone cracks.
- * Actual game raids / Spawn Bed rules will be implemented in later phases.
- */
+/** Technical prototype only: a Korean HUD and the existing cobblestone crack animation. */
 public final class BedDefense implements ModInitializer {
     public static final String MOD_ID = "beddefense";
     private static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
@@ -34,7 +31,7 @@ public final class BedDefense implements ModInitializer {
                 dispatcher.register(Commands.literal("beddefense")
                         .executes(ctx -> {
                             ctx.getSource().sendSuccess(
-                                    () -> Component.literal("[Bed Defense] 26.3 HUD prototype. /bdhud preview (client); /beddefense debug cracks (server)."),
+                                    () -> Component.literal("[베드 디펜스] HUD 시험판. /bdhud preview (클라이언트), /beddefense debug cracks (서버)"),
                                     false
                             );
                             return 1;
@@ -45,29 +42,22 @@ public final class BedDefense implements ModInitializer {
                                             ServerPlayer player = ctx.getSource().getPlayerOrException();
                                             HitResult hit = player.pick(6.0D, 0.0F, false);
                                             if (hit.getType() != HitResult.Type.BLOCK) {
-                                                ctx.getSource().sendFailure(
-                                                        Component.literal("Look at a cobblestone block within 6 blocks.")
-                                                );
+                                                ctx.getSource().sendFailure(Component.literal("6블록 이내의 조약돌을 바라보세요."));
                                                 return 0;
                                             }
 
                                             BlockPos target = ((BlockHitResult) hit).getBlockPos();
                                             ServerLevel level = (ServerLevel) player.level();
                                             if (!level.getBlockState(target).is(Blocks.COBBLESTONE)) {
-                                                ctx.getSource().sendFailure(
-                                                        Component.literal("Only cobblestone is breakable in this safe debug test.")
-                                                );
+                                                ctx.getSource().sendFailure(Component.literal("시험판에서는 조약돌만 파괴할 수 있습니다."));
                                                 return 0;
                                             }
-
                                             if (!BlockCrackDemo.begin(level, target)) {
-                                                ctx.getSource().sendFailure(
-                                                        Component.literal("This block is already being broken in the demo.")
-                                                );
+                                                ctx.getSource().sendFailure(Component.literal("이미 파괴 진행 중인 블록입니다."));
                                                 return 0;
                                             }
                                             ctx.getSource().sendSuccess(
-                                                    () -> Component.literal("Bed Defense: native break cracks 0-9 (4 seconds) started!"),
+                                                    () -> Component.literal("4초 동안 바닐라 균열 애니메이션 시험을 시작합니다."),
                                                     false
                                             );
                                             return 1;
@@ -81,14 +71,18 @@ public final class BedDefense implements ModInitializer {
                 return;
             }
             hudClockSyncCounter = 0;
-            long overworldTime = server.clockManager().getInstance(server.overworld().dimensionType().defaultClock().orElseThrow()).totalTicks();
-            ClockSyncPayload payload = new ClockSyncPayload(overworldTime);
+            long overworldTime = server.clockManager()
+                    .getInstance(server.overworld().dimensionType().defaultClock().orElseThrow())
+                    .totalTicks();
+            // World game-time ticks, not the changeable time-of-day clock.
+            long elapsedWorldTicks = server.overworld().getGameTime();
+            ClockSyncPayload payload = new ClockSyncPayload(overworldTime, elapsedWorldTicks);
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 if (ServerPlayNetworking.canSend(player, ClockSyncPayload.TYPE)) {
                     ServerPlayNetworking.send(player, payload);
                 }
             }
         });
-        LOGGER.info("Bed Defense 26.3 HUD prototype initialized; no raid mechanics are currently active.");
+        LOGGER.info("Bed Defense 26.3 Korean HUD v2 prototype initialized; actual raids and beds are not implemented.");
     }
 }

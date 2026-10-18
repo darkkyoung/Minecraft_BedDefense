@@ -13,10 +13,10 @@ import net.minecraft.resources.Identifier;
 public final class BedDefenseClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        // Receiving over the network rather than using the local dimension's fixed sky time.
         ClientPlayNetworking.registerGlobalReceiver(ClockSyncPayload.TYPE,
                 (payload, context) -> context.client().execute(
-                        () -> BedDefenseHud.acceptServerTime(payload.overworldDayTime())));
+                        () -> BedDefenseHud.acceptServerTime(
+                                payload.overworldDayTime(), payload.elapsedWorldTicks())));
 
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("beddefense", "hud"),
                 BedDefenseHud::render);
@@ -32,17 +32,15 @@ public final class BedDefenseClient implements ClientModInitializer {
                         .executes(ctx -> {
                             BedDefenseHud.toggle();
                             ctx.getSource().sendFeedback(
-                                    Component.literal("[Bed Defense] HUD " +
-                                            (BedDefenseHud.isVisible() ? "ON" : "OFF")));
+                                    Component.literal("[베드 디펜스] HUD " +
+                                            (BedDefenseHud.isVisible() ? "표시" : "숨김")));
                             return 1;
                         })
                         .then(ClientCommands.literal("preview")
                                 .executes(ctx -> {
-                                    BedDefenseHud.togglePreview();
-                                    ctx.getSource().sendFeedback(
-                                            Component.literal("[Bed Defense] UI preview " +
-                                                    (BedDefenseHud.isPreview() ? "ON" : "OFF") +
-                                                    " (visual only; no raid or Bed HP simulation)."));
+                                    String status = BedDefenseHud.nextPreview();
+                                    ctx.getSource().sendFeedback(Component.literal(
+                                            "[베드 디펜스] UI 시험: " + status + " (실제 침대나 레이드는 변경되지 않음)"));
                                     return 1;
                                 })))
         );
