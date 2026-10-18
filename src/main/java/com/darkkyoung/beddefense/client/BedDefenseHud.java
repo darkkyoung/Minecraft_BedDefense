@@ -51,7 +51,7 @@ public final class BedDefenseHud {
 
     public static void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
-        if (!visible || mc.player == null || mc.level == null || mc.gui.isHidden()) {
+        if (!visible || mc.player == null || mc.level == null || mc.gui.hud.isHidden()) {
             return;
         }
         wasInWorld = true;
@@ -92,13 +92,13 @@ public final class BedDefenseHud {
             // Text only: no square backgrounds or decorative panels.
             String raidName = "DAY " + (day >= 0 ? day : 24) + " RAID  [PREVIEW]";
             graphics.text(font, raidName,
-                    Math.max(EDGE, (width - font.width(raidName)) / 2), 8, RED, true);
+                    Math.max(EDGE, (width - font.width(raidName)) / 2), 85, RED, true);
             String remaining = "RAIDERS 12 / 16";
             graphics.text(font, remaining,
-                    Math.max(EDGE, (width - font.width(remaining)) / 2), 22, WHITE, true);
+                    Math.max(EDGE, (width - font.width(remaining)) / 2), 99, WHITE, true);
             String alert = "SPAWN BED UNDER ATTACK!  [PREVIEW]";
             graphics.text(font, alert,
-                    Math.max(EDGE, (width - font.width(alert)) / 2), 37, RED, true);
+                    Math.max(EDGE, (width - font.width(alert)) / 2), 113, RED, true);
         }
     }
 
