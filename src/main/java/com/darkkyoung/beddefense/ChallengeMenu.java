@@ -5,6 +5,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -89,7 +90,7 @@ public final class ChallengeMenu {
                 "/beddefense menu", "시작 메뉴"));
     }
 
-    private static Component button(String title, ChatFormatting color, String command, String tooltip) {
+    private static MutableComponent button(String title, ChatFormatting color, String command, String tooltip) {
         return Component.literal(title)
                 .withStyle(style -> style.withColor(color).withBold(true)
                         .withUnderlined(true)
