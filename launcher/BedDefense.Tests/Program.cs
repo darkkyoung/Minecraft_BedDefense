@@ -74,7 +74,7 @@ internal static class Program
     {
         using var bytes = new MemoryStream();
         using (var zip = new ZipArchive(bytes, ZipArchiveMode.Create, true))
-        { using var writer = new StreamWriter(zip.CreateEntry("fabric.mod.json").Open()); writer.Write(JsonSerializer.Serialize(new { id, version, depends = new { minecraft = mc } })); }
+        { var entry = zip.CreateEntry("fabric.mod.json"); entry.LastWriteTime = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero); using var writer = new StreamWriter(entry.Open()); writer.Write(JsonSerializer.Serialize(new { id, version, depends = new { minecraft = mc } })); }
         return bytes.ToArray();
     }
     private static (ReleaseManifest Manifest, Dictionary<string, byte[]> Data) Fixture(long build = 10)
