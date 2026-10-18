@@ -1,0 +1,149 @@
+name: Bed Defense Launcher and Dev Release
+
+on:
+  push:
+    branches: [main, 'launcher/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: beddefense-l1-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  mod-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+      - run: gradle build --no-daemon --stacktrace
+      - name: Validate official dependencies and prepare immutable manifest
+        run: python3 launcher/scripts/prepare_release.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-input
+          path: release/
+          if-no-files-found: error
+          retention-days: 7
+
+  windows:
+    needs: mod-package
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-input
+          path: release
+      - name: Core safety and recovery tests
+        run: dotnet run --project launcher/BedDefense.Tests -c Release
+      - name: Validate actual mod, Fabric API, profile and libraries
+        run: dotnet run --project launcher/BedDefense.Tests -c Release -- --validate-bundle release
+      - name: Publish Windows x64 self-contained single EXE
+        run: dotnet publish launcher/BedDefense.Launcher -c Release -r win-x64 --self-contained true -p:DebugType=None -p:DebugSymbols=false -o publish
+      - name: Run published EXE and initialize actual WPF UI
+        shell: pwsh
+        run: |
+          $p = Start-Process ./publish/BedDefense-Setup.exe -ArgumentList @('--smoke-test', '--manifest', "$pwd/release/manifest.json") -PassThru
+          if (-not $p.WaitForExit(60000)) { $p.Kill(); throw 'WPF smoke test timed out' }
+          if ($p.ExitCode -ne 0) { Get-Content launcher-smoke.txt; throw 'WPF smoke failed' }
+          Get-Content launcher-smoke.txt
+          $extra = @(Get-ChildItem publish -File | Where-Object { $_.Name -ne 'BedDefense-Setup.exe' })
+          if ($extra.Count -ne 0) { throw "Publish is not a single EXE: $extra" }
+          $hash = (Get-FileHash publish/BedDefense-Setup.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  BedDefense-Setup.exe" | Set-Content publish/BedDefense-Setup.exe.sha256 -Encoding utf8NoBOM
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-launcher
+          path: publish/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-validation
+          path: |
+            launcher-smoke.txt
+            launcher-smoke.png
+          if-no-files-found: warn
+
+  publish-dev:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [mod-package, windows]
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-input
+          path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-launcher
+          path: publish
+      - name: Publish complete immutable dev release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          $tag = (Get-Content release/tag.txt -Raw).Trim()
+          # Draft first: incomplete uploads can never be selected by clients.
+          gh release view $tag --repo $env:REPO *> $null
+          if ($LASTEXITCODE -eq 0) { throw "Release already exists; never overwrite immutable assets: $tag" }
+          gh release create $tag --repo $env:REPO --target $env:COMMIT --draft --prerelease --title "Bed Defense 26.3 dev $env:GITHUB_RUN_NUMBER" --notes-file release/release-notes.md
+          if ($LASTEXITCODE -ne 0) { throw 'Draft creation failed' }
+          $assets = @(Get-ChildItem release -File | Where-Object { $_.Extension -in '.jar', '.json' -or $_.Name -eq 'SHA256SUMS.txt' } | ForEach-Object FullName)
+          $assets += @((Resolve-Path publish/BedDefense-Setup.exe).Path, (Resolve-Path publish/BedDefense-Setup.exe.sha256).Path)
+          gh release upload $tag @assets --repo $env:REPO
+          if ($LASTEXITCODE -ne 0) { throw 'Upload failed; draft remains hidden' }
+          gh release edit $tag --repo $env:REPO --draft=false --prerelease --latest=false
+          if ($LASTEXITCODE -ne 0) { throw 'Publication failed' }
+      - name: Verify public release downloads and updater on Windows
+        shell: pwsh
+        run: |
+          dotnet run --project launcher/BedDefense.Tests -c Release -- --live-release
+          if ($LASTEXITCODE -ne 0) { throw 'Published release validation failed' }
+          $p = Start-Process ./publish/BedDefense-Setup.exe -ArgumentList '--smoke-test' -PassThru
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); throw 'Live WPF query timed out' }
+          if ($p.ExitCode -ne 0) { Get-Content launcher-smoke.txt; throw 'Live WPF query failed' }
+          Get-Content launcher-smoke.txt
+      - name: Hide release if public validation fails
+        if: failure()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          $tag = (Get-Content release/tag.txt -Raw).Trim()
+          gh release edit $tag --repo $env:REPO --draft=true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-validation
+          path: |
+            launcher-smoke.txt
+            launcher-smoke.png

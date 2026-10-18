@@ -1,0 +1,32 @@
+<Window x:Class="BedDefense.Launcher.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="BED DEFENSE LAUNCHER" Width="850" Height="800" MinWidth="720" MinHeight="680" Background="#101C29" FontFamily="Malgun Gothic" FontSize="14" WindowStartupLocation="CenterScreen">
+ <ScrollViewer VerticalScrollBarVisibility="Auto">
+ <Grid Margin="32">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <StackPanel Grid.Row="0" Margin="0,0,0,24">
+   <TextBlock Text="BED DEFENSE" FontSize="32" FontWeight="Bold" Foreground="#F5BC66"/>
+   <TextBlock Text="LAUNCHER  /  개발 빌드 채널" FontSize="13" Margin="2,4,0,10" Foreground="#9CAFC3"/>
+   <TextBlock Text="처음에는 설치 한 번, 이후에는 업데이트 버튼 한 번."/>
+  </StackPanel>
+  <Border Grid.Row="1" Background="#192A3A" CornerRadius="10" Padding="18" Margin="0,0,0,18">
+   <StackPanel>
+    <DockPanel Margin="0,0,0,14"><TextBlock Text="게임 버전" VerticalAlignment="Center" Margin="0,0,20,0"/><ComboBox Width="180" HorizontalAlignment="Left" SelectedIndex="0"><ComboBoxItem Content="Minecraft Java 26.3"/></ComboBox></DockPanel>
+    <TextBlock Text="공식 Minecraft 데이터 폴더" Foreground="#9CAFC3" Margin="0,0,0,6"/>
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox x:Name="RootBox" IsReadOnly="True"/><Button x:Name="BrowseButton" Grid.Column="1" Content="폴더 선택" Click="Browse_Click" Margin="10,0,0,0"/></Grid>
+    <TextBlock x:Name="InstanceText" FontSize="12" Foreground="#9CAFC3" Margin="0,8,0,0"/>
+   </StackPanel>
+  </Border>
+  <Grid Grid.Row="2" Margin="0,0,0,18">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="170"/><ColumnDefinition/></Grid.ColumnDefinitions>
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+   <TextBlock Text="Fabric / Java 환경" Margin="0,6"/><TextBlock x:Name="FabricText" Grid.Column="1" Margin="0,6"/>
+   <TextBlock Text="Bed Defense 상태" Grid.Row="1" Margin="0,6"/><TextBlock x:Name="InstalledText" Grid.Row="1" Grid.Column="1" Margin="0,6"/>
+   <TextBlock Text="설치된 버전" Grid.Row="2" Margin="0,6"/><TextBlock x:Name="CurrentText" Grid.Row="2" Grid.Column="1" Margin="0,6"/>
+   <TextBlock Text="사용 가능한 최신 버전" Grid.Row="3" Margin="0,6"/><TextBlock x:Name="LatestText" Grid.Row="3" Grid.Column="1" Margin="0,6" Text="조회 전"/>
+  </Grid>
+  <StackPanel Grid.Row="3" Margin="0,0,0,18"><TextBlock Text="업데이트 내역" FontWeight="Bold" Margin="0,0,0,8"/><TextBox x:Name="NotesBox" Height="115" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Text="최신 배포 정보를 확인하고 있습니다."/></StackPanel>
+  <StackPanel Grid.Row="4" Margin="0,0,0,18"><ProgressBar x:Name="ProgressBar" Height="7" Maximum="100" Foreground="#F5BC66" Background="#263B50"/><TextBlock x:Name="StatusText" Margin="0,10,0,0" Text="준비 중"/><TextBlock x:Name="ErrorText" Foreground="#FFAC9B" Margin="0,8,0,0"/></StackPanel>
+  <WrapPanel Grid.Row="5" Margin="0,0,0,20"><Button x:Name="InstallButton" Content="설치" Click="Install_Click" Background="#F5BC66" IsEnabled="False"/><Button x:Name="RefreshButton" Content="업데이트 조회" Click="Refresh_Click"/><Button x:Name="LaunchButton" Content="공식 런처 열기" Click="Launch_Click"/><Button Content="설치 안내" Click="Help_Click"/></WrapPanel>
+  <TextBlock Grid.Row="6" Text="공식 런처에서 순정 26.3을 한 번 실행한 뒤, 게임과 런처를 종료해 주세요.&#10;설치 후 공식 런처에서 ‘Bed Defense 26.3’을 선택합니다.&#10;AllBlocks 등 다른 프로필의 월드·모드·설정은 변경하지 않습니다." Foreground="#9CAFC3" FontSize="12"/>
+ </Grid>
+ </ScrollViewer>
+</Window>

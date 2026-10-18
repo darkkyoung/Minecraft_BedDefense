@@ -6,3 +6,11 @@ out/
 *.iml
 *.log
 .DS_Store
+
+# Launcher build outputs
+**/bin/
+**/obj/
+publish/
+release/
+launcher-smoke.*
+__pycache__/
