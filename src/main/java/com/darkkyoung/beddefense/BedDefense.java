@@ -29,16 +29,29 @@ public final class BedDefense implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(ClockSyncPayload.TYPE, ClockSyncPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BedStatusPayload.TYPE, BedStatusPayload.CODEC);
         SpawnBedPrototype.init();
+        ChallengeMenu.init();
 
         CommandRegistrationCallback.EVENT.register((dispatcher, context, selection) ->
                 dispatcher.register(Commands.literal("beddefense")
                         .executes(ctx -> {
-                            ctx.getSource().sendSuccess(
-                                    () -> Component.literal("[베드 디펜스] HUD 시험판. /bdhud preview (클라이언트), /beddefense debug cracks (서버)"),
-                                    false
-                            );
+                            ChallengeMenu.show(ctx.getSource().getPlayerOrException(), ctx.getSource().getServer());
                             return 1;
                         })
+                        .then(Commands.literal("menu").executes(ctx -> {
+                            ChallengeMenu.show(ctx.getSource().getPlayerOrException(), ctx.getSource().getServer());
+                            return 1;
+                        }))
+                        .then(Commands.literal("start").executes(ctx -> {
+                            return ChallengeMenu.start(ctx.getSource().getPlayerOrException(), ctx.getSource().getServer()) ? 1 : 0;
+                        }))
+                        .then(Commands.literal("rules").executes(ctx -> {
+                            ChallengeMenu.rules(ctx.getSource().getPlayerOrException());
+                            return 1;
+                        }))
+                        .then(Commands.literal("status").executes(ctx -> {
+                            ChallengeMenu.status(ctx.getSource().getPlayerOrException(), ctx.getSource().getServer());
+                            return 1;
+                        }))
                         .then(Commands.literal("debug")
                                 .then(Commands.literal("cracks")
                                         .executes(ctx -> {
@@ -75,12 +88,11 @@ public final class BedDefense implements ModInitializer {
                 return;
             }
             hudClockSyncCounter = 0;
-            long overworldTime = server.clockManager()
-                    .getInstance(server.overworld().dimensionType().defaultClock().orElseThrow())
-                    .totalTicks();
-            // World game-time ticks, not the changeable time-of-day clock.
-            long elapsedWorldTicks = server.overworld().getGameTime();
-            ClockSyncPayload payload = new ClockSyncPayload(overworldTime, elapsedWorldTicks);
+            long overworldTime = ChallengeMenu.overworldClock(server);
+            ChallengeData challenge = ChallengeData.get(server.overworld());
+            long elapsed = challenge.elapsedTicks(server.overworld().getGameTime());
+            long day = challenge.day(overworldTime);
+            ClockSyncPayload payload = new ClockSyncPayload(overworldTime, elapsed, day);
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 if (ServerPlayNetworking.canSend(player, ClockSyncPayload.TYPE)) {
                     ServerPlayNetworking.send(player, payload);

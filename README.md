@@ -2,11 +2,19 @@
 
 **Minecraft Java 26.3 Fabric technical prototype. This is not a playable 100-day challenge yet.**
 
-## v0.1.0-alpha.4+26.3
+## v0.1.0-alpha.5+26.3
+
+- **클릭형 시작 메뉴:** 월드 입장 시 채팅에 `[게임 시작]`·`[규칙 보기]`가 표시됩니다. `/beddefense menu`로 언제든 다시 열 수 있습니다.
+- **시작 전:** 챌린지 스톱워치는 `00:00:00`, HUD에는 `시작 전` 표시, 레이드 예고 없음. 첫 침대 등록도 챌린지 시작 후 가능.
+- **[게임 시작] 클릭:** 월드에 진행 상태/시작 시각을 저장하며, HUD `1일차`와 스톱워치가 시작됩니다. 같은 월드를 나갔다 들어와도 처음부터 다시 시작되지 않습니다.
+- **재접속:** 시작된 세계는 `진행 중` 메뉴를 표시하며 [진행 상태] 및 [규칙 보기]만 제공. 시작 명령을 다시 실행해도 초기화하지 않습니다.
+- **아직 미구현:** 실제 레이드 소환, 베드 HP·사망/부활/승리·100일 제한 집행. 현재 [게임 시작]은 *도전 상태 및 시간 측정*의 시작입니다.
+
+## 이전 프로토타입 기능
 
 - Existing Korean HUD: day, XYZ, elapsed stopwatch and biome, without rectangular backgrounds.
 - Upper right: **스폰 침대** label over a short **vanilla boss-bar texture** (approximately 1/4 former bar width).
-- First Overworld bed right-click registers the player's first Spawn Bed coordinates even during daytime.
+- After starting the challenge, first Overworld bed right-click registers the player's first Spawn Bed coordinates even during daytime.
 - A registered bed shows small green particles whenever the bed chunk is loaded, including after a world restart.
 - **Yellow full bar:** no bed registered or known absent. **Green full:** a bed registered and presumed placed. **Red full:** preview only (actual destruction is not implemented).
 - `/bdhud preview` cycles 86%-green, yellow, red and normal, without changing gameplay.
@@ -38,9 +46,11 @@
 
 After installing the development build:
 
-1. In a disposable world, observe compact yellow bar at top right and `스폰 침대` label.
-2. Place a regular bed and right-click it (even in daytime). Check registration message, green particles and full green bar.
-3. Exit/rejoin world: registration should persist. Check preview with `/bdhud preview` four times.
+1. In a disposable world, verify the Korean chat menu appears on first entry. Click **[게임 시작]** to start the persistent stopwatch; on rejoin it should NOT reset.
+2. Type `/beddefense menu` to reopen the menu or `/beddefense rules` to read rules.
+3. In a disposable world, observe compact yellow bar at top right and `스폰 침대` label.
+4. Place a regular bed and right-click it (even in daytime). Check registration message, green particles and full green bar.
+5. Exit/rejoin world: registration should persist. Check preview with `/bdhud preview` four times.
 
 Build success is not in-game acceptance; please send screenshot and errors if issues arise.
 

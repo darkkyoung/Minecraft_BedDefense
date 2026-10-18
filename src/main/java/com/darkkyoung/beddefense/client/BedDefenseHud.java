@@ -42,17 +42,19 @@ public final class BedDefenseHud {
     private static boolean synced = false;
     private static long serverDayTime;
     private static long serverElapsedTime;
+    private static long serverChallengeDay = -1L;
     private static long receivedAtClientTick;
     private static boolean wasInWorld;
 
     private BedDefenseHud() {}
 
-    static void acceptServerTime(long dayTime, long elapsedWorldTicks) {
+    static void acceptServerTime(long dayTime, long challengeElapsedTicks, long challengeDay) {
         Minecraft mc = Minecraft.getInstance();
         // Use the same client-world tick reference in the packet callback and rendering.
         receivedAtClientTick = mc.level != null ? mc.level.getGameTime() : 0L;
         serverDayTime = dayTime;
-        serverElapsedTime = elapsedWorldTicks;
+        serverElapsedTime = challengeElapsedTicks;
+        serverChallengeDay = challengeDay;
         synced = true;
     }
 
@@ -64,6 +66,8 @@ public final class BedDefenseHud {
             preview = Preview.OFF;
             serverBedState = 0;
             receivedAtClientTick = 0;
+            serverChallengeDay = -1L;
+            serverElapsedTime = -1L;
             wasInWorld = false;
         }
     }
@@ -100,10 +104,11 @@ public final class BedDefenseHud {
         long clientTick = mc.level.getGameTime();
         long elapsedSinceSync = synced ? Math.max(0L, clientTick - receivedAtClientTick) : 0L;
         long dayTime = synced ? serverDayTime + elapsedSinceSync : -1L;
-        long playedTicks = synced ? serverElapsedTime + elapsedSinceSync : -1L;
+        boolean running = synced && serverChallengeDay >= 1L && serverElapsedTime >= 0L;
+        long playedTicks = running ? serverElapsedTime + elapsedSinceSync : 0L;
 
-        long day = dayTime >= 0 ? Math.floorDiv(dayTime, 24000L) + 1L : -1L;
-        String dayLabel = day >= 0 ? day + "일차" : "--일차";
+        long day = running ? serverChallengeDay : -1L;
+        String dayLabel = running ? day + "일차" : "시작 전";
         drawLarge(graphics, font, dayLabel, EDGE, EDGE, ORANGE, 1.7F);
 
         graphics.text(font,
@@ -143,7 +148,7 @@ public final class BedDefenseHud {
         graphics.pose().popMatrix();
 
         long toRaid = ticksUntilBedtime(dayTime);
-        if (toRaid > 0L && toRaid <= WARNING_DURATION_TICKS) {
+        if (running && toRaid > 0L && toRaid <= WARNING_DURATION_TICKS) {
             String warning = "레이드까지 " + formatWarning(toRaid) + "초...";
             drawCentered(graphics, font, warning, screenWidth, 10, RAID_ORANGE);
         }

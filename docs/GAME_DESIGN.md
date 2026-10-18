@@ -2,6 +2,15 @@
 
 This document distinguishes **agreed design** from **not yet implemented** behavior.
 
+## Explicit game start (alpha.5 MVP)
+- On joining a not-yet-started world, display a **Korean clickable chat menu** in the familiar AllBlocks style.
+- [게임 시작] starts the current world challenge; [규칙 보기] displays help. /beddefense menu reopens the menu.
+- A world-level single-player-first saved flag and start tick prevent repeated initialization or resets after reconnect.
+- Before start, challenge day is `시작 전`, stopwatch stays at 0, and early raid warning remains hidden.
+- Start relative day is 1 and elapsed stopwatch begins from 00:00:00. Day increments using the Overworld world clock, stopwatch uses server game ticks.
+- Current 26.3 alpha only implements this lifecycle and UI; it **does not yet spawn raids**, implement hard-core rules or end the game on Day 100.
+- Full multiplayer player/team ownership and administrative reset commands require later design; no reset exists in this alpha.
+
 ## Goal and deadline
 - Challenge succeeds immediately on defeating the Ender Dragon.
 - Day 100 is the proposed deadline; the exact fail timing is to be finalized.

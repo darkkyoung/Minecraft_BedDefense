@@ -39,6 +39,8 @@ public final class SpawnBedPrototype {
             return InteractionResult.PASS;
         }
         BlockPos foot = footPosition(clicked, state);
+        // Beds only enter the challenge after the explicit [게임 시작] click.
+        if (!ChallengeData.get((ServerLevel) world).isStarted()) return InteractionResult.PASS;
         SpawnBedData data = SpawnBedData.get((ServerLevel) world);
         if (data.registerFirst(serverPlayer.getUUID(), foot)) {
             serverPlayer.sendSystemMessage(Component.literal("§a스폰 침대가 등록되었습니다! §7(HP·리스폰 규칙은 개발 중)"));
