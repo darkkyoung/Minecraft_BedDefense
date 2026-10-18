@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "beddefense",
+  "version": "${version}",
+  "name": "Bed Defense",
+  "description": "Minecraft 26.3 early technical prototype. Only the vanilla block crack debug test is active.",
+  "authors": ["darkkyoung"],
+  "contact": {
+    "sources": "https://github.com/darkkyoung/Minecraft_BedDefense"
+  },
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.darkkyoung.beddefense.BedDefense"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

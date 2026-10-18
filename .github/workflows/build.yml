@@ -1,0 +1,41 @@
+name: Bed Defense 26.3 Build
+
+on:
+  push:
+    branches:
+      - main
+      - 'mc/**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Java 25 / Gradle 9.7.1 / Minecraft 26.3
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Install Gradle 9.7.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+      - name: Compile and test
+        run: gradle build --no-daemon --stacktrace
+      - name: Upload installable mod JAR
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bed-defense-26.3-test-jar
+          path: |
+            build/libs/beddefense-*.jar
+            !build/libs/*-sources.jar
+          if-no-files-found: error
+          retention-days: 14
