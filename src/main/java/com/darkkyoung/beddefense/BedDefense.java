@@ -81,7 +81,7 @@ public final class BedDefense implements ModInitializer {
                 return;
             }
             hudClockSyncCounter = 0;
-            long overworldTime = server.overworld().getDayTime();
+            long overworldTime = server.clockManager().getInstance(server.overworld().dimensionType().defaultClock().orElseThrow()).totalTicks();
             ClockSyncPayload payload = new ClockSyncPayload(overworldTime);
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 if (ServerPlayNetworking.canSend(player, ClockSyncPayload.TYPE)) {

@@ -3,7 +3,7 @@ package com.darkkyoung.beddefense.client;
 import com.darkkyoung.beddefense.network.ClockSyncPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -28,7 +28,7 @@ public final class BedDefenseClient implements ClientModInitializer {
         });
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-                dispatcher.register(ClientCommandManager.literal("bdhud")
+                dispatcher.register(ClientCommands.literal("bdhud")
                         .executes(ctx -> {
                             BedDefenseHud.toggle();
                             ctx.getSource().sendFeedback(
@@ -36,7 +36,7 @@ public final class BedDefenseClient implements ClientModInitializer {
                                             (BedDefenseHud.isVisible() ? "ON" : "OFF")));
                             return 1;
                         })
-                        .then(ClientCommandManager.literal("preview")
+                        .then(ClientCommands.literal("preview")
                                 .executes(ctx -> {
                                     BedDefenseHud.togglePreview();
                                     ctx.getSource().sendFeedback(

@@ -51,7 +51,7 @@ public final class BedDefenseHud {
 
     public static void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
-        if (!visible || mc.player == null || mc.level == null || mc.options.hideGui) {
+        if (!visible || mc.player == null || mc.level == null || mc.gui.isHidden()) {
             return;
         }
         wasInWorld = true;
