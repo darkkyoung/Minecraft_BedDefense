@@ -1,6 +1,7 @@
 package com.darkkyoung.beddefense;
 
 import com.darkkyoung.beddefense.network.ClockSyncPayload;
+import com.darkkyoung.beddefense.network.BedStatusPayload;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -26,6 +27,8 @@ public final class BedDefense implements ModInitializer {
     @Override
     public void onInitialize() {
         PayloadTypeRegistry.clientboundPlay().register(ClockSyncPayload.TYPE, ClockSyncPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(BedStatusPayload.TYPE, BedStatusPayload.CODEC);
+        SpawnBedPrototype.init();
 
         CommandRegistrationCallback.EVENT.register((dispatcher, context, selection) ->
                 dispatcher.register(Commands.literal("beddefense")
@@ -67,6 +70,7 @@ public final class BedDefense implements ModInitializer {
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             BlockCrackDemo.tick(server);
+            SpawnBedPrototype.tick(server);
             if (++hudClockSyncCounter < 20) {
                 return;
             }
@@ -80,9 +84,13 @@ public final class BedDefense implements ModInitializer {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 if (ServerPlayNetworking.canSend(player, ClockSyncPayload.TYPE)) {
                     ServerPlayNetworking.send(player, payload);
+                    if (ServerPlayNetworking.canSend(player, BedStatusPayload.TYPE)) {
+                        ServerPlayNetworking.send(player,
+                            new BedStatusPayload(SpawnBedPrototype.hasPlacedBed(player) ? 1 : 0));
+                    }
                 }
             }
         });
-        LOGGER.info("Bed Defense 26.3 Korean HUD v2 prototype initialized; actual raids and beds are not implemented.");
+        LOGGER.info("Bed Defense 26.3 Korean HUD v2 prototype initialized; real raids and bed HP are not implemented.");
     }
 }

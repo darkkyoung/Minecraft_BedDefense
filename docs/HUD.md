@@ -1,22 +1,19 @@
-# HUD v2 — Korean, frameless (Minecraft 26.3)
+# HUD v3 — Compact vanilla bar and Spawn Bed visual registration (Minecraft 26.3)
 
-## Layout agreement
-- All HUD labels in Korean; white text except the **large pale orange** day.
-- Upper left, in order: `n일차`, `XYZ : x / y / z`, `플레이 시간 : HH:MM:SS`, `생물 군계 : <한글 이름>`.
-- Dimension line removed.
-- Stopwatch counts **world elapsed game-time ticks**, sourced from the server Overworld and synchronized across dimensions. It is **not a timer to next night** and is not yet anchored to a formal challenge-start event.
-- Upper center: `레이드까지 M:SS초...`, appearing only in the final 60 seconds before the **provisional sleep-available tick** 12542. This is currently a **visual scheduling prototype**, not a working mob event.
-- Upper right: **one custom horizontal HP bar**, NO numeric labels or status text. Bright green proportional fill when installed; **yellow full** for absent/unplaced bed; **red full** for destroyed bed. As there is not yet a persistent Spawn Bed implementation, normal mode displays yellow full by default.
-- No rectangular text backdrops/panels anywhere. The thin bar track is permitted as the HP indicator.
+- Korean day/XYZ/elapsed stopwatch/biome on the left unchanged; no box/panel backgrounds.
+- Top right label `스폰 침대` over native Minecraft boss-bar sprite drawn with 25% horizontal scale.
+- Yellow (full): not registered or known missing. Green (full): first registered bed still placed, **not an HP reading**. Red (full): visual preview for future destroyed state only.
+- First right-click on Overworld bed (daytime allowed) registers the canonical bed foot location, saved with per-player UUID in the Overworld persistent data.
+- Periodic vanilla HAPPY_VILLAGER green particles at the registered bed, while its chunk is loaded.
+- Unloaded bed chunk is treated as a still-registered bed, until its block is loaded and can be checked.
+- This is a visual & data-registration milestone only: no portable Spawn Bed item, HP, real bed destruction, survival enforcement, or raids yet.
+- `/bdhud preview` cycles green 86%, yellow full, red full, then normal live status.
 
-## Test commands
-- `/bdhud` toggles the whole HUD.
-- `/bdhud preview` cycles demonstration states: green 86% installed -> yellow full unplaced -> red full destroyed -> off (normal yellow full).
-- While preview is enabled the center shows mock `[미리보기] 레이드 몬스터 12 / 16` and, for installed preview, `스폰 침대 공격 중! [미리보기]`. No state mutation or real mob spawning.
-- The original `/beddefense debug cracks` cobblestone test remains intact.
-
-## Testing notes
-- Screen layout can be inspected immediately after installing the newest Action artifact.
-- Run `/time set 11500` with cheats in a throwaway world to inspect countdown near the last minute; night trigger remains an approximation.
-- Check Korean glyph rendering, GUI scaling, and the cross-dimension stopwatch.
-- Spawning raids, actual HP, HP warnings tied to real damage, final dragon timer freeze, and challenge start/reset are **not implemented**.
+## Test
+1. Install new 26.3 Fabric JAR and compatible API; remove old Bed Defense JAR.
+2. Confirm `스폰 침대` label and small vanilla bar, yellow until registration.
+3. Put down a vanilla bed and right-click in daytime; expect green particles + bar.
+4. Re-click, verify no additional registration. Reconnect and verify persistent marker.
+5. Break the registered bed in a **throwaway world**; when area is loaded the indicator returns to yellow.
+6. Repeat `/bdhud preview` to inspect all mock states; no enemy spawn or HP effects.
+7. Check UI scales and narrow windows.

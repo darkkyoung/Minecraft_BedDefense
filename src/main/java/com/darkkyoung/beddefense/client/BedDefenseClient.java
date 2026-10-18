@@ -1,6 +1,7 @@
 package com.darkkyoung.beddefense.client;
 
 import com.darkkyoung.beddefense.network.ClockSyncPayload;
+import com.darkkyoung.beddefense.network.BedStatusPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
@@ -17,6 +18,10 @@ public final class BedDefenseClient implements ClientModInitializer {
                 (payload, context) -> context.client().execute(
                         () -> BedDefenseHud.acceptServerTime(
                                 payload.overworldDayTime(), payload.elapsedWorldTicks())));
+
+        ClientPlayNetworking.registerGlobalReceiver(BedStatusPayload.TYPE,
+                (payload, context) -> context.client().execute(
+                        () -> BedDefenseHud.acceptBedState(payload.state())));
 
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("beddefense", "hud"),
                 BedDefenseHud::render);

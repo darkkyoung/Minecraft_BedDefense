@@ -1,15 +1,17 @@
 # Changelog
 
-## v0.1.0-alpha.3+26.3 — Korean HUD v2
-- Orange n일차; white XYZ, elapsed world game-time stopwatch, Korean biome.
-- Removed English countdown and dimension row.
-- Upper-center one-minute raid warning (visual only, provisional bedtime).
-- Custom HP bar: yellow unavailable, green mock installed, red mock destroyed.
-- Updated /bdhud preview to cycle visual test states; no actual raid or bed mechanics.
-- Added Korean names for 66 vanilla biomes.
+## 0.1.0-alpha.4+26.3 — Compact vanilla bar, first bed registration
+- Used the vanilla boss-bar sprites for the right-hand Bed bar at about one-quarter of previous width.
+- Added a Korean `스폰 침대` label.
+- Registered first right-clicked Overworld bed in per-world saved data; emits periodic green particles while loaded.
+- Synchronizes basic bed-present status; red destruction and HP values remain mock-only.
+- No full Spawn Bed item, HP, respawn/failure logic or raids implemented.
 
-## v0.1.0-alpha.2+26.3 — Initial frameless HUD
-- First HUD, clock sync, client commands.
+## 0.1.0-alpha.3+26.3 — Korean HUD v2
+- Day/XYZ/world elapsed stopwatch/biome, provisional raid warning, previous custom bar.
 
-## v0.1.0-alpha.1+26.3 — Technical prototype
-- Fabric project, Actions build, cobblestone cracking visual.
+## 0.1.0-alpha.2+26.3 — Initial HUD
+- English HUD and time sync.
+
+## 0.1.0-alpha.1+26.3 — Initial tech prototype
+- Fabric CI and cobblestone crack animation.

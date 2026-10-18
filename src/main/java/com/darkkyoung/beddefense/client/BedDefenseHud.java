@@ -7,6 +7,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
 
 /**
@@ -23,8 +25,11 @@ public final class BedDefenseHud {
     private static final int GREEN = 0xFF78C98B;
     private static final int BAR_TRACK = 0xAA202020;
     private static final int EDGE = 12;
-    private static final int BAR_WIDTH = 168;
-    private static final int BAR_HEIGHT = 9;
+    // 182px vanilla boss bar, displayed at 1/4 width without stretching its pixels.
+    private static final int BAR_WIDTH = 182;
+    private static final int BAR_HEIGHT = 5;
+    private static final float BAR_SCALE = 0.25F;
+    private static int serverBedState; // 0 unregistered/unplaced, 1 placed; no HP mechanics yet.
 
     // Prototype only: the approximate first time Minecraft permits sleeping.
     // Must use the real server raid scheduler when raids are implemented.
@@ -51,10 +56,13 @@ public final class BedDefenseHud {
         synced = true;
     }
 
+    static void acceptBedState(int state) { serverBedState = state; }
+
     static void onDisconnected() {
         if (wasInWorld) {
             synced = false;
             preview = Preview.OFF;
+            serverBedState = 0;
             receivedAtClientTick = 0;
             wasInWorld = false;
         }
@@ -108,19 +116,31 @@ public final class BedDefenseHud {
         graphics.text(font, "생물 군계 : " + biomeName(player),
                 EDGE, 61, WHITE, true);
 
-        // The real Spawn Bed state is not implemented. The default is 'no bed'
-        // (full yellow). Preview cycles through mock states for HUD acceptance.
-        int barRight = screenWidth - EDGE;
-        int barX = Math.max(EDGE, barRight - BAR_WIDTH);
-        int barY = 18;
-        graphics.fill(barX, barY, barRight, barY + BAR_HEIGHT, BAR_TRACK);
-        int color = switch (preview) {
-            case OFF, UNPLACED -> YELLOW;
-            case PLACED -> GREEN;
-            case DESTROYED -> RED;
+        // Render using vanilla Minecraft boss-bar sprites, not a custom rectangle.
+        // The bar is 25% of the former width; label identifies what it represents.
+        int right = screenWidth - EDGE;
+        String label = "스폰 침대";
+        graphics.text(font, label, right - font.width(label), 11, WHITE, true);
+        int displayWidth = Math.round(BAR_WIDTH * BAR_SCALE);
+        int barX = Math.max(EDGE, right - displayWidth);
+        int barY = 25;
+        int effectiveState = switch (preview) {
+            case OFF -> serverBedState;
+            case PLACED -> 1;
+            case UNPLACED -> 0;
+            case DESTROYED -> 2;
         };
-        int width = preview == Preview.PLACED ? Math.round(BAR_WIDTH * 0.86F) : BAR_WIDTH;
-        graphics.fill(barX, barY, barX + width, barY + BAR_HEIGHT, color);
+        String color = effectiveState == 1 ? "green" : effectiveState == 2 ? "red" : "yellow";
+        int progress = (preview == Preview.PLACED) ? Math.round(BAR_WIDTH * 0.86F) : BAR_WIDTH;
+        Identifier background = Identifier.fromNamespaceAndPath("minecraft", "boss_bar/" + color + "_background");
+        Identifier foreground = Identifier.fromNamespaceAndPath("minecraft", "boss_bar/" + color + "_progress");
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(barX, barY);
+        graphics.pose().scale(BAR_SCALE, 1.0F);
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, background, 0, 0, BAR_WIDTH, BAR_HEIGHT);
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, foreground,
+                BAR_WIDTH, BAR_HEIGHT, 0, 0, 0, 0, progress, BAR_HEIGHT);
+        graphics.pose().popMatrix();
 
         long toRaid = ticksUntilBedtime(dayTime);
         if (toRaid > 0L && toRaid <= WARNING_DURATION_TICKS) {
