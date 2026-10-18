@@ -39,7 +39,7 @@ public final class SpawnBedPrototype {
             return InteractionResult.PASS;
         }
         BlockPos foot = footPosition(clicked, state);
-        SpawnBedData data = SpawnBedData.get(serverPlayer.getServer().overworld());
+        SpawnBedData data = SpawnBedData.get((ServerLevel) world);
         if (data.registerFirst(serverPlayer.getUUID(), foot)) {
             serverPlayer.sendSystemMessage(Component.literal("§a스폰 침대가 등록되었습니다! §7(HP·리스폰 규칙은 개발 중)"));
             particles((ServerLevel) world, foot, true);
@@ -64,8 +64,7 @@ public final class SpawnBedPrototype {
         }
     }
 
-    public static boolean hasPlacedBed(ServerPlayer player) {
-        ServerLevel world = player.getServer().overworld();
+    public static boolean hasPlacedBed(ServerPlayer player, ServerLevel world) {
         BlockPos foot = SpawnBedData.get(world).getPosition(player.getUUID());
         // Unloaded chunks are unknown, not proof that the registered bed was destroyed.
         return foot != null && (!world.isLoaded(foot)

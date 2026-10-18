@@ -21,7 +21,7 @@ public final class SpawnBedData extends SavedData {
                     .xmap(SpawnBedData::new, data -> Map.copyOf(data.beds));
     private static final SavedDataType<SpawnBedData> TYPE =
             new SavedDataType<>(Identifier.fromNamespaceAndPath("beddefense", "spawn_beds"),
-                    SpawnBedData::new, CODEC);
+                    level -> new SpawnBedData(), level -> CODEC, null);
 
     private final Map<String, Long> beds;
 

@@ -86,7 +86,7 @@ public final class BedDefense implements ModInitializer {
                     ServerPlayNetworking.send(player, payload);
                     if (ServerPlayNetworking.canSend(player, BedStatusPayload.TYPE)) {
                         ServerPlayNetworking.send(player,
-                            new BedStatusPayload(SpawnBedPrototype.hasPlacedBed(player) ? 1 : 0));
+                            new BedStatusPayload(SpawnBedPrototype.hasPlacedBed(player, server.overworld()) ? 1 : 0));
                     }
                 }
             }
