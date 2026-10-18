@@ -60,7 +60,9 @@ jobs:
       - name: Run published EXE and initialize actual WPF UI
         shell: pwsh
         run: |
-          $p = Start-Process ./publish/BedDefense-Setup.exe -ArgumentList @('--smoke-test', '--manifest', "$pwd/release/manifest.json") -PassThru
+          dotnet run --project launcher/BedDefense.Tests -c Release -- --prepare-ui-fixture release "$pwd/ui-fixture"
+          if ($LASTEXITCODE -ne 0) { throw 'Existing profile UI fixture failed' }
+          $p = Start-Process ./publish/BedDefense-Setup.exe -ArgumentList @('--smoke-test', '--manifest', "$pwd/release/manifest.json", '--existing-root', "$pwd/ui-fixture") -PassThru
           if (-not $p.WaitForExit(60000)) { $p.Kill(); throw 'WPF smoke test timed out' }
           if ($p.ExitCode -ne 0) { Get-Content launcher-smoke.txt; throw 'WPF smoke failed' }
           Get-Content launcher-smoke.txt

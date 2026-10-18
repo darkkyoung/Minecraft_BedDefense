@@ -11,13 +11,23 @@ public sealed record Journal(string Id, string Phase, ReleaseManifest Manifest, 
 public sealed class InstallLock : IDisposable
 {
     private readonly FileStream stream;
+    private readonly FileStream? targetStream;
     public InstallLock(Installation installation)
     {
         var path = SafePaths.Under(installation.Root, ".beddefense-install.lock");
-        try { stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+        try
+        {
+            stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            try
+            {
+                Directory.CreateDirectory(installation.Instance);
+                targetStream = new FileStream(SafePaths.Under(installation.Instance, ".beddefense-target.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch { stream.Dispose(); throw; }
+        }
         catch (IOException e) { throw new IOException("다른 Bed Defense 설치 작업이 진행 중입니다.", e); }
     }
-    public void Dispose() => stream.Dispose();
+    public void Dispose() { targetStream?.Dispose(); stream.Dispose(); }
 }
 
 public sealed class FileTransaction(Installation installation)
@@ -39,9 +49,9 @@ public sealed class FileTransaction(Installation installation)
     }
     private HashSet<string> Allowed(ReleaseManifest manifest)
     {
-        var allowed = manifest.Files.Select(f => installation.Target(f, manifest)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var allowed = installation.ManagedFiles(manifest).Select(f => installation.Target(f, manifest)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         allowed.Add(installation.StatePath);
-        foreach (var p in installation.ProfilePaths()) allowed.Add(p);
+        if (!installation.IsExisting) foreach (var p in installation.ProfilePaths()) allowed.Add(p);
         return allowed;
     }
     private Journal ReadJournal()
@@ -54,7 +64,7 @@ public sealed class FileTransaction(Installation installation)
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var e in j.Entries)
         {
-            var target = SafePaths.Under(installation.Root, e.RelativeTarget);
+            var target = SafePaths.Under(installation.TransactionRoot, e.RelativeTarget);
             if (!allowed.Contains(target) || !seen.Add(target) || !Regex.IsMatch(e.BackupName, "^[0-9]+\\.bak$") ||
                 !Regex.IsMatch(e.NewHash, "^[0-9a-f]{64}$") || (e.OldHash is not null && !Regex.IsMatch(e.OldHash, "^[0-9a-f]{64}$")))
                 throw new IOException("안전하지 않은 복구 경로/해시입니다.");
@@ -69,7 +79,7 @@ public sealed class FileTransaction(Installation installation)
         // Preflight all entries before restoring any: never destroy a later external edit.
         foreach (var e in j.Entries)
         {
-            var target = SafePaths.Under(installation.Root, e.RelativeTarget);
+            var target = SafePaths.Under(installation.TransactionRoot, e.RelativeTarget);
             var current = File.Exists(target) ? Downloads.Hash(target) : null;
             if (current != e.OldHash && current != e.NewHash)
                 throw new IOException("복구 중 외부 변경을 발견했습니다. 백업을 보존했습니다: " + target);
@@ -81,7 +91,7 @@ public sealed class FileTransaction(Installation installation)
         }
         foreach (var e in j.Entries.Reverse())
         {
-            var target = SafePaths.Under(installation.Root, e.RelativeTarget);
+            var target = SafePaths.Under(installation.TransactionRoot, e.RelativeTarget);
             if (e.OldHash is null) { if (File.Exists(target)) File.Delete(target); }
             else AtomicWrite(target, File.ReadAllBytes(SafePaths.Under(BackupDir(j.Id), e.BackupName)));
         }
@@ -114,7 +124,7 @@ public sealed class FileTransaction(Installation installation)
                 if (Downloads.Hash(backup) != oldHash) throw new IOException("설치 중 원본 파일이 변경되었습니다.");
             }
             if (change.ExpectedOldHash is not null && oldHash != change.ExpectedOldHash) throw new IOException("프로필이 준비 중 변경되었습니다. 다시 시도해 주세요.");
-            entries.Add(new(Path.GetRelativePath(installation.Root, change.Target).Replace('\\', '/'), $"{i}.bak", oldHash, Downloads.Hash(change.Source)));
+            entries.Add(new(Path.GetRelativePath(installation.TransactionRoot, change.Target).Replace('\\', '/'), $"{i}.bak", oldHash, Downloads.Hash(change.Source)));
         }
         var journal = new Journal(id, "prepared", manifest, entries.ToArray());
         AtomicWrite(JournalPath, JsonSerializer.SerializeToUtf8Bytes(journal, ReleaseManifest.Json));

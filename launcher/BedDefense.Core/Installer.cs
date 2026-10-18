@@ -9,45 +9,57 @@ public sealed class Installer(Downloads downloads, Action assertIdle)
     {
         installation.ValidateExistingMinecraft();
         assertIdle();
+        if (installation.IsExisting && File.Exists(SafePaths.Under(installation.Instance, ".beddefense/transaction.json")))
+            throw new IOException("이 게임 폴더에 이전 독립 설치의 미완료 기록이 있습니다. 독립 환경 모드에서 먼저 복구해 주세요.");
         using var operation = new InstallLock(installation);
         return new FileTransaction(installation).Recover();
     }
     public async Task Install(Installation installation, ReleaseManifest manifest, IProgress<InstallProgress>? progress = null, CancellationToken ct = default)
     {
         manifest.Validate(); installation.ValidateExistingMinecraft(); assertIdle();
+        if (installation.IsExisting && File.Exists(SafePaths.Under(installation.Instance, ".beddefense/transaction.json")))
+            throw new IOException("이 게임 폴더에 이전 독립 설치의 미완료 기록이 있습니다. 독립 환경 모드에서 먼저 복구해 주세요.");
         using var operation = new InstallLock(installation);
         var transaction = new FileTransaction(installation);
         transaction.Recover();
         var old = installation.Installed();
         if (old is not null && old.BuildNumber > manifest.BuildNumber) throw new IOException("설치된 버전보다 오래된 배포입니다. 자동 다운그레이드는 하지 않습니다.");
         installation.CheckModConflicts();
+        CompatibilityReport? compatibility = installation.IsExisting ? ModCompatibility.Check(installation, manifest) : null;
+        var originalBedHash = File.Exists(installation.BedDefenseTarget) ? Downloads.Hash(installation.BedDefenseTarget) : null;
         foreach (var f in manifest.Files.Where(f => f.Role is "beddefense" or "fabricApi" or "fabricProfile"))
-            if (old is null && File.Exists(installation.Target(f, manifest))) throw new IOException("이 설치기가 소유하지 않은 대상 파일이 있습니다: " + installation.Target(f, manifest));
+            if (!installation.IsExisting && old is null && File.Exists(installation.Target(f, manifest))) throw new IOException("이 설치기가 소유하지 않은 대상 파일이 있습니다: " + installation.Target(f, manifest));
         Directory.CreateDirectory(installation.Control);
         var stage = SafePaths.Under(installation.Control, "staging/" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(stage);
         try
         {
             var changes = new List<FileChange>();
-            for (var i = 0; i < manifest.Files.Length; i++)
+            var files = installation.ManagedFiles(manifest).ToArray();
+            for (var i = 0; i < files.Length; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                var file = manifest.Files[i];
+                var file = files[i];
                 var target = installation.Target(file, manifest);
                 var index = i;
-                progress?.Report(new("파일 확인: " + file.Name, 5 + 70.0 * index / manifest.Files.Length));
+                progress?.Report(new("파일 확인: " + file.Name, 5 + 70.0 * index / files.Length));
                 if (File.Exists(target) && new FileInfo(target).Length == file.Size && Downloads.Hash(target).Equals(file.Sha256, StringComparison.OrdinalIgnoreCase))
-                { Installation.ValidatePayload(target, file, manifest); continue; }
+                { Installation.ValidatePayload(target, file, manifest);
+                    if (installation.IsExisting) ModCompatibility.Check(installation, manifest, target);
+                    continue; }
                 if (file.Role == "library" && File.Exists(target)) throw new IOException("공유 Fabric 라이브러리의 내용이 다릅니다. 다른 프로필 보호를 위해 덮어쓰지 않습니다: " + target);
                 var temp = SafePaths.Under(stage, $"payload-{i}.tmp");
-                await downloads.Download(file, temp, new InlineProgress<double>(fraction => progress?.Report(new("다운로드: " + file.Name, 5 + 70.0 * (index + fraction) / manifest.Files.Length))), ct);
+                await downloads.Download(file, temp, new InlineProgress<double>(fraction => progress?.Report(new("다운로드: " + file.Name, 5 + 70.0 * (index + fraction) / files.Length))), ct);
                 Installation.ValidatePayload(temp, file, manifest);
-                changes.Add(new(target, temp, RequireAbsent: file.Role == "library" || old is null));
+                if (installation.IsExisting) ModCompatibility.Check(installation, manifest, temp);
+                changes.Add(new(target, temp,
+                    ExpectedOldHash: installation.IsExisting ? originalBedHash : null,
+                    RequireAbsent: installation.IsExisting ? originalBedHash is null : file.Role == "library" || old is null));
             }
             ct.ThrowIfCancellationRequested(); assertIdle(); installation.CheckModConflicts();
-            progress?.Report(new("프로필 백업 및 등록 준비", 80));
+            progress?.Report(new(installation.IsExisting ? "Bed Defense 백업 및 적용 준비" : "프로필 백업 및 등록 준비", 80));
             var profileIndex = 0;
-            foreach (var path in installation.ProfilePaths())
+            foreach (var path in installation.IsExisting ? Array.Empty<string>() : installation.ProfilePaths())
             {
                 var staged = SafePaths.Under(stage, $"profile-{profileIndex++}.json");
                 var expected = Downloads.Hash(path);
@@ -56,14 +68,18 @@ public sealed class Installer(Downloads downloads, Action assertIdle)
                 changes.Add(new(path, staged, expected));
             }
             var state = SafePaths.Under(stage, "installed.json");
-            File.WriteAllText(state, JsonSerializer.Serialize(manifest, ReleaseManifest.Json));
+            File.WriteAllText(state, installation.StateJson(manifest));
             changes.Add(new(installation.StatePath, state)); // State commits last, in the same recovery journal.
             Directory.CreateDirectory(SafePaths.Under(installation.Instance, "mods"));
-            Directory.CreateDirectory(SafePaths.Under(installation.Instance, "config"));
-            Directory.CreateDirectory(SafePaths.Under(installation.Instance, "saves"));
+            if (!installation.IsExisting)
+            {
+                Directory.CreateDirectory(SafePaths.Under(installation.Instance, "config"));
+                Directory.CreateDirectory(SafePaths.Under(installation.Instance, "saves"));
+            }
             progress?.Report(new("검증 완료 · 파일 적용 중 (종료하지 마세요)", 90));
-            transaction.Apply(manifest, changes, assertIdle);
-            progress?.Report(new("설치 완료 · 공식 런처에서 Bed Defense 26.3을 선택해 주세요.", 100));
+            compatibility?.AssertUnchanged(installation);
+            transaction.Apply(manifest, changes, () => { assertIdle(); compatibility?.AssertUnchanged(installation); });
+            progress?.Report(new("설치 완료 · 공식 런처에서 ‘" + (installation.ExistingProfile?.Name ?? "Bed Defense 26.3") + "’을 선택해 주세요.", 100));
         }
         finally
         {

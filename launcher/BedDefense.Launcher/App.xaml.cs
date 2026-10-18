@@ -23,13 +23,15 @@ public partial class App : Application
                 ? ReleaseManifest.Parse(File.ReadAllText(e.Args[fixtureIndex + 1]))
                 : await new ReleaseClient(downloads).Latest();
             window.ShowSmokeManifest(manifest);
+            var existingIndex = Array.IndexOf(e.Args, "--existing-root");
+            if (existingIndex >= 0) window.ShowSmokeExisting(manifest, e.Args[existingIndex + 1]);
             await window.Dispatcher.InvokeAsync(() => window.UpdateLayout(), System.Windows.Threading.DispatcherPriority.Render);
             var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap((int)window.ActualWidth, (int)window.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
             bmp.Render(window);
             var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
             encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
             using (var output = File.Create("launcher-smoke.png")) encoder.Save(output);
-            File.WriteAllText("launcher-smoke.txt", "PASS: WPF initialized, rendered, manifest parsed: " + manifest.Tag);
+            File.WriteAllText("launcher-smoke.txt", "PASS: WPF initialized, rendered, manifest parsed: " + manifest.Tag + (existingIndex >= 0 ? " · existing profile selection and mode switching verified" : ""));
             Shutdown(0);
         }
         catch (Exception error) { File.WriteAllText("launcher-smoke.txt", error.ToString()); Shutdown(1); }

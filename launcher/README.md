@@ -1,59 +1,61 @@
-# BED DEFENSE LAUNCHER — Phase L1
+# BED DEFENSE LAUNCHER — Phase L1 existing Fabric follow-up
 
 Windows 11 x64 · .NET 10 WPF · 사용자별 설치 · 관리자 권한 불필요.
-이 프로그램은 **공식 Minecraft Launcher의 설치 도우미**입니다. 계정 로그인, 게임 실행 엔진, 유료 게임/Java 재배포, 런처 자체 자동 업데이트를 구현하지 않습니다.
+공식 Minecraft Launcher의 설치 도우미이며 계정 인증과 실제 게임 실행은 공식 런처를 사용합니다.
 
-## 사용자 안내
+## 기존 Fabric에 설치 — 기본값
 
-1. [공식 Minecraft Launcher](https://www.minecraft.net/download)를 설치하고 로그인합니다. **순정 Java 26.3을 한 번 실행한 뒤 게임과 공식 런처를 모두 종료**합니다. 이 단계에서 게임과 Java 25를 공식 런처가 준비합니다.
-2. [Releases](https://github.com/darkkyoung/Minecraft_BedDefense/releases)에서 가장 최근 `dev-mc26.3-…` 배포의 **BedDefense-Setup.exe 하나**를 다운로드합니다. 별도 .NET 설치는 필요 없습니다. 개발 빌드 EXE는 아직 Authenticode 서명되지 않았습니다. 출처와 함께 제공하는 SHA-256을 확인하십시오.
-3. EXE 실행 → 표시된 Minecraft 폴더 확인 → **설치**. 다른 드라이브의 설치는 `launcher_profiles.json` 또는 `launcher_profiles_microsoft_store.json`이 있는 폴더를 선택합니다. `mods`나 개별 인스턴스 폴더가 아닙니다.
-4. **공식 런처 열기** → 공식 런처에서 **Bed Defense 26.3** 선택 → 플레이. 설치 목록에서 모드 적용 프로필 표시가 켜져 있어야 합니다. 지원되는 공식 프로필 자동 선택 API가 없어 자동 선택을 가장하지 않습니다.
-5. 이후 같은 EXE 실행 → 현재/최신 버전·변경 내역 확인 → **업데이트 설치**. 이미 실행한 설치기는 **업데이트 조회**로 새 배포를 확인합니다. 업데이트할 때마다 EXE를 다시 받을 필요가 없습니다.
+1. 기존 Fabric **26.3** 프로필을 공식 런처에서 한 번 실행합니다. 게임과 공식 런처를 종료합니다.
+2. [Releases](https://github.com/darkkyoung/Minecraft_BedDefense/releases)에서 최신 `dev-mc26.3-…`의 **BedDefense-Setup.exe**를 받습니다. 별도 .NET은 필요 없습니다. 이전 L1 EXE에는 새 프로필 선택 기능이 없으므로 이번에는 새 EXE를 받으십시오.
+3. 공식 Minecraft 데이터 폴더를 확인합니다. 다른 위치는 **폴더 선택**으로 `launcher_profiles.json` 또는 `launcher_profiles_microsoft_store.json`이 있는 루트를 선택합니다.
+4. **기존 Fabric에 설치 (기본)**에서 프로필을 선택하고 **실제 게임 폴더**를 확인합니다. 프로필에 `gameDir`가 없으면 Minecraft 루트, 있으면 해당 경로를 사용합니다. 사용자 지정 외부 드라이브, 상대 경로와 Windows 환경 변수도 해석합니다. 네트워크 경로·링크·정션·해석 불가 경로는 거부합니다.
+5. 호환성 검사를 통과하면 **설치**를 누릅니다. 설치한 뒤 **공식 런처 열기**에서 선택한 기존 프로필로 플레이합니다. 자동 프로필 선택은 지원하지 않습니다.
+6. 이후 **업데이트 조회 → 업데이트 설치**를 누릅니다. 현재/최신 빌드와 변경 내역을 표시하고 새 버전만 적용합니다.
 
-현재 실제 지원 버전은 **26.3 하나**, 채널은 **dev**입니다. 지원 Loader/API 조합이 바뀌는 향후 단계에서는 런처도 수동 업데이트해야 합니다. `stable`은 스키마에 채널을 분리해 확장할 수 있지만 UI에 제공하지 않습니다.
+기존 프로필 이름·ID·gameDir·실행 버전과 두 프로필 JSON 파일을 수정하지 않습니다. 신규 프로필을 만들지 않습니다. 같은 gameDir를 쓰는 프로필은 같은 mods를 공유합니다.
 
-## 기존 올블록과의 분리
+## 무엇을 변경하나요?
 
-기본 전용 폴더는 `%APPDATA%\.minecraft\instances\BedDefense_26.3`입니다. 다른 루트를 선택하면 그 아래 `instances\BedDefense_26.3`을 사용합니다.
+- 기존 환경에서는 **Bed Defense JAR만** 다운로드·교체합니다. 첫 설치는 `mods/beddefense-managed.jar`, 이미 Bed Defense가 하나 있으면 메타데이터의 ID로 식별해 **그 파일명 그대로** 교체합니다. 파일명이 예전 버전이어도 실제 버전은 화면과 내장 메타데이터 기준입니다.
+- 호환되는 Loader 및 API는 재사용합니다. 누락·불일치 시 이유를 안내하고 **변경하지 않습니다**. 필요하면 사용자가 공식 도구로 의존성을 준비한 뒤 다시 조회합니다. 자동 의존성 교체 동의 UI는 제공하지 않습니다.
+- Sodium/Iris/AllBlocks 등 다른 JAR, `saves`, `config`는 삭제·덮어쓰기하지 않습니다. JAR 내부 `depends`, `breaks`, `conflicts`, `provides`, 중첩 JAR을 검사합니다. 26.2용 모드가 섞이면 차단합니다.
+- 설치 상태·백업·복구 기록은 선택한 게임 폴더의 `.beddefense-existing`에 저장합니다. Minecraft 루트와 대상 게임 폴더의 잠금 파일로 중복 설치를 차단합니다.
+- 기존 환경에서 자동 판정할 수 없는 버전 조건, 서로 다른 중첩 의존성 버전, 의존성 재정의 파일, mods 하위 폴더 등은 보수적으로 중단합니다. Fabric 전체 의존성 해석기를 대체하지 않습니다. 충돌 해결을 위해 사용자 파일을 자동 수정하지 않습니다.
 
-- `mods`, `config`, `saves`는 이 인스턴스에서만 사용합니다.
-- 고정 관리 파일: `mods\beddefense-managed.jar`, `mods\fabric-api-managed.jar`.
-- Fabric 버전 ID와 프로필 키도 `beddefense-…` 전용입니다.
-- 기존 AllBlocks 프로필, 선택된 프로필, 다른 모드, 월드, 설정은 보존합니다.
-- 공용 `libraries`에 공식 Fabric 의존성이 없으면 추가합니다. 이미 같은 체크섬이면 재사용하고, 다른 내용이면 덮어쓰지 않고 중단합니다.
-- 외부에서 수동 복사한 Bed Defense/Fabric API가 같은 전용 mods 폴더에 있으면 충돌을 안내합니다. 자동 삭제하지 않습니다.
+## 독립 설치와 전환
+
+**독립 환경에 설치**를 선택하면 기존 L1 방식대로 `<Minecraft 루트>/instances/BedDefense_26.3`에 별도 mods/config/saves, 전용 Fabric 버전과 프로필을 구성합니다. Loader 0.19.5, API 0.163.0+26.3을 사용합니다. 다른 프로필은 보존합니다.
+
+**이전 독립 설치에서 기존 Fabric으로 전환** → 원하는 기존 프로필 선택 → **설치**. 이후 선택을 기억합니다. 이전 폴더·프로필·설정·월드는 삭제/이동하지 않습니다. 기존 월드를 옮기려면 별도로 백업 후 직접 복사해야 합니다. 전환은 최신 모드를 선택한 환경에 설치하는 방식입니다.
 
 ## 오류와 복구
 
-| 안내 | 조치 |
+| 상황 | 조치 |
 | --- | --- |
-| 공식 런처/26.3 없음 | 공식 런처 설치·로그인 후 순정 26.3을 한 번 실행하십시오. 임의의 게임 파일은 생성하지 않습니다. |
-| 비표준 경로 | 폴더 선택으로 실제 런처 데이터 루트를 지정하십시오. 공식 EXE를 못 찾으면 `공식 런처 열기`에서 직접 선택하십시오. |
-| Minecraft 실행 중 | 게임과 공식 런처를 닫으십시오. 보수적 보호를 위해 다른 Java/javaw 프로그램도 닫아야 합니다. 프로세스를 강제 종료하지 않습니다. |
-| 연결 오류/API 제한 | 기존 버전은 유지됩니다. 연결을 복구하거나 잠시 기다린 뒤 조회하십시오. 개인 토큰을 넣지 마십시오. |
-| 파일 크기/SHA-256 오류 | 적용 전 중단합니다. 다시 시도하되 반복되면 해당 배포를 관리자에게 알리십시오. |
-| 권한 오류/정션 | 일반 사용자에게 쓰기 권한이 있는 실제 로컬 폴더를 사용하십시오. 관리자 권한을 요구하거나 정션을 따라가지 않습니다. |
-| 교체 실패 | 기존 파일로 자동 롤백합니다. 백업은 `.beddefense\backups\<작업 ID>`에 남깁니다. |
-| 강제 종료/전원 종료 | 게임을 실행하지 말고 EXE를 다시 여십시오. `업데이트 조회`에서 남은 기록을 검사하고 복구합니다. 게임 실행 중에는 먼저 닫으라는 안내가 나옵니다. |
-| 복구 보류/외부 변경 발견 | 게임과 런처를 종료하고 다시 시도하십시오. `.beddefense`를 삭제하지 마십시오. 백업·기록을 보존하고 문제를 보고하십시오. 나중에 바뀐 사용자 파일을 자동 덮어쓰지 않습니다. |
-| 설치 파일 누락 | 최신 버전을 조회하고 `설치 확인 / 복구`를 누르십시오. 단, 공유 라이브러리 내용 충돌은 자동 복구하지 않습니다. |
+| 프로필 없음/26.3 없음 | 공식 런처에서 Fabric 26.3을 한 번 실행하거나 데이터 루트를 다시 선택합니다. 독립 설치도 선택할 수 있습니다. |
+| Loader/API 누락·불일치 | 표시된 요구 버전을 확인해 사용자께서 준비한 뒤 재조회합니다. 설치기는 기존 의존성을 변경하지 않습니다. |
+| 중복/충돌 JAR | 오류에 표시된 파일/모드 ID를 확인합니다. 설치기는 임의 삭제하지 않습니다. |
+| 게임 실행 중 | Minecraft, 공식 런처, 다른 java/javaw 프로그램을 닫습니다. 프로세스 강제 종료는 하지 않습니다. |
+| 네트워크/크기/SHA-256 실패 | 기존 JAR을 보존합니다. 연결 복구 후 다시 시도합니다. |
+| 파일 교체 실패 | 백업으로 자동 롤백합니다. `.beddefense-existing/backups`를 보존합니다. 독립 설치는 `.beddefense/backups`입니다. |
+| 설치 중 강제 종료 | 같은 프로필을 선택해 다시 조회합니다. 네트워크 조회 전에 복구합니다. 복구 완료 전 게임을 실행하지 마십시오. |
+| 프로필/다른 모드가 검사 후 변경됨 | 파일 적용을 중단합니다. 새 상태를 확인하고 재조회합니다. |
+| 복구 보류 | 백업·transaction.json을 지우지 말고 오류와 배포 태그를 알려 주세요. 이후 외부 변경 파일을 자동 덮어쓰지 않습니다. |
 
-백업에는 공식 프로필 JSON도 포함됩니다. 계정 관련 로컬 정보가 포함될 수 있으므로 **백업 전체를 공개 이슈에 올리지 마십시오**. 오류 문구와 배포 태그만 먼저 제공하십시오. 성공한 작업의 백업 및 강제 종료로 남은 staging 폴더는 자동 정리하지 않습니다. 설치/복구가 모두 끝났고 `transaction.json`이 없을 때만 필요에 따라 과거 백업을 정리하십시오.
+백업에 개인 프로필 정보가 포함될 수 있으므로 백업 전체를 공개하지 마십시오. 코드 서명과 런처 자체 업데이트는 후속 단계입니다.
 
 ## 개발 구조
 
-- `BedDefense.Core`: 매니페스트/출처/경로 검증, 제한된 HTTP 다운로드, SHA-256, 릴리스 선택, Fabric/JAR 검사, 설치 및 트랜잭션 복구. 외부 NuGet 패키지 없음.
-- `BedDefense.Launcher`: 한국어 WPF UI, Windows 앱 탐색, 프로세스 보호, 단일 EXE.
-- `BedDefense.Tests`: 패키지 없는 자동 테스트 실행기. 실제 프로세스 종료 후 복구 포함.
-- `scripts/prepare_release.py`: Gradle 출력과 공식 Fabric 메타데이터를 검증해 공개 배포를 준비.
-- `.github/workflows/launcher.yml`: Linux 모드 빌드 → Windows 테스트/EXE 게시/UI 실행 → main에서만 공개 배포.
-
-로컬 개발 (.NET 10 SDK):
+- `BedDefense.Core/ExistingProfiles.cs`: 공식 프로필 탐색, 버전 상속·실제 gameDir 해석, 변경 감지.
+- `ModCompatibility.cs`: Fabric 버전 조건 및 중첩 JAR 의존성 검사, 다른 파일 변경 감지.
+- `Installation`, `Installer`, `FileTransaction`: 설치 방식별 관리 범위, 검증 다운로드, 백업·원자적 교체·복구. 기존 환경의 트랜잭션 허용 범위는 Bed Defense JAR과 상태 파일뿐입니다.
+- `BedDefense.Launcher`: 한국어 WPF, 프로필/설치 방식 선택, Windows 앱 탐색, self-contained EXE.
+- `BedDefense.Tests`: 기존 테스트 및 외부 gameDir·의존성·보존·강제 종료 복구 테스트.
+- `.github/workflows/launcher.yml`: 모드 빌드 → Windows 검증/EXE/UI → main 공개 배포 → 공개 다운로드 검증.
 
 ```powershell
 dotnet run --project launcher/BedDefense.Tests -c Release
 dotnet publish launcher/BedDefense.Launcher -c Release -r win-x64 --self-contained true -p:DebugType=None -p:DebugSymbols=false -o publish
 ```
 
-CI와 배포 계약, 검증 경계는 [배포 파이프라인](../docs/LAUNCHER_PIPELINE.md), [수동 승인](../docs/LAUNCHER_ACCEPTANCE.md)을 확인하십시오.
+[배포 계약](../docs/LAUNCHER_PIPELINE.md) · [실기기 검증](../docs/LAUNCHER_ACCEPTANCE.md)

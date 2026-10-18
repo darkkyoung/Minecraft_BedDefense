@@ -6,15 +6,19 @@ The launcher workflow must be green, including Windows x64 publishing and WPF sm
 
 Actual release bundle tests validate all prepared JAR/JSON payloads and install them into a **synthetic** launcher root. Public-release validation repeats this using real GitHub Releases/Maven downloads. Published EXE smoke initializes and renders the real WPF window; after publication it also queries public updates. These are not claims of authenticated game launch.
 
+## Existing-profile automated gates
+
+Both official profile formats, absent/relative/external gameDir, existing compatible API reuse, only-one-download install, repeat update, original manual Bed Defense filename adoption, Sodium/Iris/AllBlocks/API/world/config byte preservation, duplicate/conflicting/wrong-version mods, nested incompatibility, missing API, old Loader, unsupported predicates, override refusal, concurrent profile/mod change, cross-root target locking, existing-mode rollback and real process termination recovery are tested. Actual prepared/public release payloads are installed in both modes and previous independent environment bytes are compared. Actual published WPF EXE exercises existing profile selection, gameDir resolution and independent-mode switching using fixtures.
+
 ## Physical Acceptance Pending — Windows 11 x64
 
-Use a legitimate Minecraft account and keep valuable worlds backed up. Do not use a live production world for the prototype.
+1. Keep a backup of important worlds. Close the game and official Launcher after running the desired **Fabric 26.3** profile once.
+2. Download the new `BedDefense-Setup.exe` (launcher 0.2.0). Confirm **기존 Fabric에 설치 (기본)** and select your profile. Check the displayed actual gameDir. Note the names/hashes of Sodium, Iris, API, other mods, config and saves before install.
+3. Press **설치**. Confirm one Bed Defense JAR, unchanged API/other mods, and unchanged profile name/ID/gameDir/lastVersionId. No new profile should appear.
+4. Open official Launcher and run the **same existing profile**. Confirm the current Bed Defense prototype HUD loads. Real mod interactions, graphics mods and Java runtime boot remain physical acceptance.
+5. After the next successful dev release, use the same EXE's update buttons. Confirm new build, exactly one Bed Defense JAR and preserved other files/worlds. Test running-game refusal and offline error preservation.
+6. On a backed-up test environment, select an incompatible/missing API or 26.2-mod configuration. Expect installation disabled with a specific reason and no dependency changes.
+7. If previously independently installed, use **이전 독립 설치에서 기존 Fabric으로 전환**, select the target and install. Verify the old instance/profile/worlds remain. No automatic world transfer is expected.
+8. If desired, select **독립 환경에 설치** to check the retained original L1 flow. Repeat with a nondefault root and external gameDir if used.
 
-1. Note the AllBlocks 26.2 launcher profile and its files. Run vanilla **26.3** once in the official Launcher, exit game, then close Launcher.
-2. Download `BedDefense-Setup.exe` from the successful dev Release, run it as a normal user, verify the displayed root. Press **설치**. Expected: progress completes, Loader/API/Bed Defense installed state and latest build appear.
-3. Press **공식 런처 열기**, select **Bed Defense 26.3**. Launch and create a disposable world. Confirm existing Bed Defense HUD/first-bed prototype loads; check `latest.log` contains the expected Loader/API/mod version and Java 25. Confirm AllBlocks profile/world files remain unchanged.
-4. While Minecraft is running, attempt **설치 확인 / 복구**: it must refuse. Also test while official Launcher is open. Close both before retrying.
-5. After another successful main build, reopen the same EXE or press **업데이트 조회**; press **업데이트 설치**. Confirm new build number, exactly one `beddefense-managed.jar`, unchanged world/config/other mods, and successful game launch.
-6. Disconnect networking before update: error should leave installed version usable. Reconnect and retry. For unusual installations, repeat with a custom root selected using **폴더 선택**.
-
-Still pending until user evidence: actual Store/Win32 Launcher discovery on the user's PC, registered profile shown/selected, Java 25 runtime game boot, in-game mod compatibility, actual later-build update on that PC, custom launcher roots, and Windows Defender/SmartScreen presentation for the unsigned EXE. Do not describe all functionality as physically accepted merely because CI compiles or WPF smoke passes.
+Pending user evidence: Store/Win32 Launcher discovery on the user's PC, profile display and real authenticated game boot, Java 25 runtime, actual modpack interactions, subsequent dev update on that PC, custom roots and unsigned EXE SmartScreen behavior. CI fixtures and WPF execution are not physical game acceptance.

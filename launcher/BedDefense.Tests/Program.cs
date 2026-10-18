@@ -8,7 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using BedDefense.Core;
 
-internal static class Program
+internal static partial class Program
 {
     private static int passed;
     private static void Check(bool value, string name) { if (!value) throw new Exception("FAIL: " + name); Console.WriteLine("PASS: " + name); passed++; }
@@ -20,12 +20,16 @@ internal static class Program
     {
         try
         {
-            if (args.FirstOrDefault() == "--crash")
+            if (args.FirstOrDefault() is "--crash" or "--crash-existing")
             {
-                var installation = new Installation(args[1]);
+                var installation = new Installation(args[1], args[0] == "--crash-existing" ? ExistingProfiles.Resolve(args[1], args[4], args[5]) : null);
                 var m = ReleaseManifest.Parse(File.ReadAllText(args[2]));
                 new FileTransaction(installation).Apply(m, [new(installation.Target(m.Files[0], m), args[3])], afterWrite: _ => Environment.Exit(73));
                 return 2;
+            }
+            if (args.FirstOrDefault() == "--prepare-ui-fixture")
+            {
+                PrepareUiFixture(args[1], args[2]); return 0;
             }
             if (args.FirstOrDefault() == "--validate-bundle")
             {
@@ -48,18 +52,20 @@ internal static class Program
                     Check(installation.Healthy(m), "public GitHub Release downloaded and installed in isolated Windows fixture");
                     await new Installer(downloads, () => { }).Install(installation, m);
                     Check(installation.Healthy(m), "repeat live update is idempotent");
+                    await ExistingBundle(installation, m, downloads);
                     Console.WriteLine("LIVE RELEASE: " + m.Tag);
                 }
                 finally { Directory.Delete(root, true); }
                 return 0;
             }
             await Tests();
+            await ExistingTests();
             Console.WriteLine($"{passed} assertions passed"); return 0;
         }
         catch (Exception e) { Console.Error.WriteLine(e); return 1; }
     }
     private static string Temp() { var p = Path.Combine(Path.GetTempPath(), "beddefense-tests-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(p); return p; }
-    private static Installation CreateMinecraft(string root)
+    private static Installation CreateMinecraft(string root, bool isolatedControl = true)
     {
         Directory.CreateDirectory(Path.Combine(root, "versions", "26.3"));
         File.WriteAllText(Path.Combine(root, "versions", "26.3", "26.3.json"), """{"id":"26.3","javaVersion":{"majorVersion":25}}""");
@@ -67,7 +73,7 @@ internal static class Program
         foreach (var p in new[] { "launcher_profiles.json", "launcher_profiles_microsoft_store.json" })
             File.WriteAllText(Path.Combine(root, p), """{"profiles":{"allblocks":{"name":"AllBlocks 26.2","gameDir":"D:\\AllBlocks","lastVersionId":"fabric-26.2"}},"selectedProfile":"allblocks","settings":{"keep":true}}""");
         var i = new Installation(root);
-        Directory.CreateDirectory(i.Control);
+        if (isolatedControl) Directory.CreateDirectory(i.Control);
         return i;
     }
     private static byte[] Jar(string id, string version, string mc = "~26.3")
@@ -118,6 +124,7 @@ internal static class Program
             var i = CreateMinecraft(root);
             await new Installer(downloads, () => { }).Install(i, m);
             Check(i.Healthy(m), "actual release bundle end-to-end fixture install");
+            await ExistingBundle(i, m, downloads);
         }
         finally { Directory.Delete(root, true); }
     }

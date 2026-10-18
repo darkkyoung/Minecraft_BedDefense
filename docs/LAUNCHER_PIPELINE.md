@@ -31,7 +31,7 @@ Assets: `BedDefense-Setup.exe`, EXE SHA-256 sidecar, `beddefense-*.jar`, `fabric
 
 Client lists up to 1,000 recent releases, filters public complete dev/26.3 releases by exact tag grammar, and selects the greatest build number rather than `/releases/latest` (which excludes prereleases). A corrupt/incompatible newest manifest fails closed; it does not silently claim an older release is current. No automatic downgrade. A future larger catalog should introduce a version/channel index or pagination policy before reaching this bound. A future stable channel needs explicit UI and selection policy; unknown dependency versions/schema fail closed and require a manually updated launcher.
 
-## Transaction and isolation
+## Independent-mode transaction and isolation (original L1)
 
 - User-selected launcher root must already contain recognized profile JSON and the official vanilla 26.3 JSON/JAR. No fabricated game installation.
 - Instance is always `<root>/instances/BedDefense_26.3`; no arbitrary remote destination.
@@ -46,6 +46,20 @@ Client lists up to 1,000 recent releases, filters public complete dev/26.3 relea
 - Fixed mod filenames prevent update-created duplicates. Manual duplicate mod IDs are detected and reported without deleting user files.
 
 No program can interlock with a game process launched by the user after a process check; close game/launcher throughout the operation. Atomic rename plus journal recovery protects common interruption cases, but power loss/disk corruption can still require preserved backups and manual assistance. Tests cover process death, not physical power-failure filesystem durability. State is local user data, not a signed trust boundary against another process already running as that user. Release hashes are anchored to the trusted repository/HTTPS channel; no detached signature or Authenticode certificate is provided in L1.
+
+## Existing Fabric mode (launcher 0.2.0, default)
+
+Follow-up starts from `9fbf2b81c37cf15b03ef107d9efc30b204d56092`. Gameplay source remains unchanged.
+
+Discovery reads both official profile files and follows version JSON inheritance with cycle/depth bounds. Metadata must resolve to Fabric Knot client + Minecraft 26.3; Loader is read from library coordinates. Profile `gameDir` is resolved without rewriting the profile. Missing gameDir uses the launcher root. Nonstandard local paths, including outside the launcher root, are supported; network paths/reparse points fail closed.
+
+Existing mode owns only the selected Bed Defense JAR and `.beddefense-existing/installed.json`, plus its staging/backups/journal/locks. One existing Bed Defense top-level JAR is adopted at its original safe basename. The chosen basename is recorded in local state. Duplicate/nested Bed Defense, unrelated files at the managed name, and unsafe filenames block installation. Transaction paths are relative to the gameDir, and the allowlist excludes API, shared libraries, launcher profiles, other mods, saves and config. Original independent-mode journals remain compatible. Root plus target-directory locks also serialize different launcher roots sharing one gameDir. An unfinished legacy transaction on the same gameDir blocks existing mode until recovered in independent mode.
+
+Compatible installed Loader/API are reused, with no download or mutation. Required Loader version is checked against the release and incoming JAR metadata. Installed API is matched by ID and its Minecraft/Loader requirements, not forced to the independent bundle's exact API version. All available client-side top-level/nested mod metadata is inspected for required dependencies and declared breaks/conflicts; aliases are included. Different nested versions, unsupported predicates, dependency overrides and mods subdirectories fail closed rather than implementing Fabric's SAT solver. Version predicates follow Fabric numeric components, prerelease/build, exact/comparator/AND, array OR, wildcard, tilde and same-major caret semantics. References: https://docs.fabricmc.net/develop/loader/fabric-mod-json and https://github.com/FabricMC/fabric-loader/blob/master/src/main/java/net/fabricmc/loader/api/metadata/version/VersionComparisonOperator.java . This is a conservative preflight, not proof of in-game mixin compatibility or an exhaustive modpack validator.
+
+Before each write, revalidate the selected profile/version metadata and byte hashes of other mods. Unknown or conflicting dependency state blocks before modification; there is no implicit permission to change dependencies. A switch from independent to existing mode installs current Bed Defense into the selected environment and leaves the old profile/instance/worlds in place. User settings remember the selected target. Old root-only settings migrate to existing mode by default. Recovery runs before querying the network.
+
+Windows CI retains the original tests, adds preservation/conflict/crash tests, installs the actual release bundle in both modes, and executes the actual WPF EXE against a synthetic existing profile to verify default selection, resolved gameDir and mode switching. Public release verification repeats both-mode install and idempotent update using published payloads.
 
 ## Self update / future versions
 

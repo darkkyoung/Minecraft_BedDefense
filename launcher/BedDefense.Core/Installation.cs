@@ -9,15 +9,40 @@ public sealed class Installation
     public string Root { get; }
     public string Instance { get; }
     public string Control { get; }
+    public FabricProfile? ExistingProfile { get; }
+    public bool IsExisting => ExistingProfile is not null;
+    public string TransactionRoot => IsExisting ? Instance : Root;
+    public string BedDefenseTarget { get; }
+    public IEnumerable<Payload> ManagedFiles(ReleaseManifest manifest) => IsExisting ? manifest.Files.Where(f => f.Role == "beddefense") : manifest.Files;
     public string ProfileKey => "beddefense-managed-26.3";
     public string StatePath => SafePaths.Under(Control, "installed.json");
-    public Installation(string root)
+    public Installation(string root, FabricProfile? existing = null)
     {
         if (!Path.IsPathFullyQualified(root) || root.StartsWith(@"\\")) throw new IOException("로컬 Minecraft 폴더를 선택해 주세요.");
         Root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
         SafePaths.NoLinks(Root);
-        Instance = SafePaths.Under(Root, "instances/BedDefense_26.3");
-        Control = SafePaths.Under(Instance, ".beddefense");
+        ExistingProfile = existing;
+        if (existing is not null)
+        {
+            if (existing.Problem is not null) throw new IOException(existing.Problem);
+            ExistingProfiles.Unchanged(Root, existing);
+        }
+        Instance = existing?.GameDirectory ?? SafePaths.Under(Root, "instances/BedDefense_26.3");
+        Control = SafePaths.Under(Instance, IsExisting ? ".beddefense-existing" : ".beddefense");
+        BedDefenseTarget = SafePaths.Under(Instance, "mods/beddefense-managed.jar");
+        if (IsExisting)
+        {
+            var name = File.Exists(StatePath) ? JsonNode.Parse(File.ReadAllText(StatePath))?["managedJar"]?.GetValue<string>() : null;
+            if (name is null)
+            {
+                var beds = ModCompatibility.JarPaths(this).Where(p => JarId(p) == "beddefense").ToArray();
+                if (beds.Length > 1) throw new IOException("Bed Defense JAR이 여러 개입니다. 자동 삭제하지 않습니다.");
+                name = beds.Length == 1 ? Path.GetFileName(beds[0]) : "beddefense-managed.jar";
+            }
+            SafePaths.FileName(name);
+            if (!name.EndsWith(".jar", StringComparison.OrdinalIgnoreCase)) throw new IOException("관리 대상 JAR 이름 오류");
+            BedDefenseTarget = SafePaths.Under(Instance, "mods/" + name);
+        }
     }
     public string[] ProfilePaths() => new[] { "launcher_profiles.json", "launcher_profiles_microsoft_store.json" }
         .Select(n => SafePaths.Under(Root, n)).Where(File.Exists).ToArray();
@@ -25,6 +50,7 @@ public sealed class Installation
     {
         if (!Directory.Exists(Root) || ProfilePaths().Length == 0)
             throw new IOException("공식 Minecraft Launcher 설치 정보를 찾지 못했습니다. 공식 런처를 설치·실행하거나 올바른 Minecraft 폴더를 선택해 주세요.");
+        if (ExistingProfile is not null) ExistingProfiles.Unchanged(Root, ExistingProfile);
         var vanilla = SafePaths.Under(Root, "versions/26.3/26.3.json");
         var jar = SafePaths.Under(Root, "versions/26.3/26.3.jar");
         if (!File.Exists(vanilla) || !File.Exists(jar))
@@ -39,7 +65,7 @@ public sealed class Installation
     public ReleaseManifest? Installed() => File.Exists(StatePath) ? ReleaseManifest.Parse(File.ReadAllText(StatePath)) : null;
     public string Target(Payload file, ReleaseManifest manifest) => file.Role switch
     {
-        "beddefense" => SafePaths.Under(Instance, "mods/beddefense-managed.jar"),
+        "beddefense" => BedDefenseTarget,
         "fabricApi" => SafePaths.Under(Instance, "mods/fabric-api-managed.jar"),
         "fabricProfile" => SafePaths.Under(Root, $"versions/{manifest.VersionId}/{manifest.VersionId}.json"),
         "library" => SafePaths.Under(Root, "libraries/" + file.LibraryPath),
@@ -49,7 +75,8 @@ public sealed class Installation
     {
         try
         {
-            foreach (var f in manifest.Files) Downloads.Verify(Target(f, manifest), f.Size, f.Sha256);
+            foreach (var f in ManagedFiles(manifest)) Downloads.Verify(Target(f, manifest), f.Size, f.Sha256);
+            if (IsExisting) { ModCompatibility.Check(this, manifest, BedDefenseTarget); return true; }
             foreach (var p in ProfilePaths())
             {
                 var profile = JsonNode.Parse(File.ReadAllText(p))?["profiles"]?[ProfileKey];
@@ -61,6 +88,7 @@ public sealed class Installation
     }
     public byte[] UpdatedProfile(string path, ReleaseManifest manifest)
     {
+        if (IsExisting) throw new IOException("기존 프로필은 변경할 수 없습니다.");
         var root = JsonNode.Parse(File.ReadAllText(path))?.AsObject() ?? throw new InvalidDataException("프로필 JSON 오류");
         var profiles = root["profiles"]?.AsObject() ?? throw new InvalidDataException("프로필 목록 없음");
         var existing = profiles[ProfileKey];
@@ -75,6 +103,7 @@ public sealed class Installation
     }
     public void CheckModConflicts()
     {
+        if (IsExisting) return; // Existing mode uses the full metadata preflight.
         var mods = SafePaths.Under(Instance, "mods");
         if (!Directory.Exists(mods)) return;
         foreach (var path in Directory.EnumerateFiles(mods, "*.jar"))
@@ -87,6 +116,12 @@ public sealed class Installation
             if (id is "beddefense" or "fabric-api")
                 throw new IOException("중복 모드를 발견했습니다. 이 전용 폴더의 파일을 다른 폴더로 옮겨 주세요: " + path);
         }
+    }
+    public string StateJson(ReleaseManifest manifest)
+    {
+        var node = JsonSerializer.SerializeToNode(manifest, ReleaseManifest.Json)!;
+        if (IsExisting) node["managedJar"] = Path.GetFileName(BedDefenseTarget);
+        return node.ToJsonString(ReleaseManifest.Json);
     }
     public static string? JarId(string path)
     {
