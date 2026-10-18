@@ -59,6 +59,9 @@ public sealed class Downloads : IDisposable
     }
     public async Task<string> Text(string url, CancellationToken ct = default)
     {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(TimeSpan.FromSeconds(60));
+        ct = deadline.Token;
         using var response = await Get(url, ct);
         if (response.Content.Headers.ContentLength > 2 * 1024 * 1024) throw new InvalidDataException("배포 정보가 너무 큽니다.");
         await using var input = await response.Content.ReadAsStreamAsync(ct);
@@ -74,6 +77,9 @@ public sealed class Downloads : IDisposable
     }
     public async Task Download(Payload file, string destination, IProgress<double>? progress = null, CancellationToken ct = default)
     {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(TimeSpan.FromMinutes(3));
+        ct = deadline.Token;
         SafePaths.NoLinks(destination);
         using var response = await Get(file.Url, ct);
         if (response.Content.Headers.ContentLength is long length && length != file.Size)

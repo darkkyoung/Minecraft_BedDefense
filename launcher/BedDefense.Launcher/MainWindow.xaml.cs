@@ -76,7 +76,7 @@ public partial class MainWindow : Window
             var installed = installation.Installed();
             if (installed is not null && installed.BuildNumber == latest.BuildNumber && installation.Healthy(installed)) StatusText.Text = "최신 버전이 설치되어 있습니다.";
         }
-        catch (Exception e) { ErrorText.Text = e.Message; StatusText.Text = "조회/환경 확인 실패 · 기존 설치 파일은 유지됩니다."; }
+        catch (Exception e) { ErrorText.Text = e is OperationCanceledException ? "조회 시간이 초과되었습니다. 인터넷 연결을 확인하고 다시 시도해 주세요." : e.Message; StatusText.Text = "조회/환경 확인 실패 · 기존 설치 파일은 유지됩니다."; }
         finally { ProgressBar.IsIndeterminate = false; SetBusy(false); }
     }
     private async void Refresh_Click(object sender, RoutedEventArgs e) => await Refresh();
@@ -93,7 +93,7 @@ public partial class MainWindow : Window
             await Task.Run(() => new Installer(downloads, WindowsEnvironment.AssertIdle).Install(installation, selected, progress));
             ReadLocal();
         }
-        catch (Exception error) { ErrorText.Text = error.Message; StatusText.Text = "설치 중단 · 안내를 확인하고 다시 시도해 주세요."; }
+        catch (Exception error) { ErrorText.Text = error is OperationCanceledException ? "다운로드 시간이 초과되었습니다. 기존 설치 파일은 유지됩니다. 다시 시도해 주세요." : error.Message; StatusText.Text = "설치 중단 · 안내를 확인하고 다시 시도해 주세요."; }
         finally { SetBusy(false); }
     }
     private async void Browse_Click(object sender, RoutedEventArgs e)
