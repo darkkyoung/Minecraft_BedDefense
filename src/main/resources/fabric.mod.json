@@ -3,16 +3,15 @@
   "id": "beddefense",
   "version": "${version}",
   "name": "Bed Defense",
-  "description": "Minecraft 26.3 early technical prototype. Only the vanilla block crack debug test is active.",
+  "description": "Minecraft 26.3 technical prototype with frameless HUD and native block cracking test; raids are not implemented.",
   "authors": ["darkkyoung"],
   "contact": {
     "sources": "https://github.com/darkkyoung/Minecraft_BedDefense"
   },
   "environment": "*",
   "entrypoints": {
-    "main": [
-      "com.darkkyoung.beddefense.BedDefense"
-    ]
+    "main": ["com.darkkyoung.beddefense.BedDefense"],
+    "client": ["com.darkkyoung.beddefense.client.BedDefenseClient"]
   },
   "depends": {
     "fabricloader": ">=0.19.5",

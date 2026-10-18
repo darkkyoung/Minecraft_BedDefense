@@ -1,8 +1,11 @@
 package com.darkkyoung.beddefense;
 
+import com.darkkyoung.beddefense.network.ClockSyncPayload;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -15,20 +18,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A technical smoke test, not the finished raid/challenge implementation.
- * All block mutation is restricted to an explicit debug command.
+ * 26.3 technical prototype: server Overworld time sync, cobblestone cracks.
+ * Actual game raids / Spawn Bed rules will be implemented in later phases.
  */
 public final class BedDefense implements ModInitializer {
     public static final String MOD_ID = "beddefense";
     private static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    private static int hudClockSyncCounter;
 
     @Override
     public void onInitialize() {
+        PayloadTypeRegistry.clientboundPlay().register(ClockSyncPayload.TYPE, ClockSyncPayload.CODEC);
+
         CommandRegistrationCallback.EVENT.register((dispatcher, context, selection) ->
                 dispatcher.register(Commands.literal("beddefense")
                         .executes(ctx -> {
                             ctx.getSource().sendSuccess(
-                                    () -> Component.literal("[Bed Defense] 26.3 crack-overlay prototype. Try /beddefense debug cracks."),
+                                    () -> Component.literal("[Bed Defense] 26.3 HUD prototype. /bdhud preview (client); /beddefense debug cracks (server)."),
                                     false
                             );
                             return 1;
@@ -69,7 +75,20 @@ public final class BedDefense implements ModInitializer {
                 )
         );
 
-        ServerTickEvents.END_SERVER_TICK.register(BlockCrackDemo::tick);
-        LOGGER.info("Bed Defense 26.3 technical prototype initialized; real raid gameplay is not active.");
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            BlockCrackDemo.tick(server);
+            if (++hudClockSyncCounter < 20) {
+                return;
+            }
+            hudClockSyncCounter = 0;
+            long overworldTime = server.overworld().getDayTime();
+            ClockSyncPayload payload = new ClockSyncPayload(overworldTime);
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                if (ServerPlayNetworking.canSend(player, ClockSyncPayload.TYPE)) {
+                    ServerPlayNetworking.send(player, payload);
+                }
+            }
+        });
+        LOGGER.info("Bed Defense 26.3 HUD prototype initialized; no raid mechanics are currently active.");
     }
 }
