@@ -126,6 +126,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Publication failed' }
       - name: Verify public release downloads and updater on Windows
         shell: pwsh
+        env:
+          BEDDEFENSE_CI_GITHUB_TOKEN: ${{ github.token }}
         run: |
           dotnet run --project launcher/BedDefense.Tests -c Release -- --live-release
           if ($LASTEXITCODE -ne 0) { throw 'Published release validation failed' }

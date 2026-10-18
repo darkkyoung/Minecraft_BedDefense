@@ -36,6 +36,15 @@ public sealed class Downloads : IDisposable
         for (var i = 0; i < 6; i++)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            // Authenticated API reads ONLY for GitHub Actions release acceptance.
+            // Do not attach secrets to github.com asset links, Maven, or redirects.
+            if (uri.Host == "api.github.com" &&
+                Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
+                Environment.GetEnvironmentVariable("BEDDEFENSE_CI_GITHUB_TOKEN") is string ciToken &&
+                !string.IsNullOrWhiteSpace(ciToken))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ciToken);
+            }
             var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
             if ((int)response.StatusCode is >= 300 and < 400 && response.Headers.Location is not null)
             {
