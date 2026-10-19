@@ -59,7 +59,7 @@ public final class SpawnBedPrototype {
         removeBlocks(world,foot);
         if(!player.getInventory().add(item))player.spawnAtLocation(world,item);
         player.sendSystemMessage(Component.literal("§e스폰 침대 회수 · HP "+health.hp(owner)+" 유지 · 미설치 상태에서 사망하면 탈락합니다."));
-        RaidManager.survivalWarning(player,world.getServer());return true;
+        if(ChallengeData.get(world).running())RaidManager.survivalWarning(player,world.getServer());return true;
     }
     public static boolean isPortable(ItemStack item){return item.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag().contains("beddefense_token");}
     public static InteractionResult onUse(net.minecraft.world.entity.player.Player player,Level world,InteractionHand hand,BlockHitResult hit){
@@ -67,7 +67,8 @@ public final class SpawnBedPrototype {
         ServerLevel level=(ServerLevel)world,overworld=level.getServer().overworld();
         ItemStack held=player.getItemInHand(hand);
         if(isPortable(held)){
-            if(!ChallengeData.get(overworld).running())return InteractionResult.FAIL;
+            var challenge=ChallengeData.get(overworld);
+            if(!challenge.isStarted()||challenge.outcome()==ChallengeData.LOST||challenge.playerState(sp.getUUID())==ChallengeData.ELIMINATED)return InteractionResult.FAIL;
             return place(sp,level,held,hit)?InteractionResult.SUCCESS:InteractionResult.FAIL;
         }
         BlockState state=world.getBlockState(hit.getBlockPos());

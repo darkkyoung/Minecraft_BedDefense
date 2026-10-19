@@ -1,3 +1,5 @@
+> Historical feedback snapshot. Implementation status and superseding R1 decisions: [GAME_DESIGN.md](GAME_DESIGN.md), [R1_ACCEPTANCE.md](R1_ACCEPTANCE.md).
+
 # Bed Defense — 2026-10-19 user corrections / acceptance matrix
 
 Canonical design for the existing in-progress PR #1. **Not an assertion that gameplay is complete.**
