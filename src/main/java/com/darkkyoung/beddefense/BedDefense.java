@@ -37,16 +37,17 @@ public final class BedDefense implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(RaidStatusPayload.TYPE, RaidStatusPayload.CODEC);
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
             if(entity.level() instanceof ServerLevel level)
-                RaidManager.onMobDeath(entity,level.getServer());
+                {RaidManager.onMobDeath(entity,level.getServer());
+                if(entity instanceof ServerPlayer player)ChallengeLifecycle.death(player);
+                if(entity instanceof net.minecraft.world.entity.boss.enderdragon.EnderDragon)ChallengeLifecycle.dragonKilled(level.getServer());}
         });
-        ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
-            RaidStateData raid=RaidStateData.get(level.getServer().overworld());
-            if(raid.pendingCleanup(entity.getUUID())
-                    && level.dimension().equals(net.minecraft.world.level.Level.OVERWORLD)) {
-                entity.discard();
-                raid.completedCleanup(entity.getUUID());
-            }
+        ServerEntityEvents.ENTITY_LOAD.register(RaidManager::onLoad);
+        ServerEntityEvents.ENTITY_UNLOAD.register((entity,level)->{
+            if(entity.getRemovalReason()!=null&&entity.getRemovalReason().shouldDestroy())RaidManager.onMobDeath(entity,level.getServer());
+            else SiegeController.clear(entity.getUUID());
         });
+        ChallengeLifecycle.init();
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server->RaidManager.reset());
         SpawnBedPrototype.init();
         ChallengeMenu.init();
 
@@ -96,6 +97,20 @@ public final class BedDefense implements ModInitializer {
                                     ctx.getSource().sendSuccess(() -> Component.literal("§6[베드 디펜스] /beddefense debug cracks · preview"),false);
                                     return 1;
                                 })
+                                .then(Commands.literal("state").executes(ctx->{
+                                    ChallengeMenu.status(ctx.getSource().getPlayerOrException(),ctx.getSource().getServer());
+                                    var server=ctx.getSource().getServer();var p=ctx.getSource().getPlayerOrException();
+                                    ctx.getSource().sendSuccess(()->Component.literal("bed="+BedVitalData.get(server.overworld()).state(p.getUUID())+" hp="+BedVitalData.get(server.overworld()).hp(p.getUUID())+" player="+ChallengeData.get(server.overworld()).playerState(p.getUUID())+" remaining="+RaidStateData.get(server.overworld()).remaining()),false);return 1;
+                                }))
+                                .then(Commands.literal("day").then(Commands.argument("day",IntegerArgumentType.integer(1,101)).executes(ctx->{
+                                    var server=ctx.getSource().getServer();if(!ChallengeData.get(server.overworld()).running())return 0;
+                                    ChallengeData.get(server.overworld()).debugDay(IntegerArgumentType.getInteger(ctx,"day"),ChallengeMenu.overworldClock(server));return 1;
+                                })))
+                                .then(Commands.literal("raid").executes(ctx->{var server=ctx.getSource().getServer();RaidManager.run(server,"time of minecraft:overworld set 12542");return bool(RaidManager.launch(server,(int)ChallengeData.get(server.overworld()).day(ChallengeMenu.overworldClock(server))));}))
+                                .then(Commands.literal("hp").then(Commands.argument("hp",IntegerArgumentType.integer(0,100)).executes(ctx->{
+                                    var server=ctx.getSource().getServer();var p=ctx.getSource().getPlayerOrException();int hp=IntegerArgumentType.getInteger(ctx,"hp");
+                                    if(hp==0)SpawnBedPrototype.damage(server,p.getUUID(),100,"debug");else BedVitalData.get(server.overworld()).debugHealth(p.getUUID(),hp);return 1;
+                                })))
                                 .then(Commands.literal("preview").executes(ctx -> sendHud(ctx.getSource().getPlayerOrException(),1)))
                                 .then(Commands.literal("cracks")
                                         .executes(ctx -> {
@@ -117,12 +132,12 @@ public final class BedDefense implements ModInitializer {
                 )
         );
 
+        ServerTickEvents.START_SERVER_TICK.register(server->{ChallengeLifecycle.tick(server);RaidManager.tick(server);});
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             BlockCrackDemo.tick(server);
             ChallengeSetupWizard.tick(server);
-            RaidManager.tick(server);
             SpawnBedPrototype.tick(server);
-            if (++hudClockSyncCounter < 20) {
+            if (++hudClockSyncCounter < 4) {
                 return;
             }
             hudClockSyncCounter = 0;
@@ -130,12 +145,12 @@ public final class BedDefense implements ModInitializer {
             ChallengeData challenge = ChallengeData.get(server.overworld());
             long elapsed = challenge.elapsedTicks(server.overworld().getGameTime());
             long day = challenge.day(overworldTime);
-            ClockSyncPayload payload = new ClockSyncPayload(overworldTime, elapsed, day);
+            ClockSyncPayload payload = new ClockSyncPayload(overworldTime, elapsed, day, challenge.outcome());
             RaidStateData raid=RaidStateData.get(server.overworld());
             RaidStatusPayload raidPayload=new RaidStatusPayload(
-                raid.active()?(int)raid.activeDay():0,
-                raid.active()?raid.remaining():0,
-                raid.active()?raid.totalSpawned():0);
+                raid.remaining()>0?Math.max(1,(int)raid.activeDay()):0,
+                raid.remaining(),
+                raid.totalSpawned());
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 if (ServerPlayNetworking.canSend(player, ClockSyncPayload.TYPE)) {
                     ServerPlayNetworking.send(player, payload);
@@ -150,7 +165,7 @@ public final class BedDefense implements ModInitializer {
                 }
             }
         });
-        LOGGER.info("Bed Defense 26.3 Korean HUD v2 prototype initialized; real raids and bed HP are not implemented.");
+        LOGGER.info("Bed Defense R1: persistent challenge, unique beds and daily raids initialized.");
     }
     private static int setup(net.minecraft.server.MinecraftServer server,ServerPlayer player) {
         return bool(ChallengeSetupWizard.begin(server,player));

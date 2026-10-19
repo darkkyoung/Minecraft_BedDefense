@@ -10,56 +10,52 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 
-/**
- * A separate saved record keeps the old alpha.4 positional registry readable.
- *
- * States: 0 not registered; 1 installed; 2 raid-destroyed permanently;
- *         3 manually removed (yellow). HP persists through state 3.
- */
+/** States: 0 unregistered, 1 placed, 2 permanently destroyed, 3 carried. */
 public final class BedVitalData extends SavedData {
-    public static final int MAX_HEALTH = 100;
-    private static final Codec<BedVitalData> CODEC = RecordCodecBuilder.create(i->i.group(
-        Codec.unboundedMap(Codec.STRING,Codec.INT).fieldOf("hp").forGetter(x->Map.copyOf(x.hp)),
-        Codec.unboundedMap(Codec.STRING,Codec.INT).fieldOf("states").forGetter(x->Map.copyOf(x.states))
+    public static final int MAX_HEALTH=100;
+    public static final Codec<BedVitalData> CODEC=RecordCodecBuilder.create(i->i.group(
+        Codec.unboundedMap(Codec.STRING,Codec.INT).fieldOf("hp").forGetter(d->Map.copyOf(d.hp)),
+        Codec.unboundedMap(Codec.STRING,Codec.INT).fieldOf("states").forGetter(d->Map.copyOf(d.states)),
+        Codec.unboundedMap(Codec.STRING,Codec.STRING).optionalFieldOf("tokens",Map.of()).forGetter(d->Map.copyOf(d.tokens)),
+        Codec.unboundedMap(Codec.STRING,Codec.STRING).optionalFieldOf("causes",Map.of()).forGetter(d->Map.copyOf(d.causes))
     ).apply(i,BedVitalData::new));
-    private static final SavedDataType<BedVitalData> TYPE =
-            new SavedDataType<>(Identifier.fromNamespaceAndPath("beddefense","bed_vitals"),
-                BedVitalData::new,CODEC,null);
-    private final Map<String,Integer> hp;
-    private final Map<String,Integer> states;
-
-    private BedVitalData() { this(Map.of(),Map.of()); }
-    private BedVitalData(Map<String,Integer> hp,Map<String,Integer> states) {
-        this.hp=new HashMap<>(hp);
-        this.states=new HashMap<>(states);
+    static final SavedDataType<BedVitalData> TYPE=new SavedDataType<>(Identifier.fromNamespaceAndPath("beddefense","bed_vitals"),BedVitalData::new,CODEC,null);
+    private final Map<String,Integer> hp,states;
+    private final Map<String,String> tokens,causes;
+    public BedVitalData(){this(Map.of(),Map.of(),Map.of(),Map.of());}
+    private BedVitalData(Map<String,Integer> hp,Map<String,Integer> states,Map<String,String> tokens,Map<String,String> causes){
+        this.hp=new HashMap<>(hp);this.states=new HashMap<>(states);this.tokens=new HashMap<>(tokens);this.causes=new HashMap<>(causes);
     }
-    public static BedVitalData get(ServerLevel world) { return world.getDataStorage().computeIfAbsent(TYPE); }
-    public int state(UUID owner) { return states.getOrDefault(owner.toString(),0); }
-    public int hp(UUID owner) { return hp.getOrDefault(owner.toString(),0); }
-    public void register(UUID owner) {
-        String id=owner.toString();
-        if (states.containsKey(id)) return;
-        states.put(id,1);hp.put(id,MAX_HEALTH);setDirty();
-    }
-    public boolean unplace(UUID owner) {
-        String id=owner.toString();
-        if (state(owner)!=1) return false;
-        states.put(id,3);setDirty();return true;
-    }
-    public int damage(UUID owner, int amount) {
-        String id=owner.toString();
-        if (state(owner)!=1||amount<=0) return hp(owner);
-        int next=Math.max(0,hp(owner)-amount);
-        hp.put(id,next);
-        if(next==0) states.put(id,2);
-        setDirty();
-        return next;
-    }
-    public boolean destroy(UUID owner) {
-        String id=owner.toString();
+    public static BedVitalData get(ServerLevel world){return world.getDataStorage().computeIfAbsent(TYPE);}
+    public int state(UUID owner){return states.getOrDefault(owner.toString(),0);}
+    public int hp(UUID owner){return hp.getOrDefault(owner.toString(),0);}
+    public String cause(UUID owner){return causes.getOrDefault(owner.toString(),"");}
+    public void register(UUID owner){if(state(owner)!=0)return;states.put(owner.toString(),1);hp.put(owner.toString(),100);setDirty();}
+    public boolean unplace(UUID owner){
         if(state(owner)!=1)return false;
-        states.put(id,2);hp.put(id,0);setDirty();return true;
+        states.put(owner.toString(),3);tokens.put(owner.toString(),UUID.randomUUID().toString());causes.put(owner.toString(),"owner_pickup");setDirty();return true;
     }
-
-    public boolean permanentlyDestroyed(UUID owner) {return state(owner)==2;}
+    public String token(UUID owner){return tokens.getOrDefault(owner.toString(),"");}
+    public boolean validToken(UUID owner,String token){return state(owner)==3&&!token.isEmpty()&&token.equals(token(owner));}
+    public boolean place(UUID owner,String token){
+        if(!validToken(owner,token))return false;
+        states.put(owner.toString(),1);tokens.remove(owner.toString());causes.remove(owner.toString());setDirty();return true;
+    }
+    public int repair(UUID owner,int amount){
+        if(state(owner)!=1||amount<=0)return 0;
+        int restored=Math.min(amount,100-hp(owner));hp.put(owner.toString(),hp(owner)+restored);setDirty();return restored;
+    }
+    public int damage(UUID owner,int amount){return damage(owner,amount,"raid");}
+    public int damage(UUID owner,int amount,String cause){
+        if(state(owner)!=1||amount<=0)return hp(owner);
+        int next=Math.max(0,hp(owner)-amount);hp.put(owner.toString(),next);
+        if(next==0){states.put(owner.toString(),2);tokens.remove(owner.toString());causes.put(owner.toString(),cause);}setDirty();return next;
+    }
+    public boolean destroy(UUID owner){return destroy(owner,"external_block_removal");}
+    public boolean destroy(UUID owner,String cause){
+        if(state(owner)==0||state(owner)==2)return false;
+        states.put(owner.toString(),2);hp.put(owner.toString(),0);tokens.remove(owner.toString());causes.put(owner.toString(),cause);setDirty();return true;
+    }
+    public void debugHealth(UUID owner,int value){if(state(owner)!=1)return;if(value<=0)destroy(owner,"debug");else{hp.put(owner.toString(),Math.min(100,value));setDirty();}}
+    public boolean permanentlyDestroyed(UUID owner){return state(owner)==2;}
 }

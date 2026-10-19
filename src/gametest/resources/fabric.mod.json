@@ -1,0 +1,5 @@
+{
+  "schemaVersion":1,"id":"beddefense-gametest","version":"1.0.0","name":"Bed Defense isolated integration tests",
+  "environment":"*","entrypoints":{"fabric-gametest":["com.darkkyoung.beddefense.PlayableChallengeGameTest"]},
+  "depends":{"beddefense":"*"}
+}

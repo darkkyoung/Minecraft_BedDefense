@@ -14,7 +14,7 @@ public final class ChallengeOptionsData extends SavedData {
             Codec.BOOL.fieldOf("reset_world_clock").forGetter(x -> x.resetWorldClock),
             Codec.INT.fieldOf("raid_stride").forGetter(x -> x.raidStride)
     ).apply(i, ChallengeOptionsData::new));
-    private static final SavedDataType<ChallengeOptionsData> TYPE =
+    static final SavedDataType<ChallengeOptionsData> TYPE =
             new SavedDataType<>(Identifier.fromNamespaceAndPath("beddefense","challenge_options"),
                     ChallengeOptionsData::new, CODEC, null);
 

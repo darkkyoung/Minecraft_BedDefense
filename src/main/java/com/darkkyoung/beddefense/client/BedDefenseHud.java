@@ -49,6 +49,8 @@ public final class BedDefenseHud {
     private static Preview preview = Preview.OFF;
     private static boolean visible = true;
     private static boolean synced = false;
+    private static int outcome;
+    public static boolean hardcoreRisk(){return synced&&outcome==1&&serverBedState!=1;}
     private static long serverDayTime;
     private static long serverElapsedTime;
     private static long serverChallengeDay = -1L;
@@ -57,13 +59,14 @@ public final class BedDefenseHud {
 
     private BedDefenseHud() {}
 
-    static void acceptServerTime(long dayTime, long challengeElapsedTicks, long challengeDay) {
+    static void acceptServerTime(long dayTime, long challengeElapsedTicks, long challengeDay, int result) {
         Minecraft mc = Minecraft.getInstance();
         // Use the same client-world tick reference in the packet callback and rendering.
         receivedAtClientTick = mc.level != null ? mc.level.getGameTime() : 0L;
         serverDayTime = dayTime;
         serverElapsedTime = challengeElapsedTicks;
         serverChallengeDay = challengeDay;
+        outcome=result;
         synced = true;
     }
 
@@ -86,7 +89,7 @@ public final class BedDefenseHud {
 
     static void onDisconnected() {
         if (wasInWorld) {
-            synced = false;
+            synced = false;outcome=0;
             preview = Preview.OFF;
             serverBedState = 0;
             serverBedHp = 0;
@@ -135,10 +138,10 @@ public final class BedDefenseHud {
         long elapsedSinceSync = synced ? Math.max(0L, clientTick - receivedAtClientTick) : 0L;
         long dayTime = synced ? serverDayTime + elapsedSinceSync : -1L;
         boolean running = synced && serverChallengeDay >= 1L && serverElapsedTime >= 0L;
-        long playedTicks = running ? serverElapsedTime + elapsedSinceSync : 0L;
+        long playedTicks = running ? serverElapsedTime + (outcome==1?elapsedSinceSync:0) : 0L;
 
         long day = running ? serverChallengeDay : -1L;
-        String dayLabel = running ? day + "일차" : "시작 전";
+        String dayLabel = outcome==2?"챌린지 성공":outcome==3?"챌린지 실패":running ? day + "일차" : "시작 전";
         drawLarge(graphics, font, dayLabel, EDGE, EDGE, ORANGE, 1.7F);
 
         graphics.text(font,
@@ -166,7 +169,7 @@ public final class BedDefenseHud {
 
         long nowTick=mc.level.getGameTime();
         if(lastVisualTick<0L)lastVisualTick=nowTick;
-        long deltaTicks=Math.max(1L,Math.min(10L,nowTick-lastVisualTick));
+        long deltaTicks=Math.max(0L,Math.min(10L,nowTick-lastVisualTick));
         lastVisualTick=nowTick;
         // This easing animates initial registration, repair and raid damage.
         float step=Math.min(1F,deltaTicks*0.14F);
@@ -176,9 +179,12 @@ public final class BedDefenseHud {
         boolean flashing = state==1 && nowTick <= flashUntilTick;
         if(flashing || (state==2 && nowTick<=destroyFlashUntilTick))color="white";
         int jitter=flashing && nowTick%2==0 ? 1 : flashing ? -1 : 0;
+        if(state==2&&nowTick<destroyFlashUntilTick)
+            graphics.fill(0,0,screenWidth,mc.getWindow().getGuiScaledHeight(),0x55FFFFFF);
         Identifier background=Identifier.fromNamespaceAndPath("minecraft","boss_bar/"+color+"_background");
         Identifier foreground=Identifier.fromNamespaceAndPath("minecraft","boss_bar/"+color+"_progress");
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, background, barX+jitter,barY,BAR_WIDTH,BAR_HEIGHT);
+        if(state==0)graphics.fill(barX+1,barY+1,barX+BAR_WIDTH-1,barY+BAR_HEIGHT-1,0xFF252525);
         int progress=Math.max(0,Math.min(BAR_WIDTH,Math.round(visibleRatio*BAR_WIDTH)));
         if(progress>0)graphics.blitSprite(RenderPipelines.GUI_TEXTURED, foreground,
                 BAR_WIDTH,BAR_HEIGHT,0,0,barX+jitter,barY,progress,BAR_HEIGHT);
@@ -189,9 +195,9 @@ public final class BedDefenseHud {
         if(state==2)drawCentered(graphics,font,"스폰 침대 파괴 · 마지막 생존",screenWidth,32,RED);
 
         long toRaid = ticksUntilBedtime(dayTime);
-        if (running && toRaid > 0L && toRaid <= WARNING_DURATION_TICKS) {
+        if (outcome==1 && toRaid > 0L && toRaid <= WARNING_DURATION_TICKS) {
             String warning = "레이드까지 " + formatWarning(toRaid) + "초...";
-            drawCentered(graphics, font, warning, screenWidth, 47, RAID_ORANGE);
+            drawCentered(graphics, font, warning, screenWidth, 61, RAID_ORANGE);
         }
 
         if(activeRaidDay>0 && running) {

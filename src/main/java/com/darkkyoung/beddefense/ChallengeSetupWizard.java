@@ -46,6 +46,8 @@ public final class ChallengeSetupWizard {
             return false;
         }
         Session session = new Session(player.getUUID());
+        ChallengeOptionsData saved=ChallengeOptionsData.get(server.overworld());
+        session.difficulty=saved.difficulty();session.resetTime=saved.resetWorldClock();session.raidStride=saved.raidStride();
         SESSIONS.put(server, session);
         show(player, session);
         return true;
@@ -55,6 +57,7 @@ public final class ChallengeSetupWizard {
         Session s = controlled(server, player);
         if (s == null || !java.util.List.of("쉬움", "보통", "어려움").contains(difficulty)) return false;
         s.difficulty = difficulty;
+        persist(server,s);
         show(player,s);
         return true;
     }
@@ -62,6 +65,7 @@ public final class ChallengeSetupWizard {
         Session s = controlled(server, player);
         if (s == null) return false;
         s.resetTime = reset;
+        persist(server,s);
         show(player,s);
         return true;
     }
@@ -70,6 +74,7 @@ public final class ChallengeSetupWizard {
         if (s == null || !(interval == 1 || interval == 2 || interval == 3 || interval == 5)) return false;
         s.raidStride = interval;
         s.manual = false;
+        persist(server,s);
         show(player,s);
         return true;
     }
@@ -77,13 +82,15 @@ public final class ChallengeSetupWizard {
         Session s = controlled(server, player);
         if (s == null) return false;
         s.manual = true;
+        persist(server,s);
         show(player,s);
         return true;
     }
     public static boolean adjust(MinecraftServer server, ServerPlayer player, int delta) {
         Session s = controlled(server, player);
         if (s == null || !s.manual) return false;
-        s.raidStride = Math.max(1, Math.min(10, s.raidStride + delta));
+        s.raidStride = Math.max(1, Math.min(100, s.raidStride + delta));
+        persist(server,s);
         show(player,s);
         return true;
     }
@@ -148,9 +155,12 @@ public final class ChallengeSetupWizard {
                 "title @a title {\"text\":\""+second+"\",\"color\":\"gold\",\"bold\":true}");
         server.getCommands().performPrefixedCommand(
                 server.createCommandSourceStack().withSuppressedOutput(),
-                "playsound minecraft:block.note_block.pling master @a ~ ~ ~ 0.65 1");
+                "execute as @a at @s run playsound minecraft:block.note_block.pling master @s ~ ~ ~ 0.65 "+(second==3?0.93:second==2?1.1:1.3));
     }
 
+    private static void persist(MinecraftServer server,Session s) {
+        ChallengeOptionsData.get(server.overworld()).update(s.difficulty,s.resetTime,s.raidStride);
+    }
     private static Session controlled(MinecraftServer server, ServerPlayer player) {
         Session s=SESSIONS.get(server);
         if(s==null||s.countdown>=0||!s.owner.equals(player.getUUID())

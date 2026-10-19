@@ -1,16 +1,8 @@
 package com.darkkyoung.beddefense;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
-
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -20,101 +12,166 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.Level;
 
-/**
- * Phase R0 single-player-first playable raid foundation.
- *
- * Initial 100-day counts follow the draft. Mixed type ratios are PROVISIONAL;
- * exact day-by-day composition, Siege AI and boss buffs will follow.
- *
- * An empty Spawn Bed is NOT a reason to skip a wave. Raider mobs hunt the player.
- */
+/** Daily raid scheduler; persistent accounting and per-mob targeting run on the server. */
 public final class RaidManager {
-    public static final String TAG="beddefense_raid_mob";
-    public static final String OVERWORLD_TAG="beddefense_overworld_raid";
-    public static final long BEDTIME_TICK=12542L;
-    public static final long SUNRISE_TICK=23000L;
-    public static final long GLOW_START_TICK=SUNRISE_TICK-6000L; // 5 real minutes at 20 tps
-    private static int tickCounter;
+    public static final long BEDTIME_TICK=12542L,SUNRISE_TICK=23000L,GLOW_START_TICK=17000L;
+    private static final Map<UUID,Long> LAST_BED_HIT=new HashMap<>();
+    private static int pathCursor;
+    private static final Map<UUID,BlockPos> BED_TARGETS=new HashMap<>();
+    private static final Set<Mob> GOALS=Collections.newSetFromMap(new WeakHashMap<>());
+    public static BlockPos bedTarget(UUID mob){return BED_TARGETS.get(mob);}
+    private static void attachGoal(Mob mob){if(GOALS.add(mob))((com.darkkyoung.beddefense.mixin.MobGoalAccessor)(Object)mob).beddefense$goals().addGoal(0,new RaidBedGoal(mob));}
+    private RaidManager(){}
+    public static boolean isActive(MinecraftServer server){return RaidStateData.get(server.overworld()).active();}
+    public static void onMobDeath(Entity mob,MinecraftServer server){
+        RaidStateData.get(server.overworld()).remove(mob.getUUID());LAST_BED_HIT.remove(mob.getUUID());BED_TARGETS.remove(mob.getUUID());SiegeController.clear(mob.getUUID());
+    }
+    public static void reset(){LAST_BED_HIT.clear();BED_TARGETS.clear();GOALS.clear();pathCursor=0;SiegeController.reset();}
+    public static int totalForDay(int day){return TOTALS[Math.max(1,Math.min(100,day))-1];}
+    /** START_SERVER_TICK settles before entity ticks/deaths can change the dawn snapshot. */
+    public static void tick(MinecraftServer server){
+        ChallengeData challenge=ChallengeData.get(server.overworld());
+        if(!challenge.running())return;
+        long clock=ChallengeMenu.overworldClock(server),time=Math.floorMod(clock,24000);
+        int day=(int)challenge.day(clock);
+        RaidStateData state=RaidStateData.get(server.overworld());
+        if(state.active()&&(time>=SUNRISE_TICK||time<BEDTIME_TICK||day>state.activeDay()))finishAtMorning(server,state);
+        if(day>100)return;
+        if(time>=BEDTIME_TICK&&time<SUNRISE_TICK&&day>state.lastRaidDay())launch(server,day);
+        if(server.overworld().getGameTime()%20!=0)return;
+        if(state.active()&&time>=GLOW_START_TICK&&!state.glowStarted()){
+            state.glowStarted(true);broadcast(server,"§e일출까지 5분! 남은 레이드 몬스터가 발광합니다.");
+        }
+        spawnPending(server,state);
+        moveRaiders(server,state);
+        if(state.active()&&state.remaining()==0){broadcast(server,"§a레이드 클리어!");state.finish();}
+        SiegeController.cleanup(server.overworld().getGameTime());
+    }
+    public static boolean launch(MinecraftServer server,int day){
+        ChallengeData challenge=ChallengeData.get(server.overworld());
+        RaidStateData state=RaidStateData.get(server.overworld());
+        if(!challenge.running()||state.active()||day<=state.lastRaidDay()||day>100)return false;
+        int roster=ChallengeBalance.rosterDay(day,ChallengeOptionsData.get(server.overworld()).raidStride());
+        List<RaidStateData.Pending> batches=new ArrayList<>();
+        for(ServerPlayer p:server.getPlayerList().getPlayers())
+            if(p.isAlive()&&!p.isSpectator()&&challenge.participating(p.getUUID()))
+                batches.add(new RaidStateData.Pending(p.level().dimension().identifier().toString(),p.getUUID().toString(),roster,day,0,totalForDay(roster)));
+        if(batches.isEmpty())return false;
+        state.launch(day,batches);
+        broadcast(server,"§c§l"+day+"일차 레이드 시작! §f적용 편성 "+roster+"일차");
+        run(server,"execute as @a at @s run playsound minecraft:event.raid.horn master @s ~ ~ ~ 1 1");
+        return true;
+    }
+    private static void spawnPending(MinecraftServer server,RaidStateData state){
+        int budget=ChallengeBalance.SPAWNS_PER_SECOND;
+        // Compact one batch per player/night; no retry can silently lose an intended raider.
+        for(RaidStateData.Pending batch:state.pending()){
+            if(budget<=0)break;
+            if(state.activeCount(batch.dimension())>=ChallengeBalance.ACTIVE_RAIDERS_PER_DIMENSION)continue;
+            ServerPlayer owner;
+            try{owner=server.getPlayerList().getPlayer(UUID.fromString(batch.owner()));}catch(IllegalArgumentException e){continue;}
+            if(owner==null||owner.isSpectator()||!owner.level().dimension().identifier().toString().equals(batch.dimension()))continue;
+            RaidStateData.Pending current=batch;
+            for(int n=0;n<batch.count()&&budget>0&&state.activeCount(batch.dimension())<ChallengeBalance.ACTIVE_RAIDERS_PER_DIMENSION;n++){
+                budget--;
+                UUID id=spawn(server,owner,mobForDay(batch.roster(),current.next(),totalForDay(batch.roster())),batch.roster(),current.next());
+                if(id==null)break;
+                state.spawned(current,id);
+                current=new RaidStateData.Pending(batch.dimension(),batch.owner(),batch.roster(),batch.wave(),current.next()+1,current.count()-1);
+            }
+        }
+    }
+    public static void onLoad(Entity entity,ServerLevel level){
+        RaidStateData state=RaidStateData.get(level.getServer().overworld());
+        if(state.pendingCleanup(entity.getUUID())){entity.discard();state.completedCleanup(entity.getUUID());return;}
+        state.loaded(entity.getUUID(),level.dimension().identifier().toString());
+        if(entity instanceof Mob mob&&state.isRaider(entity.getUUID())){attachGoal(mob);applyAwareness(mob);}
+        if(state.isRaider(entity.getUUID())&&state.glowStarted())entity.setGlowingTag(true);
+    }
+    public static void finishAtMorning(MinecraftServer server,RaidStateData state){
+        Map<String,Integer> penalties=state.settleMorning();
+        // Ledger is already settled. A later death or chunk load cannot reduce this immutable snapshot.
+        penalties.forEach((owner,count)->{
+            if(owner.isEmpty()){
+                SpawnBedData.get(server.overworld()).positions().keySet().forEach(id->penalty(server,id,count));
+            }else penalty(server,UUID.fromString(owner),count);
+        });
+        removePendingEntities(server,state);
+        broadcast(server,"§e아침 정산 · 오버월드 미처치 "+penalties.values().stream().mapToInt(Integer::intValue).sum()+"마리 · 네더/엔드 잔여 "+state.remaining()+"마리");
+    }
+    private static void penalty(MinecraftServer server,UUID owner,int count){
+        SpawnBedPrototype.damage(server,owner,count*ChallengeBalance.SUNRISE_HP_PER_SURVIVOR,"sunrise");
+        ServerPlayer p=server.getPlayerList().getPlayer(owner);
+        if(p!=null)p.sendSystemMessage(Component.literal("§c미처치 "+count+"마리 · 침대 HP 패널티 "+count*ChallengeBalance.SUNRISE_HP_PER_SURVIVOR));
+    }
+    public static void stop(MinecraftServer server){RaidStateData state=RaidStateData.get(server.overworld());state.stop();removePendingEntities(server,state);reset();}
+    private static void removePendingEntities(MinecraftServer server,RaidStateData state){
+        for(ServerLevel level:server.getAllLevels()){
+            List<Entity> remove=new ArrayList<>();
+            for(Entity entity:level.getAllEntities())if(state.pendingCleanup(entity.getUUID()))remove.add(entity);
+            for(Entity entity:remove){SiegeController.clear(entity.getUUID());entity.discard();state.completedCleanup(entity.getUUID());LAST_BED_HIT.remove(entity.getUUID());}
+        }
+    }
+    public static void bedDestroyed(MinecraftServer server){for(ServerPlayer p:server.getPlayerList().getPlayers())survivalWarning(p,server);}
+    public static void survivalWarning(ServerPlayer player,MinecraftServer server){
+        String who=player.getUUID().toString();
+        run(server,"title "+who+" times 5 60 20");
+        run(server,"title "+who+" title {\"text\":\"살아남으세요\",\"color\":\"red\",\"bold\":true}");
+        run(server,"execute as "+who+" at @s run playsound minecraft:entity.wither.spawn master @s ~ ~ ~ 1 0.75");
+    }
+    static void moveRaiders(MinecraftServer server,RaidStateData state){
+        List<Mob> loaded=new ArrayList<>();
+        for(ServerLevel level:server.getAllLevels())
+            for(Entity entity:level.getAllEntities())if(entity instanceof Mob mob&&state.isRaider(entity.getUUID()))loaded.add(mob);
+        if(loaded.isEmpty())return;
+        int first=Math.floorMod(pathCursor,loaded.size());pathCursor+=ChallengeBalance.PATH_REQUESTS_PER_SECOND;
+        for(int i=0;i<loaded.size();i++){
+            Mob mob=loaded.get((first+i)%loaded.size());ServerLevel level=(ServerLevel)mob.level();
+            RaidStateData.Raider record=state.raider(mob.getUUID());
+            int roster=record.roster();
+            if(state.glowStarted())mob.setGlowingTag(true);
+            double range=mob.getAttributeValue(Attributes.FOLLOW_RANGE);
+            double playerDistance=range*range,bedDistance=range*range;
+            ServerPlayer closest=null;UUID bedOwner=null;BlockPos bedPos=null;
+            for(ServerPlayer p:server.getPlayerList().getPlayers()){
+                if(p.level()!=level||!p.isAlive()||p.isSpectator()||!ChallengeData.get(server.overworld()).participating(p.getUUID()))continue;
+                double distance=p.distanceToSqr(mob);if(distance<playerDistance){closest=p;playerDistance=distance;}
+            }
+            if(level.dimension().equals(Level.OVERWORLD))
+                for(var entry:SpawnBedData.get(server.overworld()).positions().entrySet()){
+                    if(BedVitalData.get(server.overworld()).state(entry.getKey())!=1)continue;
+                    BlockPos pos=entry.getValue();double distance=mob.distanceToSqr(pos.getX()+.5,pos.getY()+.5,pos.getZ()+.5);
+                    if(distance<bedDistance){bedDistance=distance;bedOwner=entry.getKey();bedPos=pos;}
+                }
+            boolean canPath=i<ChallengeBalance.PATH_REQUESTS_PER_SECOND;
+            if(bedPos!=null&&ChallengeBalance.preferBed(playerDistance,bedDistance)){
+                BED_TARGETS.put(mob.getUUID(),bedPos);
+                mob.setTarget(null);
+                var hit=level.clip(new net.minecraft.world.level.ClipContext(mob.getEyePosition(),net.minecraft.world.phys.Vec3.atCenterOf(bedPos),net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,mob));
+                boolean visible=hit.getType()==net.minecraft.world.phys.HitResult.Type.MISS||level.getBlockState(hit.getBlockPos()).getBlock() instanceof net.minecraft.world.level.block.BedBlock;
+                if(bedDistance<=7&&visible){
+                    SiegeController.clear(mob.getUUID());mob.getNavigation().stop();
+                    long now=level.getGameTime();int interval=new int[]{80,70,60,50,46,60,50,44,56,50}[(roster-1)/10];
+                    if(now-LAST_BED_HIT.getOrDefault(mob.getUUID(),-10000L)>=interval){
+                        LAST_BED_HIT.put(mob.getUUID(),now);SpawnBedPrototype.damage(server,bedOwner,roster>=81?3:roster>=51?2:1,"raid");
+                        mob.swing(net.minecraft.world.InteractionHand.MAIN_HAND,net.minecraft.world.item.component.SwingAnimation.DEFAULT);
+                        ServerPlayer owner=server.getPlayerList().getPlayer(bedOwner);
+                        if(owner!=null)owner.connection.send(new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(Component.literal("§c§l스폰 침대 공격 받는 중!")));
+                    }
+                }else if(canPath){mob.getNavigation().moveTo(bedPos.getX()+.5,bedPos.getY(),bedPos.getZ()+.5,1.15);SiegeController.attempt(mob,level,bedPos,roster);}
+            }else if(closest!=null){
+                BED_TARGETS.remove(mob.getUUID());mob.setTarget(closest);
+                if(canPath){mob.getNavigation().moveTo(closest,1.2);SiegeController.attempt(mob,level,closest.blockPosition(),roster);}
+            }else{BED_TARGETS.remove(mob.getUUID());mob.setTarget(null);SiegeController.clear(mob.getUUID());}
+        }
+    }
+    private static void broadcast(MinecraftServer server,String message){server.getPlayerList().broadcastSystemMessage(Component.literal(message),false);}
+    public static void run(MinecraftServer server,String command){server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(),command);}
     private static final int[] TOTALS={
 5, 6, 6, 7, 8, 8, 9, 10, 11, 12, 9, 10, 11, 12, 13, 12, 14, 14, 15, 18, 13, 14, 15, 16, 16, 17, 18, 18, 19, 22, 16, 18, 18, 20, 20, 21, 21, 22, 23, 26, 20, 22, 22, 24, 24, 25, 26, 27, 28, 32, 24, 26, 26, 28, 28, 30, 30, 32, 32, 38, 28, 30, 32, 32, 34, 34, 36, 36, 38, 44, 34, 36, 38, 38, 40, 40, 42, 44, 46, 52, 40, 42, 44, 46, 48, 48, 50, 52, 54, 62, 46, 48, 50, 52, 54, 56, 58, 62, 68, 80
     };
-    private static final Map<UUID,Long> LAST_BED_HIT=new HashMap<>();
-    private RaidManager() {}
-
-    public static boolean isActive(MinecraftServer server) {
-        return RaidStateData.get(server.overworld()).active();
-    }
-    public static int totalForDay(int day) {
-        return TOTALS[Math.max(1,Math.min(100,day))-1];
-    }
-
-    public static void onMobDeath(Entity mob, MinecraftServer server) {
-        RaidStateData state=RaidStateData.get(server.overworld());
-        state.remove(mob.getUUID());
-        LAST_BED_HIT.remove(mob.getUUID());
-        SiegeController.clear(mob.getUUID());
-    }
-
-    public static void tick(MinecraftServer server) {
-        // Avoid full loaded-entity scans on every server tick.
-        if(++tickCounter<20)return;
-        tickCounter=0;
-        ChallengeData challenge=ChallengeData.get(server.overworld());
-        if(!challenge.isStarted())return;
-        long clock=ChallengeMenu.overworldClock(server);
-        long time=Math.floorMod(clock,24000L);
-        int day=(int)Math.min(100,challenge.day(clock));
-        RaidStateData state=RaidStateData.get(server.overworld());
-
-        if(state.active()) {
-            if(time>=SUNRISE_TICK || time<BEDTIME_TICK) {
-                finishAtMorning(server,state);
-                return;
-            }
-            // Previous wave can be cleared early. Nether/End persistent mobs remain
-            // if not killed at sunrise, and can accumulate across days.
-            if(state.remaining()==0) {
-                broadcast(server,"§a[베드 디펜스] §f"+state.activeDay()+"일차 레이드 클리어");
-                state.finish();
-                return;
-            }
-            if(time>=GLOW_START_TICK && !state.glowStarted()) {
-                glowBeforeMorning(server,state);
-            }
-            moveRaiders(server);
-            SiegeController.cleanup(server.overworld().getGameTime());
-            return;
-        }
-
-        int stride=ChallengeOptionsData.get(server.overworld()).raidStride();
-        int rosterDay=(int)Math.min(100L,1L+(long)(day-1)*stride);
-        if(time>=BEDTIME_TICK && time<SUNRISE_TICK &&
-                day>state.lastRaidDay()) {
-            launch(server,state,day,rosterDay);
-        } else {
-            moveRaiders(server); // remaining Nether/End raiders continue hunting
-        }
-    }
-
-    private static void launch(MinecraftServer server,RaidStateData state,int day,int rosterDay) {
-        List<String> ids=new ArrayList<>();
-        int intended=totalForDay(rosterDay);
-        List<ServerPlayer> activePlayers=server.getPlayerList().getPlayers().stream()
-                .filter(p->!p.isSpectator()).toList();
-        if(activePlayers.isEmpty())return; // retry when a player is present
-        for(ServerPlayer p:activePlayers) {
-            for(int i=0;i<intended;i++) {
-                String mobType=mobForDay(rosterDay,i,intended);
-                UUID spawnId=spawn(server,p,mobType,rosterDay,i);
-                if(spawnId!=null)ids.add(spawnId.toString());
-            }
-        }
-        state.launch(day,ids,activePlayers.size()==1 && activePlayers.get(0).level().dimension().equals(Level.OVERWORLD));
-        broadcast(server,"§c§l[베드 디펜스] §f"+day+"일차 레이드 시작 · 편성 "+rosterDay+"일차! §7(생성 "+ids.size()+"마리)");
-        run(server,"playsound minecraft:event.raid.horn master @a ~ ~ ~ 1 1");
-    }
-
-    private static String mobForDay(int day,int index,int total) {
+    public static String mobForDay(int day,int index,int total) {
+        if(day%10==0 && index==total-1)return day>=60?"minecraft:ravager":day>=30?"minecraft:evoker":"minecraft:vindicator";
         // Day 1: exactly five zombies. Each tier gradually mixes in vanilla mobs.
         if(day<=2)return "minecraft:zombie";
         if(day<=4)return index%3==0?"minecraft:spider":"minecraft:zombie";
@@ -148,33 +205,36 @@ public final class RaidManager {
         }
         BlockPos pos=findSpawn(level,near);
         if(pos==null)return null;
-        String unique="bd_"+UUID.randomUUID().toString().replace("-","");
-        String dimension=level.dimension().identifier().toString();
-        String tags="[\""+TAG+"\",\""+unique+"\""+
-                (level.dimension().equals(Level.OVERWORLD)?",\""+OVERWORLD_TAG+"\"":"")+"]";
-        String cmd="execute in "+dimension+" run summon "+type+" "+
-                (pos.getX()+0.5)+" "+pos.getY()+" "+(pos.getZ()+0.5)+
-                " {PersistenceRequired:1b,Tags:"+tags+"}";
-        java.util.Set<UUID> before = new java.util.HashSet<>();
-        for(Entity existing:level.getAllEntities()) before.add(existing.getUUID());
-        run(server,cmd);
-        Entity spawned=null;
-        for(Entity e:level.getAllEntities()) {
-            if(!before.contains(e.getUUID()) && e instanceof Mob) {spawned=e;break;}
-        }
-        if(spawned==null)return null;
-        // From Day 51 eligible ground raiders have Speed III by default.
-        // Fast creepers/flying spellcasters are excluded to preserve counterplay.
-        boolean eligible = type.equals("minecraft:zombie") || type.equals("minecraft:husk")
-                || type.equals("minecraft:spider") || type.equals("minecraft:pillager")
-                || type.equals("minecraft:vindicator") || type.equals("minecraft:wither_skeleton");
-        if (eligible && day >= 51) {
-            run(server,"execute in "+dimension+" run effect give @e[tag="+unique+"] minecraft:speed 999999 2 true");
-        } else if (eligible && day >= 11 && index%3==0) {
-            int amplifier = day>=41 && index%5==0 ? 2 : day>=25 && index%2==0 ? 1 : 0;
-            run(server,"execute in "+dimension+" run effect give @e[tag="+unique+"] minecraft:speed 999999 "+amplifier+" true");
-        }
+        var entityType=net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.parse(type));
+        if(entityType==null)return null;
+        Entity spawned=entityType.spawn(level,pos,net.minecraft.world.entity.EntitySpawnReason.EVENT);
+        if(!(spawned instanceof Mob raidMob)){if(spawned!=null)spawned.discard();return null;}
+        configureRaider(raidMob,day,index,type);attachGoal(raidMob);
         return spawned.getUUID();
+    }
+    public static int speedAmplifier(String type,int day,int index){
+        boolean eligible=Set.of("minecraft:zombie","minecraft:husk","minecraft:spider","minecraft:cave_spider","minecraft:skeleton","minecraft:stray","minecraft:pillager","minecraft:vindicator","minecraft:wither_skeleton").contains(type);
+        if(!eligible)return -1;
+        if(day>=51)return 2;
+        if(day>=41&&index%5==0)return 2;
+        if(day>=11&&index%3==0)return day>=25&&index%2==0?1:0;
+        return -1;
+    }
+    private static void applyAwareness(Mob mob){
+        var range=mob.getAttribute(Attributes.FOLLOW_RANGE);
+        var id=net.minecraft.resources.Identifier.fromNamespaceAndPath("beddefense","awareness");
+        if(range!=null){range.removeModifier(id);range.addTransientModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(id,mob.level().dimension().equals(Level.OVERWORLD)?1:4,net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_BASE));}
+    }
+    public static void configureRaider(Mob mob,int day,int index,String type){
+        mob.setPersistenceRequired();
+        applyAwareness(mob);
+        int speed=speedAmplifier(type,day,index);
+        if(speed>=0)mob.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.SPEED,-1,speed,false,false));
+        if(day%10==0&&index==totalForDay(day)-1){
+            mob.setCustomName(Component.literal("§c"+day+"일차 대장"));mob.setCustomNameVisible(true);
+            mob.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.STRENGTH,-1,1,false,false));
+            mob.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.RESISTANCE,-1,0,false,false));
+        }
     }
 
     private static BlockPos findSpawn(ServerLevel world,BlockPos near) {
@@ -194,138 +254,4 @@ public final class RaidManager {
         return null;
     }
 
-    private static void glowBeforeMorning(MinecraftServer server,RaidStateData state) {
-        state.glowStarted(true);
-        for(ServerLevel level:server.getAllLevels()){
-            for(Entity e:level.getAllEntities()){
-                if(state.isRaider(e.getUUID()))e.setGlowingTag(true);
-            }
-        }
-        broadcast(server,"§e[베드 디펜스] §f일출까지 5분! 남은 레이드 몬스터에게 발광 표시가 적용됩니다.");
-    }
-
-    private static void finishAtMorning(MinecraftServer server,RaidStateData state) {
-        int outstanding=state.remaining();
-        // Settle before players can kill leftover mobs in daylight. No item drops or XP.
-        for(ServerLevel level:server.getAllLevels()){
-            if(!level.dimension().equals(Level.OVERWORLD))continue;
-            List<Entity> remove=new ArrayList<>();
-            for(Entity e:level.getAllEntities())
-                if(state.ids().contains(e.getUUID().toString()))remove.add(e);
-            for(Entity e:remove){
-                level.sendParticles(ParticleTypes.FLAME,e.getX(),e.getY()+0.6,e.getZ(),12,0.3,0.4,0.3,0.02);
-                e.discard();
-                state.remove(e.getUUID()); // don't leave a stale cleanup entry
-            }
-        }
-        // Temporary balance: 1 HP per outstanding Overworld raider, never a slow burn.
-        if(outstanding>0 && state.overworldWave()){
-            for(ServerPlayer p:server.getPlayerList().getPlayers()) {
-                if(!p.level().dimension().equals(Level.OVERWORLD))continue;
-                BedVitalData health=BedVitalData.get(server.overworld());
-                if(health.state(p.getUUID())==1){
-                    int remain=health.damage(p.getUUID(),outstanding);
-                    p.sendSystemMessage(Component.literal("§c미처치 레이드 "+outstanding+"마리 · 침대 HP -"+outstanding+" (남은 "+remain+")"));
-                    if(remain==0)bedDestroyed(server);
-                }
-            }
-        }
-        broadcast(server, outstanding==0 ? "§a레이드 클리어" :
-                "§e아침입니다. 레이드 생존 · 미처치 "+outstanding+"마리 정산");
-        // In Nether/End, any remaining enemy retains persistence into the next day.
-        state.finish();
-    }
-
-    public static void bedDestroyed(MinecraftServer server) {
-        run(server,"title @a times 10 70 20");
-        run(server,"title @a title {\"text\":\"살아남으세요\",\"color\":\"red\",\"bold\":true}");
-        run(server,"playsound minecraft:entity.wither.spawn master @a ~ ~ ~ 1 0.75");
-    }
-
-    private static void moveRaiders(MinecraftServer server) {
-        // Each mob independently chooses the nearest living player OR the nearest
-        // placed Spawn Bed; an attacker may switch targets as the battle moves.
-        for (ServerLevel level : server.getAllLevels()) {
-            RaidStateData wave = RaidStateData.get(server.overworld());
-            for (Entity entity : level.getAllEntities()) {
-                if (!(entity instanceof Mob mob) || !wave.isRaider(entity.getUUID())) continue;
-                // Per-mob base follow range, multiplied by dimension.
-                double baseRange = Math.max(1.0, mob.getAttributeValue(Attributes.FOLLOW_RANGE));
-                double awareness = baseRange * (level.dimension().equals(Level.OVERWORLD) ? 2.0 : 5.0);
-                double limitSquared = awareness * awareness;
-
-                ServerPlayer bestPlayer = null;
-                ServerPlayer bedOwner = null;
-                BlockPos nearestBed = null;
-                double playerDistance = limitSquared;
-                double bedDistance = limitSquared;
-
-                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                    if (player.level() != level || player.isSpectator()) continue;
-                    double d = player.distanceToSqr(mob);
-                    if (d < playerDistance) {
-                        playerDistance = d;
-                        bestPlayer = player;
-                    }
-                    if (level.dimension().equals(Level.OVERWORLD)) {
-                        BlockPos bed = SpawnBedPrototype.registeredPosition(player, server.overworld());
-                        if (bed == null) continue;
-                        double bd = mob.distanceToSqr(bed.getX()+0.5, bed.getY()+0.5, bed.getZ()+0.5);
-                        if (bd < bedDistance) {
-                            bedDistance = bd;
-                            bedOwner = player;
-                            nearestBed = bed;
-                        }
-                    }
-                }
-
-                if (nearestBed != null && bedDistance < playerDistance) {
-                    // Closer to the bed: advance and attack the bed, not the player.
-                    mob.setTarget(null);
-                    if (bedDistance > 7.0) {
-                        mob.getNavigation().moveTo(nearestBed.getX()+0.5, nearestBed.getY(),
-                                nearestBed.getZ()+0.5, 1.15);
-                        SiegeController.attempt(mob,level,nearestBed,
-                            (int)Math.min(100,ChallengeData.get(server.overworld())
-                              .day(ChallengeMenu.overworldClock(server))));
-                    } else {
-                        long now = level.getGameTime();
-                        long challengeDay = Math.max(1L, ChallengeData.get(server.overworld())
-                                .day(ChallengeMenu.overworldClock(server)));
-                        int band = (int)Math.min(9,(challengeDay-1)/10);
-                        int[] intervals={80,70,60,50,46,60,50,44,56,50};
-                        int interval = intervals[band];
-                        if (now - LAST_BED_HIT.getOrDefault(mob.getUUID(),Long.MIN_VALUE/2) >= interval) {
-                            LAST_BED_HIT.put(mob.getUUID(),now);
-                            int damage = challengeDay>=81 ? 3 : challengeDay>=51 ? 2 : 1;
-                            BedVitalData vitals = BedVitalData.get(server.overworld());
-                            int previous = vitals.hp(bedOwner.getUUID());
-                            int result = vitals.damage(bedOwner.getUUID(),damage);
-                            run(server, "title @a actionbar {\"text\":\"스폰 침대 공격 받는 중!\",\"color\":\"red\",\"bold\":true}");
-                            if (previous > 0 && result == 0) bedDestroyed(server);
-                        }
-                    }
-                } else if (bestPlayer != null) {
-                    // Closer to the player: retaliate, pursue and fight normally.
-                    mob.setTarget(bestPlayer);
-                    mob.getNavigation().moveTo(bestPlayer, 1.2);
-                    SiegeController.attempt(mob,level,bestPlayer.blockPosition(),
-                        (int)Math.min(100,ChallengeData.get(server.overworld())
-                          .day(ChallengeMenu.overworldClock(server))));
-                } else {
-                    mob.setTarget(null);
-                }
-            }
-        }
-    }
-
-    private static void broadcast(MinecraftServer server,String message) {
-        server.getPlayerList().broadcastSystemMessage(Component.literal(message),false);
-    }
-    private static void run(MinecraftServer server,String command) {
-        try {
-            server.getCommands().performPrefixedCommand(
-                server.createCommandSourceStack().withSuppressedOutput(),command);
-        } catch(Exception e){org.slf4j.LoggerFactory.getLogger(RaidManager.class).warn("Raid command failed: {}",command,e);}
-    }
 }

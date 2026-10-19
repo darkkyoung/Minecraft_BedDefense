@@ -12,14 +12,13 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 
 /**
- * Persistent per-player first Spawn Bed positions for the visual prototype.
- * This is NOT a full bed item/HP/respawn/challenge implementation.
+ * Persistent per-player Spawn Bed positions, shared by registration and relocation.
  */
 public final class SpawnBedData extends SavedData {
     private static final Codec<SpawnBedData> CODEC =
             Codec.unboundedMap(Codec.STRING, Codec.LONG)
                     .xmap(SpawnBedData::new, data -> Map.copyOf(data.beds));
-    private static final SavedDataType<SpawnBedData> TYPE =
+    static final SavedDataType<SpawnBedData> TYPE =
             new SavedDataType<>(Identifier.fromNamespaceAndPath("beddefense", "spawn_beds"),
                     SpawnBedData::new, CODEC, null);
 
@@ -46,6 +45,15 @@ public final class SpawnBedData extends SavedData {
         return packed == null ? null : BlockPos.of(packed);
     }
 
+    public Map<UUID,BlockPos> positions() {
+        Map<UUID,BlockPos> result=new HashMap<>();
+        beds.forEach((id,pos)->result.put(UUID.fromString(id),BlockPos.of(pos)));
+        return result;
+    }
+    public void relocate(UUID owner,BlockPos foot) {
+        if(!isRegistered(owner))throw new IllegalStateException("Unregistered bed");
+        beds.put(owner.toString(),foot.asLong());setDirty();
+    }
     public boolean registerFirst(UUID player, BlockPos bedFoot) {
         String key = player.toString();
         if (beds.containsKey(key)) {

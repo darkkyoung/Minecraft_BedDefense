@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'mc/**'
+      - 'feature/r1-playable-integration'
   pull_request:
   workflow_dispatch:
 
@@ -39,3 +40,15 @@ jobs:
             !build/libs/*-sources.jar
           if-no-files-found: error
           retention-days: 14
+      - name: Upload test results and server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r1-test-results
+          path: |
+            build/test-results/
+            build/reports/
+            build/gametest-results/
+            build/run/gametest/logs/
+            run/gametest/logs/
+          if-no-files-found: warn

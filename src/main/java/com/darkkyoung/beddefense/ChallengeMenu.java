@@ -16,7 +16,7 @@ public final class ChallengeMenu {
     public static void init() {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 server.execute(() -> {
-                    if (!handler.player.isRemoved()) show(handler.player, server);
+                    if (!handler.player.isRemoved()) {ChallengeLifecycle.join(handler.player,server);show(handler.player, server);}
                 }));
     }
 
@@ -28,11 +28,12 @@ public final class ChallengeMenu {
 
     public static void show(ServerPlayer player, MinecraftServer server) {
         ChallengeData data = ChallengeData.get(server.overworld());
-        player.sendSystemMessage(Component.literal("§6§l────── 베드 디펜스 ──────"));
         if (!data.isStarted()) {
             // Requested layout: start button FIRST, rules below as plain chat text.
-            player.sendSystemMessage(button(" [게임 시작 · 설정] ", ChatFormatting.GREEN,
-                    "/beddefense setup", "난이도·시간·레이드 주기를 설정합니다"));
+            player.sendSystemMessage(button(" [게임 시작] ", ChatFormatting.GREEN,
+                    "/beddefense setup", "난이도·시간·레이드 편성 진행 배속을 설정합니다"));
+        } else if(!data.running()) {
+            player.sendSystemMessage(Component.literal(data.outcome()==ChallengeData.WON?"§a챌린지 성공!":"§c챌린지 실패: "+data.reason()));
         } else {
             player.sendSystemMessage(Component.literal("§a진행 중 §f"
                     + data.day(overworldClock(server)) + "일차"));
@@ -43,6 +44,7 @@ public final class ChallengeMenu {
         player.sendSystemMessage(Component.literal("§7침대: §f첫 번째 스폰 침대가 유일한 리스폰 지점입니다."));
         player.sendSystemMessage(Component.literal("§7레이드: §f침대 유무와 무관하게 매일 밤 등장하며 편성 진행 배속에 따라 강화됩니다."));
         player.sendSystemMessage(Component.literal("§7패배: §f침대가 없거나 파괴된 후 죽으면 탈락합니다."));
+        player.sendSystemMessage(Component.literal("§7수리: §f철 주괴를 들고 스폰 침대 우클릭 · 회수: 침대 파괴"));
         player.sendSystemMessage(Component.literal("§8/beddefense · 채팅 메뉴 다시 열기"));
     }
 
@@ -53,6 +55,10 @@ public final class ChallengeMenu {
             player.sendSystemMessage(Component.literal("§e이미 진행 중인 챌린지입니다."));
             return false;
         }
+        for(ServerPlayer participant:server.getPlayerList().getPlayers())
+            if(!participant.isSpectator())data.join(participant.getUUID());
+        RaidManager.run(server,"title @a title {\"text\":\"시작!\",\"color\":\"green\"}");
+        RaidManager.run(server,"execute as @a at @s run playsound minecraft:entity.player.levelup master @s ~ ~ ~ 1 1");
         server.getPlayerList().broadcastSystemMessage(
                 Component.literal("§a§l[베드 디펜스] §f챌린지 시작! §7(1일차 · 00:00:00)"), false);
         return true;
@@ -67,10 +73,10 @@ public final class ChallengeMenu {
             String time = String.format(java.util.Locale.ROOT, "%02d:%02d:%02d",
                     seconds / 3600, seconds / 60 % 60, seconds % 60);
             ChallengeOptionsData opts = ChallengeOptionsData.get(server.overworld());
-            player.sendSystemMessage(Component.literal("§a진행 중: §f"
+            player.sendSystemMessage(Component.literal((data.running()?"§a진행 중: §f":"§e종료: §f")
                     + data.day(overworldClock(server)) + "일차 · " + time));
             player.sendSystemMessage(Component.literal("§7난이도: " + opts.difficulty()
-                    + " · 레이드 편성 진행 ×" + opts.raidStride() + "일"));
+                    + " · 레이드 편성 진행 ×" + opts.raidStride()));
         }
         player.sendSystemMessage(button(" [메뉴] ", ChatFormatting.YELLOW,
                 "/beddefense", "메뉴 다시 열기"));

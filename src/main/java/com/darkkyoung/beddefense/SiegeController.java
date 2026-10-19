@@ -35,6 +35,8 @@ public final class SiegeController {
         int placedBlocks;
         long nextPlacementTick;
         BlockPos breaking;
+        BlockState breakingState;
+        BlockPos target;
         long breakStart;
         int lastStage=-1;
         ServerLevel level;
@@ -56,6 +58,8 @@ public final class SiegeController {
         }
         Job job=JOBS.computeIfAbsent(mob.getUUID(),id->new Job(mob,level));
         if(job.level!=level) {clearBreaking(job);job.level=level;}
+        if(job.target!=null&&job.target.distSqr(target)>4)clearBreaking(job);
+        job.target=target.immutable();
         job.lastSeen=level.getGameTime();
         BlockPos feet=mob.blockPosition();
         if(job.lastFeet.distSqr(feet)<0.36)job.stuckSeconds++;
@@ -65,7 +69,17 @@ public final class SiegeController {
 
         int dx=Integer.compare(target.getX(),feet.getX());
         int dz=Integer.compare(target.getZ(),feet.getZ());
-        if(dx==0 && dz==0) return;
+        if(dx==0 && dz==0) {
+            clearBreaking(job);
+            if(target.getY()>feet.getY()+1 && job.placedBlocks<MAX_PLACED_BY_ONE_MOB
+                    && level.getGameTime()>=job.nextPlacementTick && level.isEmptyBlock(feet.above())
+                    && level.isEmptyBlock(feet.above(2)) && level.isEmptyBlock(feet)) {
+                mob.setPos(mob.getX(),feet.getY()+1.05,mob.getZ());
+                level.setBlockAndUpdate(feet,Blocks.COBBLESTONE.defaultBlockState());
+                job.placedBlocks++;job.nextPlacementTick=level.getGameTime()+20+ThreadLocalRandom.current().nextInt(21);
+            }
+            return;
+        }
         // Prefer a direct horizontal approach. Do not mine while the entity is
         // successfully moving or when its intended target is already adjacent.
         BlockPos ahead=feet.offset(dx,0,dz);
@@ -93,7 +107,7 @@ public final class SiegeController {
             level.setBlockAndUpdate(floor,Blocks.COBBLESTONE.defaultBlockState());
             job.placedBlocks++;
             job.nextPlacementTick=level.getGameTime()+20+ThreadLocalRandom.current().nextInt(21);
-            // Native block cracks already communicate digging; arm swing pending mapping verification.
+            mob.swing(net.minecraft.world.InteractionHand.MAIN_HAND,net.minecraft.world.item.component.SwingAnimation.DEFAULT);
         }
     }
 
@@ -108,13 +122,13 @@ public final class SiegeController {
         return true;
     }
 
-    private static double durationSeconds(ServerLevel level,BlockPos pos,int day) {
+    public static double durationSeconds(ServerLevel level,BlockPos pos,int day) {
         BlockState state=level.getBlockState(pos);
         int band=Math.max(0,Math.min(9,(day-1)/10));
         double sec;
         if(state.is(Blocks.OBSIDIAN) || state.is(Blocks.CRYING_OBSIDIAN))sec=OBSIDIAN[band];
         else if(state.is(Blocks.DIRT)||state.is(Blocks.GRASS_BLOCK)||state.is(Blocks.SAND))sec=DIRT[band];
-        else if(state.is(Blocks.OAK_PLANKS)||state.is(Blocks.SPRUCE_PLANKS)||state.is(Blocks.BIRCH_PLANKS))sec=WOOD[band];
+        else if(state.is(net.minecraft.tags.BlockTags.PLANKS)||state.is(net.minecraft.tags.BlockTags.LOGS))sec=WOOD[band];
         else if(state.is(Blocks.COBBLESTONE)||state.is(Blocks.STONE))sec=COBBLE[band];
         else sec=Math.max(2,Math.min(OBSIDIAN[band],COBBLE[band]*
                 (state.getDestroySpeed(level,pos)/2.0)));
@@ -123,13 +137,14 @@ public final class SiegeController {
     }
 
     private static void mine(Mob mob,Job job,ServerLevel level,BlockPos pos,int day) {
-        if(job.breaking!=null && !job.breaking.equals(pos))clearBreaking(job);
+        if(job.breaking!=null && (!job.breaking.equals(pos)||!level.getBlockState(pos).equals(job.breakingState)))clearBreaking(job);
         if(job.breaking==null){
             // Bound the number of entities doing expensive block work together.
             int active=0;
             for(Job current:JOBS.values())if(current.breaking!=null)active++;
             if(active>=MAX_MINERS)return;
             job.breaking=pos.immutable();
+            job.breakingState=level.getBlockState(pos);
             job.breakStart=level.getGameTime();
             job.lastStage=-1;
         }
@@ -139,7 +154,7 @@ public final class SiegeController {
         if(stage!=job.lastStage){
             level.destroyBlockProgress(job.breakerId,pos,stage);
             job.lastStage=stage;
-            // Native block cracks already communicate digging; arm swing pending mapping verification.
+            mob.swing(net.minecraft.world.InteractionHand.MAIN_HAND,net.minecraft.world.item.component.SwingAnimation.DEFAULT);
         }
         if(age>=duration){
             level.destroyBlockProgress(job.breakerId,pos,-1);
@@ -157,11 +172,12 @@ public final class SiegeController {
         Job job=JOBS.remove(id);
         if(job!=null)clearBreaking(job);
     }
+    public static void reset(){for(Job job:JOBS.values())clearBreaking(job);JOBS.clear();}
     public static void cleanup(long now){
         Iterator<Map.Entry<UUID,Job>> iter=JOBS.entrySet().iterator();
         while(iter.hasNext()){
             Job job=iter.next().getValue();
-            if(now-job.lastSeen>1200){
+            if(now-job.lastSeen>40){
                 clearBreaking(job);
                 iter.remove();
             }

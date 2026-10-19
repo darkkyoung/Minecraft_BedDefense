@@ -2,76 +2,96 @@ package com.darkkyoung.beddefense;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 
-/**
- * Server-side entity UUID roster; independent of Minecraft's changing command-tag API.
- * Remaining Nether/End raiders persist between nights; unloaded Overworld survivors
- * are recorded for removal on the next chunk load, after sunrise's HP settlement.
- */
+/** Durable per-entity dimension/owner ledger. No loaded-chunk scan determines morning penalties. */
 public final class RaidStateData extends SavedData {
-    private static final Codec<RaidStateData> CODEC = RecordCodecBuilder.create(i -> i.group(
-        Codec.LONG.fieldOf("last_raid_day").forGetter(s -> s.lastRaidDay),
-        Codec.LONG.fieldOf("active_day").forGetter(s -> s.activeDay),
-        Codec.STRING.listOf().fieldOf("mob_ids").forGetter(s -> List.copyOf(s.ids)),
-        Codec.BOOL.fieldOf("glow_started").forGetter(s -> s.glowStarted),
-        Codec.BOOL.fieldOf("overworld_wave").forGetter(s -> s.overworldWave),
-        Codec.INT.fieldOf("total_spawned").forGetter(s -> s.totalSpawned),
-        Codec.STRING.listOf().fieldOf("persistent_raiders").forGetter(s -> List.copyOf(s.persistent)),
-        Codec.STRING.listOf().fieldOf("sunrise_cleanup").forGetter(s -> List.copyOf(s.cleanup))
-    ).apply(i,RaidStateData::new));
-
-    private static final SavedDataType<RaidStateData> TYPE =
-        new SavedDataType<>(Identifier.fromNamespaceAndPath("beddefense","raid_state"),
-            RaidStateData::new,CODEC,null);
-    private long lastRaidDay;
-    private long activeDay;
-    private final List<String> ids;
-    private boolean glowStarted;
-    private boolean overworldWave;
-    private int totalSpawned;
-    private final List<String> persistent;
-    private final List<String> cleanup;
-
-    private RaidStateData() {this(0,-1,List.of(),false,false,0,List.of(),List.of());}
-    private RaidStateData(long last,long active,List<String> ids,boolean glow,boolean overworld,
-                          int total,List<String> persistent,List<String> cleanup){
-        lastRaidDay=last;activeDay=active;this.ids=new ArrayList<>(ids);
-        glowStarted=glow;overworldWave=overworld;totalSpawned=total;
-        this.persistent=new ArrayList<>(persistent);this.cleanup=new ArrayList<>(cleanup);
+    public static final String OVERWORLD="minecraft:overworld";
+    public record Raider(String dimension,String owner,int roster,long wave) {
+        static final Codec<Raider> CODEC=RecordCodecBuilder.create(i->i.group(
+            Codec.STRING.fieldOf("dimension").forGetter(Raider::dimension),Codec.STRING.fieldOf("owner").forGetter(Raider::owner),
+            Codec.INT.fieldOf("roster").forGetter(Raider::roster),Codec.LONG.fieldOf("wave").forGetter(Raider::wave)
+        ).apply(i,Raider::new));
     }
-    public static RaidStateData get(ServerLevel overworld){return overworld.getDataStorage().computeIfAbsent(TYPE);}
+    public record Pending(String dimension,String owner,int roster,long wave,int next,int count) {
+        static final Codec<Pending> CODEC=RecordCodecBuilder.create(i->i.group(
+            Codec.STRING.fieldOf("dimension").forGetter(Pending::dimension),Codec.STRING.fieldOf("owner").forGetter(Pending::owner),
+            Codec.INT.fieldOf("roster").forGetter(Pending::roster),Codec.LONG.fieldOf("wave").forGetter(Pending::wave),
+            Codec.INT.fieldOf("next").forGetter(Pending::next),Codec.INT.fieldOf("count").forGetter(Pending::count)
+        ).apply(i,Pending::new));
+    }
+    public static final Codec<RaidStateData> CODEC=RecordCodecBuilder.create(i->i.group(
+        Codec.LONG.fieldOf("last_raid_day").forGetter(s->s.lastRaidDay),
+        Codec.LONG.fieldOf("active_day").forGetter(s->s.activeDay),
+        Codec.STRING.listOf().optionalFieldOf("mob_ids",List.of()).forGetter(s->List.<String>of()),
+        Codec.BOOL.optionalFieldOf("glow_started",false).forGetter(s->s.glowStarted),
+        Codec.BOOL.optionalFieldOf("overworld_wave",false).forGetter(s->false),
+        Codec.INT.optionalFieldOf("total_spawned",0).forGetter(s->s.totalSpawned),
+        Codec.STRING.listOf().optionalFieldOf("persistent_raiders",List.of()).forGetter(s->List.<String>of()),
+        Codec.STRING.listOf().optionalFieldOf("sunrise_cleanup",List.of()).forGetter(s->List.copyOf(s.cleanup)),
+        Codec.unboundedMap(Codec.STRING,Raider.CODEC).optionalFieldOf("raiders",Map.of()).forGetter(s->Map.copyOf(s.raiders)),
+        Pending.CODEC.listOf().optionalFieldOf("pending",List.of()).forGetter(s->List.copyOf(s.pending))
+    ).apply(i,RaidStateData::new));
+    static final SavedDataType<RaidStateData> TYPE=new SavedDataType<>(Identifier.fromNamespaceAndPath("beddefense","raid_state"),RaidStateData::new,CODEC,null);
+    private long lastRaidDay,activeDay;
+    private int totalSpawned;
+    private boolean glowStarted;
+    private final Map<String,Raider> raiders;
+    private final List<Pending> pending;
+    private final Set<String> cleanup;
+    public RaidStateData(){this(0,-1,List.of(),false,false,0,List.of(),List.of(),Map.of(),List.of());}
+    private RaidStateData(long last,long active,List<String> oldIds,boolean glow,boolean oldOverworld,int total,List<String> oldPersistent,List<String> cleanup,Map<String,Raider> raiders,List<Pending> pending){
+        lastRaidDay=last;activeDay=active;glowStarted=glow;totalSpawned=total;
+        this.raiders=new HashMap<>(raiders);this.pending=new ArrayList<>(pending);this.cleanup=new HashSet<>(cleanup);
+        // Legacy records lacked dimension and ownership. Known Overworld waves settle globally;
+        // unknown mixed waves are conservatively retained until ENTITY_LOAD supplies their dimension.
+        oldIds.forEach(id->this.raiders.putIfAbsent(id,new Raider(oldOverworld?OVERWORLD:"unknown","",1,active)));
+        oldPersistent.forEach(id->this.raiders.putIfAbsent(id,new Raider("unknown","",1,0)));
+    }
+    public static RaidStateData get(ServerLevel world){return world.getDataStorage().computeIfAbsent(TYPE);}
     public boolean active(){return activeDay>=1;}
     public long activeDay(){return activeDay;}
     public long lastRaidDay(){return lastRaidDay;}
     public boolean glowStarted(){return glowStarted;}
-    public boolean overworldWave(){return overworldWave;}
-    public int totalSpawned(){return totalSpawned;}
+    public int totalSpawned(){return Math.max(totalSpawned,remaining());}
     public void glowStarted(boolean value){glowStarted=value;setDirty();}
-    public List<String> ids(){return List.copyOf(ids);}
-    public int remaining(){return ids.size();}
-    public boolean isRaider(UUID entity){String id=entity.toString();return ids.contains(id)||persistent.contains(id);}
-    public boolean pendingCleanup(UUID entity){return cleanup.contains(entity.toString());}
-    public void completedCleanup(UUID entity){if(cleanup.remove(entity.toString()))setDirty();}
-
-    public void launch(long day,List<String> spawned,boolean overworld){
+    public Map<String,Raider> raiders(){return Map.copyOf(raiders);}
+    public List<Pending> pending(){return List.copyOf(pending);}
+    public int remaining(){return raiders.size()+pending.stream().mapToInt(Pending::count).sum();}
+    public int activeCount(String dimension){return (int)raiders.values().stream().filter(r->r.dimension.equals(dimension)).count();}
+    public boolean isRaider(UUID id){return raiders.containsKey(id.toString());}
+    public Raider raider(UUID id){return raiders.get(id.toString());}
+    public boolean pendingCleanup(UUID id){return cleanup.contains(id.toString());}
+    public void completedCleanup(UUID id){if(cleanup.remove(id.toString()))setDirty();}
+    public void loaded(UUID id,String dimension){
+        Raider r=raider(id);if(r!=null&&!r.dimension.equals(dimension)){raiders.put(id.toString(),new Raider(dimension,r.owner,r.roster,r.wave));setDirty();}
+    }
+    public void launch(long day,List<Pending> batches){
         if(active()||day<=lastRaidDay)throw new IllegalStateException("Duplicate raid launch");
-        lastRaidDay=day;activeDay=day;ids.clear();ids.addAll(spawned);
-        glowStarted=false;overworldWave=overworld;totalSpawned=spawned.size();setDirty();
+        lastRaidDay=day;activeDay=day;glowStarted=false;pending.addAll(batches);totalSpawned=remaining();setDirty();
     }
-    public void remove(UUID id){
-        String key=id.toString();
-        if(ids.remove(key)|persistent.remove(key))setDirty();
+    public void spawned(Pending batch,UUID id){
+        if(!pending.remove(batch))throw new IllegalStateException("Stale spawn batch");
+        raiders.put(id.toString(),new Raider(batch.dimension,batch.owner,batch.roster,batch.wave));
+        if(batch.count>1)pending.add(new Pending(batch.dimension,batch.owner,batch.roster,batch.wave,batch.next+1,batch.count-1));
+        setDirty();
     }
-    public void finish(){
-        if(overworldWave)cleanup.addAll(ids); // pending unloaded entity cleanup only
-        else persistent.addAll(ids);
-        activeDay=-1L;ids.clear();glowStarted=false;overworldWave=false;totalSpawned=0;setDirty();
+    public void track(UUID id,Raider raider){raiders.put(id.toString(),raider);setDirty();}
+    public void remove(UUID id){if(raiders.remove(id.toString())!=null)setDirty();}
+    /** Atomically removes Overworld ledger entries BEFORE entity removal/any later death callback. */
+    public Map<String,Integer> settleMorning(){
+        Map<String,Integer> penalties=new HashMap<>();
+        raiders.entrySet().removeIf(e->{
+            Raider r=e.getValue();if(!r.dimension.equals(OVERWORLD))return false;
+            penalties.merge(r.owner,1,Integer::sum);cleanup.add(e.getKey());return true;
+        });
+        pending.removeIf(p->{if(!p.dimension.equals(OVERWORLD))return false;penalties.merge(p.owner,p.count,Integer::sum);return true;});
+        activeDay=-1;glowStarted=false;totalSpawned=remaining();setDirty();return penalties;
     }
+    public void finish(){activeDay=-1;glowStarted=false;totalSpawned=remaining();setDirty();}
+    public void stop(){cleanup.addAll(raiders.keySet());raiders.clear();pending.clear();finish();}
 }

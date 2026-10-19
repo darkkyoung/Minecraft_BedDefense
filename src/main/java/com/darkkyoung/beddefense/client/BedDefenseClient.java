@@ -16,7 +16,7 @@ public final class BedDefenseClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(ClockSyncPayload.TYPE,
                 (payload, context) -> context.client().execute(
                         () -> BedDefenseHud.acceptServerTime(
-                                payload.overworldDayTime(), payload.challengeElapsedTicks(), payload.challengeDay())));
+                                payload.overworldDayTime(), payload.challengeElapsedTicks(), payload.challengeDay(), payload.outcome())));
         ClientPlayNetworking.registerGlobalReceiver(BedStatusPayload.TYPE,
                 (payload, context) -> context.client().execute(
                         () -> BedDefenseHud.acceptBedState(payload.state(),payload.hp(),payload.maxHp())));

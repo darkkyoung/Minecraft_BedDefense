@@ -31,3 +31,17 @@ java {
     sourceCompatibility = JavaVersion.VERSION_25
     targetCompatibility = JavaVersion.VERSION_25
 }
+
+dependencies {
+    testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
+}
+test { useJUnitPlatform() }
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'beddefense-gametest'
+        enableGameTests = true
+        enableClientGameTests = false
+        eula = true
+    }
+}
