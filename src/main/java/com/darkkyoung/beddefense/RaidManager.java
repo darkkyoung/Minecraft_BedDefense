@@ -114,10 +114,14 @@ public final class RaidManager {
     }
     public static void bedDestroyed(MinecraftServer server){for(ServerPlayer p:server.getPlayerList().getPlayers())survivalWarning(p,server);}
     public static void survivalWarning(ServerPlayer player,MinecraftServer server){
-        String who=player.getUUID().toString();
-        run(server,"title "+who+" times 5 60 20");
-        run(server,"title "+who+" title {\"text\":\"살아남으세요\",\"color\":\"red\",\"bold\":true}");
-        run(server,"execute as "+who+" at @s run playsound minecraft:entity.wither.spawn master @s ~ ~ ~ 1 0.75");
+        // EntityArgument.players does not resolve a bare UUID as an online player's name.
+        // Send to the known connection, including remote-dimension and offline-mode players.
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(5,60,20));
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
+            Component.literal("살아남으세요").withStyle(net.minecraft.ChatFormatting.RED,net.minecraft.ChatFormatting.BOLD)));
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(
+            net.minecraft.core.Holder.direct(net.minecraft.sounds.SoundEvents.WITHER_SPAWN),net.minecraft.sounds.SoundSource.MASTER,
+            player.getX(),player.getY(),player.getZ(),1F,.75F,server.overworld().getRandom().nextLong()));
     }
     static void moveRaiders(MinecraftServer server,RaidStateData state){
         List<Mob> loaded=new ArrayList<>();

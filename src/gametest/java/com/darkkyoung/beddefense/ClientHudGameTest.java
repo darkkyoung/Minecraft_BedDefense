@@ -26,7 +26,14 @@ public class ClientHudGameTest implements FabricClientGameTest {
             context.runOnClient(mc->mc.player.connection.sendCommand("beddefense setup time reset"));
             context.runOnClient(mc->mc.player.connection.sendCommand("beddefense setup stride 2"));
             context.runOnClient(mc->mc.player.connection.sendCommand("beddefense setup confirm"));
-            context.waitTicks(65);context.waitFor(mc->BedDefenseHud.hardcoreRisk());context.takeScreenshot("r1-unregistered-hardcore");
+            context.waitTicks(65);context.waitFor(mc->BedDefenseHud.hardcoreRisk());
+            context.waitFor(mc->"살아남으세요".equals(title(mc)));
+            context.runOnClient(mc->{
+                if(!"평원".equals(net.minecraft.network.chat.Component.translatable("beddefense.biome.minecraft.plains").getString()))
+                    throw new AssertionError("Korean biome fallback is missing in the default English client");
+            });
+            context.takeScreenshot("r1-unregistered-hardcore");
+            context.runOnClient(mc->mc.gui.hud.clearTitles());
             world.getServer().runOnServer(server->{
                 var p=server.getPlayerList().getPlayers().getFirst();var level=server.overworld();BlockPos foot=p.blockPosition().offset(2,0,0);
                 level.setBlock(foot.below(),Blocks.STONE.defaultBlockState(),3);level.setBlock(foot.south().below(),Blocks.STONE.defaultBlockState(),3);
@@ -42,7 +49,8 @@ public class ClientHudGameTest implements FabricClientGameTest {
             world.getServer().runOnServer(server->{var p=server.getPlayerList().getPlayers().getFirst();SpawnBedPrototype.damage(server,p.getUUID(),37,"client_test");});
             context.waitTicks(12);context.takeScreenshot("r1-damaged-hp");
             world.getServer().runOnServer(server->SpawnBedPrototype.pickup(server.getPlayerList().getPlayers().getFirst(),server.overworld()));
-            context.waitFor(mc->BedDefenseHud.hardcoreRisk());context.waitTicks(6);context.takeScreenshot("r1-carried-yellow");
+            context.waitFor(mc->BedDefenseHud.hardcoreRisk()&&"살아남으세요".equals(title(mc)));
+            context.waitTicks(6);context.takeScreenshot("r1-carried-yellow");
             world.getServer().runOnServer(server->{
                 var p=server.getPlayerList().getPlayers().getFirst();var health=BedVitalData.get(server.overworld());health.destroy(p.getUUID(),"client_test");
             });
@@ -50,5 +58,12 @@ public class ClientHudGameTest implements FabricClientGameTest {
             world.getServer().runOnServer(ChallengeLifecycle::dragonKilled);
             context.waitFor(mc->!BedDefenseHud.hardcoreRisk());context.waitTicks(5);context.takeScreenshot("r1-victory-frozen-timer");
         }
+    }
+    private static String title(net.minecraft.client.Minecraft mc){
+        try{
+            var field=net.minecraft.client.gui.Hud.class.getDeclaredField("title");field.setAccessible(true);
+            var value=(net.minecraft.network.chat.Component)field.get(mc.gui.hud);
+            return value==null?"":value.getString();
+        }catch(ReflectiveOperationException e){throw new AssertionError("Cannot inspect the received title",e);}
     }
 }
