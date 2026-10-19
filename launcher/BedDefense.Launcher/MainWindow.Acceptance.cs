@@ -16,6 +16,8 @@ public partial class MainWindow
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern uint ExtractIconEx(string file, int index, [Out] IntPtr[]? large, [Out] IntPtr[]? small, uint count);
     [DllImport("user32.dll")] private static extern bool DestroyIcon(IntPtr icon);
+    [StructLayout(LayoutKind.Sequential)] private struct ClientRect { public int Left, Top, Right, Bottom; }
+    [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr window, out ClientRect rect);
 
     internal async Task RunVisualAcceptance(ReleaseManifest manifest, string root)
     {
@@ -116,7 +118,9 @@ public partial class MainWindow
     }
     private void Capture(string scenario)
     {
-        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(ActualWidth), (int)Math.Ceiling(ActualHeight), 96, 96, PixelFormats.Pbgra32);
+        if (!GetClientRect(new WindowInteropHelper(this).Handle, out var client)) throw new IOException("Cannot measure actual client render surface");
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var bitmap = new RenderTargetBitmap(client.Right, client.Bottom, dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
         bitmap.Render(this);
         SaveBitmap(bitmap, "ui-acceptance/" + scenario + ".png");
         if (ProfileBox.IsDropDownOpen && ProfileBox.Template.FindName("PART_Popup", ProfileBox) is Popup { Child: FrameworkElement child })
