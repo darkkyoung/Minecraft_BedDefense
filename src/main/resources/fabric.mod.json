@@ -3,20 +3,29 @@
   "id": "beddefense",
   "version": "${version}",
   "name": "Bed Defense",
-  "description": "Minecraft 26.3 technical prototype with frameless HUD and native block cracking test; raids are not implemented.",
-  "authors": ["darkkyoung"],
+  "description": "100일 동안 스폰 침대를 지키고 엔더 드래곤을 처치하는 생존 챌린지",
+  "authors": [
+    "darkkyoung"
+  ],
   "contact": {
     "sources": "https://github.com/darkkyoung/Minecraft_BedDefense"
   },
   "environment": "*",
   "entrypoints": {
-    "main": ["com.darkkyoung.beddefense.BedDefense"],
-    "client": ["com.darkkyoung.beddefense.client.BedDefenseClient"]
+    "main": [
+      "com.darkkyoung.beddefense.BedDefense"
+    ],
+    "client": [
+      "com.darkkyoung.beddefense.client.BedDefenseClient"
+    ]
   },
   "depends": {
     "fabricloader": ">=0.19.5",
     "minecraft": "~26.3",
     "java": ">=25",
     "fabric-api": "*"
-  }
+  },
+  "mixins": [
+    "beddefense.mixins.json"
+  ]
 }

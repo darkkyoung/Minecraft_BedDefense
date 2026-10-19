@@ -39,3 +39,51 @@ jobs:
             !build/libs/*-sources.jar
           if-no-files-found: error
           retention-days: 14
+      - name: Upload test results and server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r1-test-results
+          path: |
+            build/test-results/
+            build/reports/
+            build/gametest-results/
+            build/run/gametest/logs/
+            run/gametest/logs/
+          if-no-files-found: warn
+
+  client-gameplay:
+    name: Client HUD and networking / Java 25
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+      - name: Prepare official client assets
+        run: gradle downloadAssets --no-daemon
+      - name: Install software graphics drivers
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libgl1-mesa-dri libglx-mesa0 mesa-vulkan-drivers mesa-utils xvfb
+      - name: Actual client game tests with virtual display
+        timeout-minutes: 5
+        run: xvfb-run -a -s '-screen 0 1920x1080x24 +extension GLX -noreset' sh -c 'glxinfo -B && exec gradle runClientGameTest --no-daemon --stacktrace'
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          SDL_VIDEO_DRIVER: x11
+      - name: Client screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r1-client-acceptance
+          path: |
+            build/run/clientGameTest/
+            run/clientGameTest/
+            build/reports/
+          if-no-files-found: warn

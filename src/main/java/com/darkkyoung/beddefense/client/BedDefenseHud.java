@@ -14,7 +14,7 @@ import net.minecraft.world.entity.player.Player;
 /**
  * Korean-only, frameless HUD v2.
  * Live: Overworld date, coordinates, elapsed world-tick stopwatch, biome.
- * Simulated: Spawn Bed bar, preview raid. Never mutates Bed/raid state.
+ * Server-driven bed HP and raid state; debug previews never mutate gameplay.
  */
 public final class BedDefenseHud {
     private static final int WHITE = 0xFFFFFFFF;
@@ -29,17 +29,28 @@ public final class BedDefenseHud {
     private static final int BAR_WIDTH = 182;
     private static final int BAR_HEIGHT = 5;
     private static final float BAR_SCALE = 0.25F;
-    private static int serverBedState; // 0 unregistered/unplaced, 1 placed; no HP mechanics yet.
+    private static int serverBedState; // 0 unregistered, 1 placed, 2 destroyed, 3 unplaced
+    private static int serverBedHp;
+    private static long destroyFlashUntilTick;
+    private static int serverBedMax=100;
+    private static int activeRaidDay;
+    private static int activeRaidRemaining;
+    private static int activeRaidTotal;
+    private static float animatedHpRatio;
+    private static long flashUntilTick;
+    private static long lastVisualTick = -1L;
 
-    // Prototype only: the approximate first time Minecraft permits sleeping.
-    // Must use the real server raid scheduler when raids are implemented.
-    private static final long BEDTIME_TICK = 12542L;
+    // Shared nightly threshold; all scheduling and settlement are server-authoritative.
+    private static final long BEDTIME_TICK = com.darkkyoung.beddefense.RaidManager.BEDTIME_TICK;
     private static final long WARNING_DURATION_TICKS = 20L * 60L;
 
     private enum Preview { OFF, PLACED, UNPLACED, DESTROYED }
     private static Preview preview = Preview.OFF;
     private static boolean visible = true;
     private static boolean synced = false;
+    private static int outcome;
+    public static boolean reserveBossSpace(){return visible&&synced;}
+    public static boolean hardcoreRisk(){return synced&&outcome==1&&serverBedState!=1;}
     private static long serverDayTime;
     private static long serverElapsedTime;
     private static long serverChallengeDay = -1L;
@@ -48,23 +59,45 @@ public final class BedDefenseHud {
 
     private BedDefenseHud() {}
 
-    static void acceptServerTime(long dayTime, long challengeElapsedTicks, long challengeDay) {
+    static void acceptServerTime(long dayTime, long challengeElapsedTicks, long challengeDay, int result) {
         Minecraft mc = Minecraft.getInstance();
         // Use the same client-world tick reference in the packet callback and rendering.
         receivedAtClientTick = mc.level != null ? mc.level.getGameTime() : 0L;
         serverDayTime = dayTime;
         serverElapsedTime = challengeElapsedTicks;
         serverChallengeDay = challengeDay;
+        outcome=result;
         synced = true;
     }
 
-    static void acceptBedState(int state) { serverBedState = state; }
+    static void acceptRaidStatus(int day,int remaining,int total){
+        activeRaidDay=day;activeRaidRemaining=remaining;activeRaidTotal=total;
+    }
+
+    static void acceptBedState(int state, int hp, int maxHp) {
+        Minecraft mc = Minecraft.getInstance();
+        long tick = mc.level != null ? mc.level.getGameTime() : 0L;
+        if (serverBedState != 1 && state == 1) animatedHpRatio = 0;
+        if (serverBedState == 1 && state == 1 && hp < serverBedHp) {
+            flashUntilTick=tick+8;
+        }
+        if (serverBedState == 1 && state == 2) destroyFlashUntilTick = tick+12;
+        serverBedState = state;
+        serverBedHp = Math.max(0,hp);
+        serverBedMax = Math.max(1,maxHp);
+    }
 
     static void onDisconnected() {
         if (wasInWorld) {
-            synced = false;
+            synced = false;outcome=0;
             preview = Preview.OFF;
             serverBedState = 0;
+            serverBedHp = 0;
+            activeRaidDay=0;activeRaidRemaining=0;activeRaidTotal=0;
+            animatedHpRatio = 0;
+            flashUntilTick = 0;
+            destroyFlashUntilTick=0;
+            lastVisualTick = -1;
             receivedAtClientTick = 0;
             serverChallengeDay = -1L;
             serverElapsedTime = -1L;
@@ -105,10 +138,10 @@ public final class BedDefenseHud {
         long elapsedSinceSync = synced ? Math.max(0L, clientTick - receivedAtClientTick) : 0L;
         long dayTime = synced ? serverDayTime + elapsedSinceSync : -1L;
         boolean running = synced && serverChallengeDay >= 1L && serverElapsedTime >= 0L;
-        long playedTicks = running ? serverElapsedTime + elapsedSinceSync : 0L;
+        long playedTicks = running ? serverElapsedTime + (outcome==1?elapsedSinceSync:0) : 0L;
 
         long day = running ? serverChallengeDay : -1L;
-        String dayLabel = running ? day + "일차" : "시작 전";
+        String dayLabel = outcome==2?"챌린지 성공":outcome==3?"챌린지 실패":running ? day + "일차" : "시작 전";
         drawLarge(graphics, font, dayLabel, EDGE, EDGE, ORANGE, 1.7F);
 
         graphics.text(font,
@@ -121,45 +154,63 @@ public final class BedDefenseHud {
         graphics.text(font, "생물 군계 : " + biomeName(player),
                 EDGE, 61, WHITE, true);
 
-        // Render using vanilla Minecraft boss-bar sprites, not a custom rectangle.
-        // The bar is 25% of the former width; label identifies what it represents.
-        int right = screenWidth - EDGE;
-        String label = "스폰 침대";
-        graphics.text(font, label, right - font.width(label), 11, WHITE, true);
-        int displayWidth = Math.round(BAR_WIDTH * BAR_SCALE);
-        int barX = Math.max(EDGE, right - displayWidth);
-        int barY = 25;
-        int effectiveState = switch (preview) {
+        // Vanilla boss bar positioned like AllBlocks progress bar at top-center.
+        int barX = (screenWidth - BAR_WIDTH) / 2;
+        int barY = 21;
+        int state = switch(preview) {
             case OFF -> serverBedState;
             case PLACED -> 1;
-            case UNPLACED -> 0;
+            case UNPLACED -> 3;
             case DESTROYED -> 2;
         };
-        String color = effectiveState == 1 ? "green" : effectiveState == 2 ? "red" : "yellow";
-        int progress = (preview == Preview.PLACED) ? Math.round(BAR_WIDTH * 0.86F) : BAR_WIDTH;
-        Identifier background = Identifier.fromNamespaceAndPath("minecraft", "boss_bar/" + color + "_background");
-        Identifier foreground = Identifier.fromNamespaceAndPath("minecraft", "boss_bar/" + color + "_progress");
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(barX, barY);
-        graphics.pose().scale(BAR_SCALE, 1.0F);
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, background, 0, 0, BAR_WIDTH, BAR_HEIGHT);
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, foreground,
-                BAR_WIDTH, BAR_HEIGHT, 0, 0, 0, 0, progress, BAR_HEIGHT);
-        graphics.pose().popMatrix();
+        float target = (state==1)
+                ? (preview==Preview.PLACED ? 0.86F : Math.min(1F, (float)serverBedHp/serverBedMax))
+                : (state==0 ? 0F : 1F);
+
+        long nowTick=mc.level.getGameTime();
+        if(lastVisualTick<0L)lastVisualTick=nowTick;
+        long deltaTicks=Math.max(0L,Math.min(10L,nowTick-lastVisualTick));
+        lastVisualTick=nowTick;
+        // This easing animates initial registration, repair and raid damage.
+        float step=Math.min(1F,deltaTicks*0.14F);
+        animatedHpRatio += (target-animatedHpRatio)*step;
+        float visibleRatio=state==1 ? animatedHpRatio : target;
+        String color = state==1 ? "green" : state==2 ? "red" : state==3 ? "yellow" : "white";
+        boolean flashing = state==1 && nowTick <= flashUntilTick;
+        if(flashing || (state==2 && nowTick<=destroyFlashUntilTick))color="white";
+        int jitter=flashing && nowTick%2==0 ? 1 : flashing ? -1 : 0;
+        if(state==2&&nowTick<destroyFlashUntilTick)
+            graphics.fill(0,0,screenWidth,mc.getWindow().getGuiScaledHeight(),0x55FFFFFF);
+        Identifier background=Identifier.fromNamespaceAndPath("minecraft","boss_bar/"+color+"_background");
+        Identifier foreground=Identifier.fromNamespaceAndPath("minecraft","boss_bar/"+color+"_progress");
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, background, barX+jitter,barY,BAR_WIDTH,BAR_HEIGHT);
+        if(state==0)graphics.fill(barX+1,barY+1,barX+BAR_WIDTH-1,barY+BAR_HEIGHT-1,0xFF252525);
+        int progress=Math.max(0,Math.min(BAR_WIDTH,Math.round(visibleRatio*BAR_WIDTH)));
+        if(progress>0)graphics.blitSprite(RenderPipelines.GUI_TEXTURED, foreground,
+                BAR_WIDTH,BAR_HEIGHT,0,0,barX+jitter,barY,progress,BAR_HEIGHT);
+
+        drawCentered(graphics,font,"스폰 침대",screenWidth,8,WHITE);
+        if(state==0)drawCentered(graphics,font,"스폰 침대를 지정하세요",screenWidth,32,WHITE);
+        if(state==3)drawCentered(graphics,font,"스폰 침대 미설치 · 사망 시 패배",screenWidth,32,YELLOW);
+        if(state==2)drawCentered(graphics,font,"스폰 침대 파괴 · 마지막 생존",screenWidth,32,RED);
 
         long toRaid = ticksUntilBedtime(dayTime);
-        if (running && toRaid > 0L && toRaid <= WARNING_DURATION_TICKS) {
+        if (outcome==1 && toRaid > 0L && toRaid <= WARNING_DURATION_TICKS) {
             String warning = "레이드까지 " + formatWarning(toRaid) + "초...";
-            drawCentered(graphics, font, warning, screenWidth, 10, RAID_ORANGE);
+            drawCentered(graphics, font, warning, screenWidth, 61, RAID_ORANGE);
         }
 
+        if(activeRaidDay>0 && running) {
+            drawCentered(graphics,font,"남은 몬스터 수 : "+activeRaidRemaining+" / "+activeRaidTotal,
+                    screenWidth,47,WHITE);
+        }
         if (preview != Preview.OFF) {
             // All raid indicators are visibly tagged as preview to avoid implying live gameplay.
             String previewTitle = "[미리보기] 레이드 몬스터 12 / 16";
             String bedAlert = "스폰 침대 공격 중! [미리보기]";
-            drawCentered(graphics, font, previewTitle, screenWidth, 38, WHITE);
+            drawCentered(graphics, font, previewTitle, screenWidth, 91, WHITE);
             if (preview == Preview.PLACED) {
-                drawCentered(graphics, font, bedAlert, screenWidth, 52, RED);
+                drawCentered(graphics, font, bedAlert, screenWidth, 104, RED);
             }
         }
     }

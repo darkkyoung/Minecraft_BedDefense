@@ -9,18 +9,14 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
-/**
- * Clickable Korean chat menu. Join and explicit /beddefense menu are display-only.
- * Only the explicit /beddefense start command changes the persistent challenge state.
- */
+/** The main entry point is always /beddefense; no separate /bdhud alias. */
 public final class ChallengeMenu {
-    private ChallengeMenu() {}
+    private ChallengeMenu() { }
 
     public static void init() {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 server.execute(() -> {
-                    if (handler.player.isRemoved()) return;
-                    show(handler.player, server);
+                    if (!handler.player.isRemoved()) {ChallengeLifecycle.join(handler.player,server);show(handler.player, server);}
                 }));
     }
 
@@ -31,69 +27,65 @@ public final class ChallengeMenu {
     }
 
     public static void show(ServerPlayer player, MinecraftServer server) {
-        ChallengeData state = ChallengeData.get(server.overworld());
-        player.sendSystemMessage(Component.literal("§6§l──────── 베드 디펜스 ────────"));
-        if (!state.isStarted()) {
-            player.sendSystemMessage(Component.literal("§f침대를 지키며 엔더 드래곤을 처치하세요."));
-            player.sendSystemMessage(Component.literal("§7시작 전에는 도전 시간과 일차가 진행되지 않습니다."));
-            player.sendSystemMessage(
-                    button(" [게임 시작] ", ChatFormatting.GREEN, "/beddefense start", "Bed Defense 챌린지 시작")
-                            .append(Component.literal("  "))
-                            .append(button("[규칙 보기]", ChatFormatting.YELLOW,
-                                    "/beddefense rules", "게임 규칙 확인")));
+        ChallengeData data = ChallengeData.get(server.overworld());
+        if (!data.isStarted()) {
+            // Requested layout: start button FIRST, rules below as plain chat text.
+            player.sendSystemMessage(button(" [게임 시작] ", ChatFormatting.GREEN,
+                    "/beddefense setup", "난이도·시간·레이드 편성 진행 배속을 설정합니다"));
+        } else if(!data.running()) {
+            player.sendSystemMessage(Component.literal(data.outcome()==ChallengeData.WON?"§a챌린지 성공!":"§c챌린지 실패: "+data.reason()));
         } else {
-            player.sendSystemMessage(Component.literal("§a진행 중  §7·  " +
-                    state.day(overworldClock(server)) + "일차"));
+            player.sendSystemMessage(Component.literal("§a진행 중 §f"
+                    + data.day(overworldClock(server)) + "일차"));
             player.sendSystemMessage(button(" [진행 상태] ", ChatFormatting.AQUA,
-                    "/beddefense status", "진행 중인 도전 확인")
-                    .append(Component.literal("  "))
-                    .append(button("[규칙 보기]", ChatFormatting.YELLOW,
-                            "/beddefense rules", "게임 규칙 확인")));
+                    "/beddefense status", "현재 챌린지 상태"));
         }
-        player.sendSystemMessage(Component.literal("§8채팅 메뉴 다시 열기: /beddefense menu"));
+        player.sendSystemMessage(Component.literal("§7목표: §f100일 안에 엔더 드래곤을 처치하세요."));
+        player.sendSystemMessage(Component.literal("§7침대: §f첫 번째 스폰 침대가 유일한 리스폰 지점입니다."));
+        player.sendSystemMessage(Component.literal("§7레이드: §f침대 유무와 무관하게 매일 밤 등장하며 편성 진행 배속에 따라 강화됩니다."));
+        player.sendSystemMessage(Component.literal("§7패배: §f침대가 없거나 파괴된 후 죽으면 탈락합니다."));
+        player.sendSystemMessage(Component.literal("§7수리: §f철 주괴를 들고 스폰 침대 우클릭 · 회수: 침대 파괴"));
+        player.sendSystemMessage(Component.literal("§8/beddefense · 채팅 메뉴 다시 열기"));
     }
 
-    public static boolean start(ServerPlayer player, MinecraftServer server) {
+    /** Called only after the explicit setup wizard and 3-second countdown. */
+    public static boolean startNow(ServerPlayer player, MinecraftServer server) {
         ChallengeData data = ChallengeData.get(server.overworld());
         if (!data.start(server.overworld().getGameTime(), overworldClock(server))) {
-            player.sendSystemMessage(Component.literal("§e이미 시작한 도전입니다. /beddefense status"));
+            player.sendSystemMessage(Component.literal("§e이미 진행 중인 챌린지입니다."));
             return false;
         }
+        for(ServerPlayer participant:server.getPlayerList().getPlayers())
+            if(!participant.isSpectator())data.join(participant.getUUID());
+        RaidManager.run(server,"title @a title {\"text\":\"시작!\",\"color\":\"green\"}");
+        RaidManager.run(server,"execute as @a at @s run playsound minecraft:entity.player.levelup master @s ~ ~ ~ 1 1");
         server.getPlayerList().broadcastSystemMessage(
-                Component.literal("§a§l[베드 디펜스] §f챌린지가 시작되었습니다! §7(1일차 · 00:00:00)"),
-                false);
-        player.sendSystemMessage(Component.literal("§7현재는 시작 메뉴와 타이머만 작동하는 개발 버전입니다. 레이드는 아직 생성되지 않습니다."));
+                Component.literal("§a§l[베드 디펜스] §f챌린지 시작! §7(1일차 · 00:00:00)"), false);
         return true;
-    }
-
-    public static void rules(ServerPlayer player) {
-        player.sendSystemMessage(Component.literal("§6§l[베드 디펜스] 기본 규칙"));
-        player.sendSystemMessage(Component.literal("§f목표: 100일 안에 엔더 드래곤 처치"));
-        player.sendSystemMessage(Component.literal("§f첫 스폰 침대 보호 / 밤마다 레이드 / 침대 파괴 후 사망 시 탈락"));
-        player.sendSystemMessage(Component.literal("§7현재 테스트 버전은 침대 등록 시각 효과와 HUD만 지원합니다."));
-        player.sendSystemMessage(button(" [메뉴로 돌아가기] ", ChatFormatting.YELLOW,
-                "/beddefense menu", "시작 메뉴"));
     }
 
     public static void status(ServerPlayer player, MinecraftServer server) {
         ChallengeData data = ChallengeData.get(server.overworld());
         if (!data.isStarted()) {
-            player.sendSystemMessage(Component.literal("§e챌린지 시작 전입니다."));
+            player.sendSystemMessage(Component.literal("§e도전 시작 전입니다."));
         } else {
             long seconds = data.elapsedTicks(server.overworld().getGameTime()) / 20L;
             String time = String.format(java.util.Locale.ROOT, "%02d:%02d:%02d",
                     seconds / 3600, seconds / 60 % 60, seconds % 60);
-            player.sendSystemMessage(Component.literal("§a베드 디펜스 진행 중  §f" +
-                    data.day(overworldClock(server)) + "일차 · " + time));
+            ChallengeOptionsData opts = ChallengeOptionsData.get(server.overworld());
+            player.sendSystemMessage(Component.literal((data.running()?"§a진행 중: §f":"§e종료: §f")
+                    + data.day(overworldClock(server)) + "일차 · " + time));
+            player.sendSystemMessage(Component.literal("§7난이도: " + opts.difficulty()
+                    + " · 레이드 편성 진행 ×" + opts.raidStride()));
         }
-        player.sendSystemMessage(button(" [메뉴 열기] ", ChatFormatting.YELLOW,
-                "/beddefense menu", "시작 메뉴"));
+        player.sendSystemMessage(button(" [메뉴] ", ChatFormatting.YELLOW,
+                "/beddefense", "메뉴 다시 열기"));
     }
 
-    private static MutableComponent button(String title, ChatFormatting color, String command, String tooltip) {
+    public static MutableComponent button(String title, ChatFormatting color,
+                                           String command, String tooltip) {
         return Component.literal(title)
                 .withStyle(style -> style.withColor(color).withBold(true)
-                        .withUnderlined(true)
                         .withClickEvent(new ClickEvent.RunCommand(command))
                         .withHoverEvent(new HoverEvent.ShowText(Component.literal(tooltip))));
     }
