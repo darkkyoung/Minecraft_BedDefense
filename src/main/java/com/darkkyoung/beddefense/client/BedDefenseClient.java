@@ -2,6 +2,7 @@ package com.darkkyoung.beddefense.client;
 
 import com.darkkyoung.beddefense.network.ClockSyncPayload;
 import com.darkkyoung.beddefense.network.BedStatusPayload;
+import com.darkkyoung.beddefense.network.HudActionPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
@@ -32,22 +33,11 @@ public final class BedDefenseClient implements ClientModInitializer {
             }
         });
 
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-                dispatcher.register(ClientCommands.literal("bdhud")
-                        .executes(ctx -> {
-                            BedDefenseHud.toggle();
-                            ctx.getSource().sendFeedback(
-                                    Component.literal("[베드 디펜스] HUD " +
-                                            (BedDefenseHud.isVisible() ? "표시" : "숨김")));
-                            return 1;
-                        })
-                        .then(ClientCommands.literal("preview")
-                                .executes(ctx -> {
-                                    String status = BedDefenseHud.nextPreview();
-                                    ctx.getSource().sendFeedback(Component.literal(
-                                            "[베드 디펜스] UI 시험: " + status + " (실제 침대나 레이드는 변경되지 않음)"));
-                                    return 1;
-                                })))
-        );
+        ClientPlayNetworking.registerGlobalReceiver(HudActionPayload.TYPE,
+                (payload,context) -> context.client().execute(() -> {
+                    if(payload.action()==0) BedDefenseHud.toggle();
+                    if(payload.action()==1) BedDefenseHud.nextPreview();
+                }));
+
     }
 }
