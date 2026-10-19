@@ -5,13 +5,13 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier><SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile><IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <PublishTrimmed>false</PublishTrimmed><DebugType>none</DebugType>
-    <AssemblyName>BedDefense-Setup</AssemblyName><Version>0.3.0</Version>
+    <AssemblyName>BedDefense-Setup</AssemblyName><Version>0.4.0</Version>
     <LauncherBuild Condition="'$(GITHUB_RUN_NUMBER)' != ''">$(GITHUB_RUN_NUMBER)</LauncherBuild>
     <LauncherBuild Condition="'$(LauncherBuild)' == ''">0</LauncherBuild>
-    <FileVersion>0.3.$(LauncherBuild).0</FileVersion>
+    <FileVersion>0.4.$(LauncherBuild).0</FileVersion>
     <ApplicationIcon>Assets/BedDefense.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
-  <ItemGroup><Resource Include="Assets/BedDefense.ico" /><Resource Include="Assets/Brand.png" /></ItemGroup>
+  <ItemGroup><Resource Include="Assets/BedDefense.ico" /><Resource Include="Assets/Brand.png" /><Resource Include="Assets/BedDefense-Hero.jpg" /></ItemGroup>
   <ItemGroup><ProjectReference Include="../BedDefense.Core/BedDefense.Core.csproj" /></ItemGroup>
 </Project>

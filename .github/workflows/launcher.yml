@@ -70,12 +70,12 @@ jobs:
           if ($extra.Count -ne 0) { throw "Publish is not a single EXE: $extra" }
           $hash = (Get-FileHash publish/BedDefense-Setup.exe -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  BedDefense-Setup.exe" | Set-Content publish/BedDefense-Setup.exe.sha256 -Encoding utf8NoBOM
-      - name: Actual WPF state matrix, layout scaling and published PE icon acceptance
+      - name: Actual Dark/Light WPF matrix, theme persistence, scaling and PE icon acceptance
         shell: pwsh
         run: |
           # Use the actual previously verified public EXE, not a mocked version string.
-          Invoke-WebRequest -Uri 'https://github.com/darkkyoung/Minecraft_BedDefense/releases/download/dev-mc26.3-37-3bd7d7c0e636/BedDefense-Setup.exe' -OutFile previous-launcher.exe
-          if ((Get-FileHash previous-launcher.exe -Algorithm SHA256).Hash.ToLowerInvariant() -ne '2162e8aed81d60beb30a29eedcdfb4add67d07fa7a3ce565c72ceb8ee04dc77a') { throw 'Previous launcher fixture checksum mismatch' }
+          Invoke-WebRequest -Uri 'https://github.com/darkkyoung/Minecraft_BedDefense/releases/download/dev-mc26.3-53-8746da76ec17/BedDefense-Setup.exe' -OutFile previous-launcher.exe
+          if ((Get-FileHash previous-launcher.exe -Algorithm SHA256).Hash.ToLowerInvariant() -ne '5b7523d3c6f372239379fde56456a38bc32e836c4cde474e59a92e3c622542ee') { throw 'Previous launcher fixture checksum mismatch' }
           $p = Start-Process ./publish/BedDefense-Setup.exe -ArgumentList @('--ui-acceptance', '--manifest', "$pwd/release/manifest.json", '--existing-root', "$pwd/ui-fixture", '--previous-launcher', "$pwd/previous-launcher.exe") -PassThru
           if (-not $p.WaitForExit(120000)) { $p.Kill(); throw 'UI acceptance timed out' }
           if ($p.ExitCode -ne 0) { Get-Content launcher-smoke.txt; throw 'UI acceptance failed' }

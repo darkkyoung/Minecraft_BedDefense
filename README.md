@@ -31,7 +31,9 @@ Minecraft Java **26.3 / Fabric / Java 25** — Phase R1 development build.
 
 지원 게임은 **26.3/dev**입니다. 기존 환경의 Loader는 Bed Defense의 `>=0.19.5` 조건과 각 모드의 선언을 검사하며, API는 설치된 버전의 Minecraft·Loader·모드 의존성을 검사합니다. Java 25는 공식 런처가 관리합니다. 메타데이터 검사는 실제 게임 구동 검증을 대체하지 않습니다.
 
-이번 R1은 모드 업데이트입니다. **기존 런처에서 업데이트 조회 → 업데이트 설치**를 사용하며 새 EXE를 받을 필요가 없습니다. 개발 EXE는 아직 코드 서명되지 않았습니다.
+이번 **L3는 런처 화면 업데이트**입니다. 기존 런처의 **런처 업데이트**를 누르거나 최신 Release의 새 EXE를 받으십시오. 다크/라이트 테마, 침대 방어 배너, 큰 설치·실행 버튼과 붉은 침대 아이콘이 적용됩니다. 모드 게임 코드와 밸런스는 그대로입니다. 개발 EXE는 아직 코드 서명되지 않았습니다.
+
+[실제 Windows 화면과 L3 검증 안내](docs/LAUNCHER_L3.md)
 
 [상세 설치·오류 복구 안내](launcher/README.md) · [런처 구조와 배포 파이프라인](docs/LAUNCHER_PIPELINE.md) · [Windows 실기기 검증 절차](docs/LAUNCHER_ACCEPTANCE.md)
 
