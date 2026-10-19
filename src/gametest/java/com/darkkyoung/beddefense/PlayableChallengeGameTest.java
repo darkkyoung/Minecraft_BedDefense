@@ -105,13 +105,13 @@ public class PlayableChallengeGameTest {
                     ServerPlayer respawned=server.getPlayerList().respawn(p,false,Entity.RemovalReason.KILLED);
                     h.assertTrue(ChallengeData.get(world).playerState(p.getUUID())==ChallengeData.ALIVE&&!respawned.isSpectator(),"normal respawn consumed once");
                     BedVitalData.get(world).debugHealth(respawned.getUUID(),20);
-                    respawned.teleportTo(nether,0,105,0,Set.of(),0,0,false);respawned.kill(nether);
+                    respawned.teleportTo(nether,0,105,0,Set.of(),0,0,false);respawned.hasChangedDimension();respawned.kill(nether);
                     h.assertTrue(BedVitalData.get(world).state(respawned.getUUID())==2,"dimension death permanently destroys 20 HP bed");
                     h.assertTrue(ChallengeData.get(world).playerState(respawned.getUUID())==ChallengeData.FINAL_RESPAWN,"this death gets final respawn");
                     ChallengeLifecycle.death(respawned);h.assertTrue(ChallengeData.get(world).playerState(respawned.getUUID())==ChallengeData.FINAL_RESPAWN,"duplicate death cannot add allowance");
                     ServerPlayer last=server.getPlayerList().respawn(respawned,false,Entity.RemovalReason.KILLED);
                     h.assertTrue(last.level()==world&&!last.isSpectator(),"final respawn returns to Overworld once");
-                    last.kill(world);h.assertTrue(ChallengeData.get(world).outcome()==ChallengeData.LOST,"next death actually loses");
+                    last.hasChangedDimension();last.kill(world);h.assertTrue(ChallengeData.get(world).outcome()==ChallengeData.LOST,"next death actually loses");
                     ServerPlayer spectator=server.getPlayerList().respawn(last,false,Entity.RemovalReason.KILLED);
                     h.assertTrue(spectator.isSpectator(),"eliminated player cannot resume by respawning");
                     // A fresh test-only run verifies the actual dragon death event independently of prior defeat.
