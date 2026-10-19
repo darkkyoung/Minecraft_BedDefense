@@ -72,7 +72,7 @@ public final class SpawnBedPrototype {
                 sp.sendSystemMessage(Component.literal("§c다른 일반 침대는 수면 및 리스폰 지정이 불가능합니다. 스폰 침대만 사용할 수 있습니다."));
                 return InteractionResult.FAIL;
             }
-            if(RaidManager.isActive(sp.getServer()))return InteractionResult.FAIL;
+            if(RaidManager.isActive(overworld.getServer()))return InteractionResult.FAIL;
             return InteractionResult.PASS;
         }
         if(registered.registerFirst(sp.getUUID(),foot)) {

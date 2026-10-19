@@ -48,7 +48,7 @@ public final class RaidManager {
     }
 
     public static void onMobDeath(Entity mob, MinecraftServer server) {
-        if(!mob.getTags().contains(TAG))return;
+        if(!mob.getCommandTags().contains(TAG))return;
         RaidStateData state=RaidStateData.get(server.overworld());
         if(state.active())state.remove(mob.getUUID());
         LAST_BED_HIT.remove(mob.getUUID());
@@ -155,7 +155,7 @@ public final class RaidManager {
         run(server,cmd);
         Entity spawned=null;
         for(Entity e:level.getAllEntities()){
-            if(e.getTags().contains(unique)){spawned=e;break;}
+            if(e.getCommandTags().contains(unique)){spawned=e;break;}
         }
         if(spawned==null)return null;
         // Speed I from day 11, Speed II from day 25, Speed III from day 41.
@@ -187,7 +187,7 @@ public final class RaidManager {
         state.glowStarted(true);
         for(ServerLevel level:server.getAllLevels()){
             for(Entity e:level.getAllEntities()){
-                if(e.getTags().contains(TAG))e.setGlowingTag(true);
+                if(e.getCommandTags().contains(TAG))e.setGlowingTag(true);
             }
         }
         broadcast(server,"§e[베드 디펜스] §f일출까지 5분! 남은 레이드 몬스터에게 발광 표시가 적용됩니다.");
@@ -199,7 +199,7 @@ public final class RaidManager {
         for(ServerLevel level:server.getAllLevels()){
             if(!level.dimension().equals(Level.OVERWORLD))continue;
             for(Entity e:level.getAllEntities()){
-                if(!e.getTags().contains(OVERWORLD_TAG))continue;
+                if(!e.getCommandTags().contains(OVERWORLD_TAG))continue;
                 level.sendParticles(ParticleTypes.FLAME,e.getX(),e.getY()+0.6,e.getZ(),12,0.3,0.4,0.3,0.02);
                 e.discard();
             }
@@ -232,7 +232,7 @@ public final class RaidManager {
         int attackers=0;
         for(ServerLevel level:server.getAllLevels()){
             for(Entity e:level.getAllEntities()){
-                if(!(e instanceof Mob mob)||!e.getTags().contains(TAG))continue;
+                if(!(e instanceof Mob mob)||!e.getCommandTags().contains(TAG))continue;
                 ServerPlayer nearest=null;
                 double min=Double.MAX_VALUE;
                 for(ServerPlayer p:server.getPlayerList().getPlayers()) {
@@ -276,6 +276,6 @@ public final class RaidManager {
         try {
             server.getCommands().performPrefixedCommand(
                 server.createCommandSourceStack().withSuppressedOutput(),command);
-        } catch(Exception e){BedDefense.LOGGER.warn("Raid command failed: {}",command,e);}
+        } catch(Exception e){org.slf4j.LoggerFactory.getLogger(RaidManager.class).warn("Raid command failed: {}",command,e);}
     }
 }
