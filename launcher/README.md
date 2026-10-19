@@ -59,3 +59,8 @@ dotnet publish launcher/BedDefense.Launcher -c Release -r win-x64 --self-contain
 ```
 
 [배포 계약](../docs/LAUNCHER_PIPELINE.md) · [실기기 검증](../docs/LAUNCHER_ACCEPTANCE.md)
+
+
+## Launcher L2 UI
+
+[Actual Windows screenshots, implementation boundaries and PC acceptance](../docs/LAUNCHER_L2.md).

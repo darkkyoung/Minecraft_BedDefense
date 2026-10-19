@@ -78,7 +78,7 @@ public partial class MainWindow : Window
             }
             catch { ErrorText.Text = "저장된 경로를 읽지 못해 기본 경로를 사용합니다."; }
         }
-        Loaded += async (_, _) => { if (!smoke) { launcher = WindowsEnvironment.FindLauncher(); await Refresh(); } };
+        Loaded += async (_, _) => { Width = Math.Min(Width, SystemParameters.WorkArea.Width); Height = Math.Min(Height, SystemParameters.WorkArea.Height); if (!smoke) { launcher = WindowsEnvironment.FindLauncher(); await Refresh(); } };
         Closing += OnClosing;
         Closed += (_, _) => downloads.Dispose();
     }
@@ -89,6 +89,7 @@ public partial class MainWindow : Window
     private void SetBusy(bool value)
     {
         busy = value;
+        LaunchButton.Visibility = launchPrimary ? Visibility.Collapsed : Visibility.Visible;
         RefreshButton.IsEnabled = BrowseButton.IsEnabled = LaunchButton.IsEnabled = ModeBox.IsEnabled = MigrateButton.IsEnabled = !value;
         ProfileBox.IsEnabled = !value && ExistingMode;
         InstallButton.IsEnabled = !value && latest is not null && canInstall;
@@ -97,20 +98,24 @@ public partial class MainWindow : Window
     private void ReadLocal()
     {
         var installation = SelectedInstallation();
-        InstanceText.Text = "실제 게임 폴더: " + installation.Instance;
+        InstanceText.Text = installation.Instance;
         ProfileHint.Text = ExistingMode ? "프로필 정보는 유지합니다. 같은 게임 폴더를 공유하는 프로필에도 모드가 적용됩니다. Loader/API 누락·충돌 시 설치를 보류합니다." : "별도의 Bed Defense 26.3 프로필과 게임 폴더를 생성합니다.";
         var installed = installation.Installed();
         var manual = installed is null && installation.IsExisting && File.Exists(installation.BedDefenseTarget)
             ? ModCompatibility.Read(installation.BedDefenseTarget)[0].Version : null;
-        CurrentText.Text = installed?.DisplayVersion ?? (manual is null ? "미설치" : manual + " · 기존 수동 설치");
+        CurrentText.Text = installed?.ModVersion ?? (manual is null ? "미설치" : manual + " · 기존 수동 설치");
+        CurrentBuildText.Text = installed is null ? "" : $"dev.{installed.BuildNumber} · {installed.Commit[..7]}";
         var healthy = installed is not null && installation.Healthy(installed);
-        InstalledText.Text = healthy ? "설치됨 · 파일 검증 완료" : installed is null ? "미설치" : "설치 파일 확인/복구 필요";
+        InstalledText.Text = healthy ? latest is not null && latest.BuildNumber > installed!.BuildNumber ? "↑ 업데이트 가능" : "✓ 설치됨 · 파일 검증 완료" : installed is null ? "○ 미설치" : "! 설치 파일 확인 / 복구 필요";
         FabricText.Text = ExistingMode ? "기존 Loader " + installation.ExistingProfile!.LoaderVersion + " · 호환성 검사 필요" : healthy ? "Loader 0.19.5 · API 0.163.0+26.3 · Java 25 (공식 런처 관리)" : "설치 전 · 순정 26.3 / Java 25 필요";
-        InstallButton.Content = installed is null ? "설치" : latest is not null && latest.BuildNumber > installed.BuildNumber ? "업데이트 설치" : "설치 확인 / 복구";
+        launchPrimary = healthy && latest is not null && installed!.BuildNumber == latest.BuildNumber;
+        if (launchPrimary) InstalledText.Text = "✓ 최신 버전 · 파일 검증 완료";
+        InstallButton.Content = launchPrimary ? "공식 Minecraft Launcher 열기 ↗" : installed is null ? "설치" : latest is not null && latest.BuildNumber > installed.BuildNumber ? "업데이트 설치" : "설치 확인 / 복구";
     }
     private async Task Refresh()
     {
         if (busy) return;
+        ResetQueryPresentation();
         canInstall = false; launcherUpgrade = null; UpdateLauncherButton.Visibility = Visibility.Collapsed;
         SetBusy(true); latest = null; ErrorText.Text = ""; StatusText.Text = "최신 개발 빌드 조회 중";
         ProgressBar.IsIndeterminate = true;
@@ -125,7 +130,7 @@ public partial class MainWindow : Window
             }
             ReadLocal();
             latest = await new ReleaseClient(downloads).Latest();
-            LatestText.Text = latest.DisplayVersion; NotesBox.Text = latest.Notes;
+            LatestText.Text = latest.ModVersion; LatestBuildText.Text = $"dev.{latest.BuildNumber} · {latest.Commit[..7]}"; NotesBox.Text = latest.Notes; UpdateNotes(latest.Notes);
             // Never block regular mod installation when the optional EXE update check fails.
             try
             {
@@ -152,7 +157,7 @@ public partial class MainWindow : Window
             if (installed is not null && installed.BuildNumber == latest.BuildNumber && installation.Healthy(installed)) StatusText.Text = "최신 버전이 설치되어 있습니다.";
 
         }
-        catch (Exception e) { ErrorText.Text = e is OperationCanceledException ? "조회 시간이 초과되었습니다. 인터넷 연결을 확인하고 다시 시도해 주세요." : e.Message; StatusText.Text = launcherUpgrade is not null ? "모드 환경 검사 오류가 있어 설치를 보류했습니다. [런처 업데이트]로 검사 기능을 먼저 갱신할 수 있습니다." : "조회/환경 확인 실패 · 기존 설치 파일은 유지됩니다."; }
+        catch (Exception e) { InstalledText.Text = "! 환경 확인 필요"; if (CurrentText.Text == "확인 중") CurrentText.Text = "확인 불가"; if (latest is null) { LatestText.Text = "조회되지 않음"; NotesSummary.Text = "환경 확인 후 다시 조회해 주세요."; } ErrorText.Text = e is OperationCanceledException ? "조회 시간이 초과되었습니다. 인터넷 연결을 확인하고 다시 시도해 주세요." : e.Message; StatusText.Text = launcherUpgrade is not null ? "모드 환경 검사 오류가 있어 설치를 보류했습니다. [런처 업데이트]로 검사 기능을 먼저 갱신할 수 있습니다." : "조회/환경 확인 실패 · 기존 설치 파일은 유지됩니다."; }
         finally { ProgressBar.IsIndeterminate = false; SetBusy(false); }
     }
 
@@ -189,12 +194,13 @@ public partial class MainWindow : Window
     private async void Refresh_Click(object sender, RoutedEventArgs e) => await Refresh();
     private async void Install_Click(object sender, RoutedEventArgs e)
     {
-        if (busy || latest is null) return;
+        if (busy || latest is null || !canInstall) return;
+        if (launchPrimary) { Launch_Click(sender, e); return; }
         SetBusy(true); ErrorText.Text = ""; ProgressBar.Value = 0;
         try
         {
             var installation = SelectedInstallation();
-            var progress = new Progress<InstallProgress>(p => { StatusText.Text = p.Stage; ProgressBar.Value = p.Percent; });
+            var progress = new Progress<InstallProgress>(ShowProgress);
             if (launcher is null) throw new IOException("공식 Minecraft Launcher를 찾지 못했습니다. 설치 안내를 확인하거나 ‘공식 런처 열기’에서 MinecraftLauncher.exe를 선택한 뒤 런처를 종료해 주세요.");
             var selected = latest;
             await Task.Run(() => new Installer(downloads, WindowsEnvironment.AssertIdle).Install(installation, selected, progress));
@@ -202,7 +208,7 @@ public partial class MainWindow : Window
             SavePreferences();
         }
         catch (Exception error) { ErrorText.Text = error is OperationCanceledException ? "다운로드 시간이 초과되었습니다. 기존 설치 파일은 유지됩니다. 다시 시도해 주세요." : error.Message; StatusText.Text = "설치 중단 · 안내를 확인하고 다시 시도해 주세요."; }
-        finally { SetBusy(false); }
+        finally { ProgressBar.IsIndeterminate = false; SetBusy(false); }
     }
     private async void Browse_Click(object sender, RoutedEventArgs e)
     {
@@ -252,7 +258,7 @@ public partial class MainWindow : Window
     }
     internal void ShowSmokeManifest(ReleaseManifest manifest)
     {
-        latest = manifest; LatestText.Text = manifest.DisplayVersion; NotesBox.Text = manifest.Notes;
+        latest = manifest; LatestText.Text = manifest.ModVersion; NotesBox.Text = manifest.Notes; UpdateNotes(manifest.Notes);
         CurrentText.Text = "미설치"; InstalledText.Text = "CI: 사용자 환경 변경 없음";
         FabricText.Text = "Loader 0.19.5 · API 0.163.0+26.3 · Java 25 (공식 런처 관리)";
         InstanceText.Text = "기존 Fabric 프로필의 실제 gameDir에 Bed Defense만 설치";

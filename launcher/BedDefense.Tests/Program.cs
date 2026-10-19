@@ -155,7 +155,10 @@ internal static partial class Program
             var installer = new Installer(downloads, () => { });
             await RejectAsync(() => new Installer(downloads, () => throw new IOException("game running")).Install(installation, m), "running game blocks before download");
             Check(handler.Requests == 0, "blocked install performed no network work");
-            await installer.Install(installation, m);
+            var reported = new List<InstallProgress>();
+            await installer.Install(installation, m, new InlineProgress<InstallProgress>(reported.Add));
+            Check(reported.Any(p => p.DownloadPercent == 100) && reported.Where(p => p.DownloadPercent is not null).All(p => p.DownloadPercent is >= 0 and <= 100 && p.Stage.StartsWith("다운로드:")), "byte progress is explicit and bounded on download stages only");
+            Check(reported.Any(p => p.Stage.Contains("무결성") && p.DownloadPercent is null), "verification never reports a synthetic download percentage");
             Check(installation.Healthy(m), "first install and post-install hashes");
             Check(File.ReadAllText(marker) == "untouched", "AllBlocks directory preserved");
             foreach (var path in installation.ProfilePaths())
