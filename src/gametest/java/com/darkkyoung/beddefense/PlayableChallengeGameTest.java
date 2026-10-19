@@ -105,13 +105,13 @@ public class PlayableChallengeGameTest {
                     ServerPlayer respawned=server.getPlayerList().respawn(p,false,Entity.RemovalReason.KILLED);
                     h.assertTrue(ChallengeData.get(world).playerState(p.getUUID())==ChallengeData.ALIVE&&!respawned.isSpectator(),"normal respawn consumed once");
                     BedVitalData.get(world).debugHealth(respawned.getUUID(),20);
-                    respawned.teleportTo(nether,0,105,0,Set.of(),0,0,false);respawned.hasChangedDimension();respawned.kill(nether);
-                    h.assertTrue(BedVitalData.get(world).state(respawned.getUUID())==2,"dimension death permanently destroys 20 HP bed");
+                    respawned.teleportTo(nether,0,105,0,Set.of(),0,0,false);acknowledgeLoaded(respawned);respawned.kill(nether);
+                    h.assertTrue(BedVitalData.get(world).state(respawned.getUUID())==2,"dimension death: bed="+BedVitalData.get(world).state(respawned.getUUID())+" hp="+BedVitalData.get(world).hp(respawned.getUUID())+" dead="+respawned.isDeadOrDying()+" loaded="+respawned.connection.hasClientLoaded()+" participant="+ChallengeData.get(world).playerState(respawned.getUUID()));
                     h.assertTrue(ChallengeData.get(world).playerState(respawned.getUUID())==ChallengeData.FINAL_RESPAWN,"this death gets final respawn");
                     ChallengeLifecycle.death(respawned);h.assertTrue(ChallengeData.get(world).playerState(respawned.getUUID())==ChallengeData.FINAL_RESPAWN,"duplicate death cannot add allowance");
                     ServerPlayer last=server.getPlayerList().respawn(respawned,false,Entity.RemovalReason.KILLED);
                     h.assertTrue(last.level()==world&&!last.isSpectator(),"final respawn returns to Overworld once");
-                    last.hasChangedDimension();last.kill(world);h.assertTrue(ChallengeData.get(world).outcome()==ChallengeData.LOST,"next death actually loses");
+                    acknowledgeLoaded(last);last.kill(world);h.assertTrue(ChallengeData.get(world).outcome()==ChallengeData.LOST,"next death actually loses");
                     ServerPlayer spectator=server.getPlayerList().respawn(last,false,Entity.RemovalReason.KILLED);
                     h.assertTrue(spectator.isSpectator(),"eliminated player cannot resume by respawning");
                     // A fresh test-only run verifies the actual dragon death event independently of prior defeat.
@@ -145,6 +145,10 @@ public class PlayableChallengeGameTest {
             if(age==80){h.assertTrue(world.getBlockState(dirt).isAir(),"dirt breaks after 80 server ticks");SiegeController.clear(miner.getUUID());miner.discard();h.succeed();}
         });}
     }
+    private static void acknowledgeLoaded(ServerPlayer player){
+        player.hasChangedDimension();
+        player.connection.handleAcceptPlayerLoad(new net.minecraft.network.protocol.game.ServerboundPlayerLoadedPacket());
+    }
     private static ServerPlayer survivalPlayer(ServerLevel world){
         var profile=new com.mojang.authlib.GameProfile(UUID.randomUUID(),"R1-test-player");
         var cookie=net.minecraft.server.network.CommonListenerCookie.createInitial(profile,false);
@@ -152,7 +156,7 @@ public class PlayableChallengeGameTest {
         var connection=new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
         new io.netty.channel.embedded.EmbeddedChannel(connection);
         world.getServer().getPlayerList().placeNewPlayer(connection,player,cookie);
-        return player;
+        acknowledgeLoaded(player);return player;
     }
     private static Mob mob(ServerLevel world,String name,BlockPos pos){
         Mob mob=(Mob)BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse("minecraft:"+name)).create(world,EntitySpawnReason.COMMAND);
