@@ -2,11 +2,13 @@ package com.darkkyoung.beddefense;
 
 import com.darkkyoung.beddefense.network.ClockSyncPayload;
 import com.darkkyoung.beddefense.network.BedStatusPayload;
+import com.darkkyoung.beddefense.network.HudControlPayload;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -28,31 +30,57 @@ public final class BedDefense implements ModInitializer {
     public void onInitialize() {
         PayloadTypeRegistry.clientboundPlay().register(ClockSyncPayload.TYPE, ClockSyncPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BedStatusPayload.TYPE, BedStatusPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(HudControlPayload.TYPE, HudControlPayload.CODEC);
         SpawnBedPrototype.init();
         ChallengeMenu.init();
 
         CommandRegistrationCallback.EVENT.register((dispatcher, context, selection) ->
                 dispatcher.register(Commands.literal("beddefense")
                         .executes(ctx -> {
-                            ChallengeMenu.show(ctx.getSource().getPlayerOrException(), ctx.getSource().getServer());
+                            ChallengeMenu.show(ctx.getSource().getPlayerOrException(),ctx.getSource().getServer());
                             return 1;
                         })
-                        .then(Commands.literal("menu").executes(ctx -> {
-                            ChallengeMenu.show(ctx.getSource().getPlayerOrException(), ctx.getSource().getServer());
-                            return 1;
-                        }))
-                        .then(Commands.literal("start").executes(ctx -> {
-                            return ChallengeMenu.start(ctx.getSource().getPlayerOrException(), ctx.getSource().getServer()) ? 1 : 0;
-                        }))
-                        .then(Commands.literal("rules").executes(ctx -> {
-                            ChallengeMenu.rules(ctx.getSource().getPlayerOrException());
-                            return 1;
-                        }))
+                        .then(Commands.literal("start")
+                                .executes(ctx -> setup(ctx.getSource().getServer(), ctx.getSource().getPlayerOrException())))
+                        .then(Commands.literal("setup")
+                                .executes(ctx -> setup(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException()))
+                                .then(Commands.literal("difficulty")
+                                        .then(Commands.literal("easy").executes(ctx ->
+                                                bool(ChallengeSetupWizard.setDifficulty(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException(),"쉬움"))))
+                                        .then(Commands.literal("normal").executes(ctx ->
+                                                bool(ChallengeSetupWizard.setDifficulty(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException(),"보통"))))
+                                        .then(Commands.literal("hard").executes(ctx ->
+                                                bool(ChallengeSetupWizard.setDifficulty(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException(),"어려움")))))
+                                .then(Commands.literal("time")
+                                        .then(Commands.literal("keep").executes(ctx ->
+                                                bool(ChallengeSetupWizard.setTime(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException(),false))))
+                                        .then(Commands.literal("reset").executes(ctx ->
+                                                bool(ChallengeSetupWizard.setTime(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException(),true)))))
+                                .then(Commands.literal("interval")
+                                        .then(Commands.argument("days",IntegerArgumentType.integer(1,20)).executes(ctx ->
+                                                bool(ChallengeSetupWizard.setInterval(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException(),
+                                                        IntegerArgumentType.getInteger(ctx,"days"))))))
+                                .then(Commands.literal("manual").executes(ctx ->
+                                        bool(ChallengeSetupWizard.manual(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException()))))
+                                .then(Commands.literal("adjust")
+                                        .then(Commands.argument("delta",IntegerArgumentType.integer(-5,5)).executes(ctx ->
+                                                bool(ChallengeSetupWizard.adjust(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException(),
+                                                        IntegerArgumentType.getInteger(ctx,"delta"))))))
+                                .then(Commands.literal("confirm").executes(ctx ->
+                                        bool(ChallengeSetupWizard.confirm(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException()))))
+                                .then(Commands.literal("cancel").executes(ctx ->
+                                        bool(ChallengeSetupWizard.cancel(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException())))))
                         .then(Commands.literal("status").executes(ctx -> {
-                            ChallengeMenu.status(ctx.getSource().getPlayerOrException(), ctx.getSource().getServer());
-                            return 1;
+                            ChallengeMenu.status(ctx.getSource().getPlayerOrException(),ctx.getSource().getServer()); return 1;
                         }))
+                        .then(Commands.literal("hud").executes(ctx -> sendHud(ctx.getSource().getPlayerOrException(),0)))
                         .then(Commands.literal("debug")
+                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .executes(ctx -> {
+                                    ctx.getSource().sendSuccess(() -> Component.literal("§6[베드 디펜스] /beddefense debug cracks · preview"),false);
+                                    return 1;
+                                })
+                                .then(Commands.literal("preview").executes(ctx -> sendHud(ctx.getSource().getPlayerOrException(),1)))
                                 .then(Commands.literal("cracks")
                                         .executes(ctx -> {
                                             ServerPlayer player = ctx.getSource().getPlayerOrException();
@@ -61,21 +89,13 @@ public final class BedDefense implements ModInitializer {
                                                 ctx.getSource().sendFailure(Component.literal("6블록 이내의 조약돌을 바라보세요."));
                                                 return 0;
                                             }
-
-                                            BlockPos target = ((BlockHitResult) hit).getBlockPos();
-                                            ServerLevel level = (ServerLevel) player.level();
+                                            BlockPos target = ((BlockHitResult)hit).getBlockPos();
+                                            ServerLevel level = (ServerLevel)player.level();
                                             if (!level.getBlockState(target).is(Blocks.COBBLESTONE)) {
-                                                ctx.getSource().sendFailure(Component.literal("시험판에서는 조약돌만 파괴할 수 있습니다."));
+                                                ctx.getSource().sendFailure(Component.literal("디버그에서는 조약돌만 파괴할 수 있습니다."));
                                                 return 0;
                                             }
-                                            if (!BlockCrackDemo.begin(level, target)) {
-                                                ctx.getSource().sendFailure(Component.literal("이미 파괴 진행 중인 블록입니다."));
-                                                return 0;
-                                            }
-                                            ctx.getSource().sendSuccess(
-                                                    () -> Component.literal("4초 동안 바닐라 균열 애니메이션 시험을 시작합니다."),
-                                                    false
-                                            );
+                                            if (!BlockCrackDemo.begin(level,target)) return 0;
                                             return 1;
                                         })))
                 )
@@ -83,6 +103,7 @@ public final class BedDefense implements ModInitializer {
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             BlockCrackDemo.tick(server);
+            ChallengeSetupWizard.tick(server);
             SpawnBedPrototype.tick(server);
             if (++hudClockSyncCounter < 20) {
                 return;
@@ -104,5 +125,17 @@ public final class BedDefense implements ModInitializer {
             }
         });
         LOGGER.info("Bed Defense 26.3 Korean HUD v2 prototype initialized; real raids and bed HP are not implemented.");
+    }
+    private static int setup(net.minecraft.server.MinecraftServer server,ServerPlayer player) {
+        return bool(ChallengeSetupWizard.begin(server,player));
+    }
+    private static int bool(boolean yes) { return yes ? 1 : 0; }
+    private static int sendHud(ServerPlayer player,int command) {
+        if (ServerPlayNetworking.canSend(player,HudControlPayload.TYPE)) {
+            ServerPlayNetworking.send(player,new HudControlPayload(command));
+            return 1;
+        }
+        player.sendSystemMessage(Component.literal("§cBed Defense HUD용 클라이언트 연결이 없습니다."));
+        return 0;
     }
 }

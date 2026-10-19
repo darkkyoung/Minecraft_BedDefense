@@ -1,0 +1,197 @@
+package com.darkkyoung.beddefense;
+
+import java.util.Map;
+import java.util.UUID;
+import java.util.WeakHashMap;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+
+/**
+ * Recreates the AllBlocks master settings pattern without sharing code or state.
+ * Day raid interval defaults to 1 for Bed Defense (not AllBlocks' 10).
+ * This phase persists settings; actual raid manager is a separate integration.
+ */
+public final class ChallengeSetupWizard {
+    private static final Map<MinecraftServer, Session> SESSIONS = new WeakHashMap<>();
+    private static final int COUNTDOWN_TICKS = 60;
+    private ChallengeSetupWizard() { }
+
+    private static final class Session {
+        final UUID owner;
+        String difficulty = "보통";
+        boolean resetTime = false;
+        int raidEvery = 1;
+        boolean manual = false;
+        int countdown = -1;
+        int lastSecond = -1;
+
+        Session(UUID owner) { this.owner = owner; }
+    }
+
+    public static boolean begin(MinecraftServer server, ServerPlayer player) {
+        if (ChallengeData.get(server.overworld()).isStarted()) {
+            player.sendSystemMessage(Component.literal("§e이미 진행 중입니다. 설정을 다시 시작할 수 없습니다."));
+            return false;
+        }
+        Session previous = SESSIONS.get(server);
+        if (previous != null && !previous.owner.equals(player.getUUID()) &&
+                server.getPlayerList().getPlayer(previous.owner) != null) {
+            player.sendSystemMessage(Component.literal("§c다른 플레이어가 설정 중입니다."));
+            return false;
+        }
+        Session session = new Session(player.getUUID());
+        SESSIONS.put(server, session);
+        show(player, session);
+        return true;
+    }
+
+    public static boolean setDifficulty(MinecraftServer server, ServerPlayer player, String difficulty) {
+        Session s = controlled(server, player);
+        if (s == null || !java.util.List.of("쉬움", "보통", "어려움").contains(difficulty)) return false;
+        s.difficulty = difficulty;
+        show(player,s);
+        return true;
+    }
+    public static boolean setTime(MinecraftServer server, ServerPlayer player, boolean reset) {
+        Session s = controlled(server, player);
+        if (s == null) return false;
+        s.resetTime = reset;
+        show(player,s);
+        return true;
+    }
+    public static boolean setInterval(MinecraftServer server, ServerPlayer player, int interval) {
+        Session s = controlled(server, player);
+        if (s == null || !(interval == 1 || interval == 5 || interval == 10 || interval == 20)) return false;
+        s.raidEvery = interval;
+        s.manual = false;
+        show(player,s);
+        return true;
+    }
+    public static boolean manual(MinecraftServer server, ServerPlayer player) {
+        Session s = controlled(server, player);
+        if (s == null) return false;
+        s.manual = true;
+        show(player,s);
+        return true;
+    }
+    public static boolean adjust(MinecraftServer server, ServerPlayer player, int delta) {
+        Session s = controlled(server, player);
+        if (s == null || !s.manual) return false;
+        s.raidEvery = Math.max(1, Math.min(100, s.raidEvery + delta));
+        show(player,s);
+        return true;
+    }
+    public static boolean cancel(MinecraftServer server, ServerPlayer player) {
+        Session s = controlled(server,player);
+        if(s==null)return false;
+        SESSIONS.remove(server);
+        ChallengeMenu.show(player,server);
+        return true;
+    }
+    public static boolean confirm(MinecraftServer server, ServerPlayer player) {
+        Session s = controlled(server,player);
+        if(s == null)return false;
+        if(s.countdown >= 0)return false;
+        s.countdown = COUNTDOWN_TICKS;
+        s.lastSecond = 3;
+        player.sendSystemMessage(Component.literal("§6[베드 디펜스] §f3초 뒤 도전을 시작합니다."));
+        countdownTitle(server,3);
+        return true;
+    }
+    public static void tick(MinecraftServer server) {
+        Session s = SESSIONS.get(server);
+        if(s==null||s.countdown<0)return;
+        ServerPlayer owner = server.getPlayerList().getPlayer(s.owner);
+        if(owner==null){SESSIONS.remove(server);return;}
+        if (ChallengeData.get(server.overworld()).isStarted()){SESSIONS.remove(server);return;}
+        --s.countdown;
+        if (s.countdown <= 0) {
+            // Copy options into the saved world state only after the confirmation countdown.
+            if(s.resetTime) {
+                String[] commands = {
+                    "time of minecraft:overworld rate 1",
+                    "time of minecraft:overworld resume",
+                    "time of minecraft:overworld set 0"
+                };
+                try {
+                    for (String command : commands)
+                        server.getCommands().performPrefixedCommand(
+                                server.createCommandSourceStack().withSuppressedOutput(), command);
+                } catch(Exception e) {
+                    owner.sendSystemMessage(Component.literal("§c시간 초기화가 실패해 도전을 시작하지 않았습니다."));
+                    SESSIONS.remove(server);
+                    return;
+                }
+            }
+            ChallengeOptionsData.get(server.overworld()).update(s.difficulty, s.resetTime, s.raidEvery);
+            ChallengeMenu.startNow(owner,server);
+            SESSIONS.remove(server);
+            return;
+        }
+        int second=(s.countdown + 19)/20;
+        if(second>0 && second!=s.lastSecond){
+            s.lastSecond=second;
+            countdownTitle(server,second);
+        }
+    }
+
+    private static void countdownTitle(MinecraftServer server, int second) {
+        // Native vanilla commands mimic the existing AllBlocks 3-second countdown.
+        server.getCommands().performPrefixedCommand(
+                server.createCommandSourceStack().withSuppressedOutput(),
+                "title @a title {\"text\":\""+second+"\",\"color\":\"gold\",\"bold\":true}");
+        server.getCommands().performPrefixedCommand(
+                server.createCommandSourceStack().withSuppressedOutput(),
+                "playsound minecraft:block.note_block.pling master @a ~ ~ ~ 0.65 1");
+    }
+
+    private static Session controlled(MinecraftServer server, ServerPlayer player) {
+        Session s=SESSIONS.get(server);
+        if(s==null||s.countdown>=0||!s.owner.equals(player.getUUID())
+                ||ChallengeData.get(server.overworld()).isStarted()) {
+            player.sendSystemMessage(Component.literal("§c설정 권한이 없거나 이미 시작되었습니다. /beddefense"));
+            return null;
+        }
+        return s;
+    }
+
+    private static MutableComponent choice(String label, String command, boolean active) {
+        return Component.literal(label).withStyle(style -> style
+                .withColor(active?ChatFormatting.GREEN:ChatFormatting.GRAY)
+                .withBold(active)
+                .withClickEvent(new ClickEvent.RunCommand(command))
+                .withHoverEvent(new HoverEvent.ShowText(Component.literal("선택: "+label))));
+    }
+
+    public static void show(ServerPlayer player, Session s) {
+        player.sendSystemMessage(Component.literal("§6§l──── 베드 디펜스 · 게임 설정 ────"));
+        player.sendSystemMessage(Component.literal("§f난이도: §e"+s.difficulty+" §7(현재 밸런스는 모두 동일)"));
+        player.sendSystemMessage(choice(" [쉬움] ","/beddefense setup difficulty easy",s.difficulty.equals("쉬움"))
+                .append(choice("[보통] ","/beddefense setup difficulty normal",s.difficulty.equals("보통")))
+                .append(choice("[어려움]","/beddefense setup difficulty hard",s.difficulty.equals("어려움"))));
+        player.sendSystemMessage(Component.literal("§f시작 시 인게임 시간"));
+        player.sendSystemMessage(choice(" [현재 시간 유지] ","/beddefense setup time keep",!s.resetTime)
+                .append(choice("[1일차 아침으로 초기화]","/beddefense setup time reset",s.resetTime)));
+        player.sendSystemMessage(Component.literal("§f레이드 발생 간격: §e"+s.raidEvery+"일 §7(기본: 매일)"));
+        player.sendSystemMessage(choice(" [1일] ","/beddefense setup interval 1",!s.manual&&s.raidEvery==1)
+                .append(choice("[5일] ","/beddefense setup interval 5",!s.manual&&s.raidEvery==5))
+                .append(choice("[10일] ","/beddefense setup interval 10",!s.manual&&s.raidEvery==10))
+                .append(choice("[20일] ","/beddefense setup interval 20",!s.manual&&s.raidEvery==20))
+                .append(choice("[수동]","/beddefense setup manual",s.manual)));
+        if(s.manual){
+            player.sendSystemMessage(choice(" [-5] ","/beddefense setup adjust -5",false)
+                    .append(choice("[-1] ","/beddefense setup adjust -1",false))
+                    .append(Component.literal(" §e"+s.raidEvery+"일 "))
+                    .append(choice("[+1] ","/beddefense setup adjust 1",false))
+                    .append(choice("[+5]","/beddefense setup adjust 5",false)));
+        }
+        player.sendSystemMessage(choice(" [설정 완료 · 시작] ","/beddefense setup confirm",false)
+                .append(choice("[취소]","/beddefense setup cancel",false)));
+    }
+}
