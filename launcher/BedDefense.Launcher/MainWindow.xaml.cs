@@ -166,8 +166,8 @@ public partial class MainWindow : Window
         try
         {
             var executable = await LauncherUpdates.Download(downloads, requested);
-            Process.Start(new ProcessStartInfo(executable) { UseShellExecute = true })
-                ?? throw new IOException("새 런처를 열지 못했습니다.");
+            if (Process.Start(new ProcessStartInfo(executable) { UseShellExecute = true }) is null)
+                throw new IOException("새 런처를 열지 못했습니다.");
             Application.Current.Shutdown();
         }
         catch (Exception error)
