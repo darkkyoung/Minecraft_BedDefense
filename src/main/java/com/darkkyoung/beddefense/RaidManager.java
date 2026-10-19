@@ -158,10 +158,10 @@ public final class RaidManager {
                         ServerPlayer owner=server.getPlayerList().getPlayer(bedOwner);
                         if(owner!=null)owner.connection.send(new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(Component.literal("§c§l스폰 침대 공격 받는 중!")));
                     }
-                }else if(canPath){mob.getNavigation().moveTo(bedPos.getX()+.5,bedPos.getY(),bedPos.getZ()+.5,1.15);SiegeController.attempt(mob,level,bedPos,roster);}
+                }else{if(canPath)mob.getNavigation().moveTo(bedPos.getX()+.5,bedPos.getY(),bedPos.getZ()+.5,1.15);SiegeController.attempt(mob,level,bedPos,roster);}
             }else if(closest!=null){
                 BED_TARGETS.remove(mob.getUUID());mob.setTarget(closest);
-                if(canPath){mob.getNavigation().moveTo(closest,1.2);SiegeController.attempt(mob,level,closest.blockPosition(),roster);}
+                if(canPath)mob.getNavigation().moveTo(closest,1.2);SiegeController.attempt(mob,level,closest.blockPosition(),roster);
             }else{BED_TARGETS.remove(mob.getUUID());mob.setTarget(null);SiegeController.clear(mob.getUUID());}
         }
     }

@@ -22,6 +22,8 @@ import net.minecraft.world.level.block.state.BlockState;
 public final class SiegeController {
     private static final int MAX_MINERS = 12;
     private static final int MAX_PLACED_BY_ONE_MOB = 24;
+    private static long placementWindow=-1;
+    private static int placementsInWindow;
     private static final Map<UUID, Job> JOBS = new HashMap<>();
     private static final double[] DIRT = {5,4.5,4,3.5,3,2.5,2,1.8,1.5,1.3};
     private static final double[] WOOD = {12,11,10,8.5,7,6,5,4.2,3.6,3};
@@ -73,7 +75,7 @@ public final class SiegeController {
             clearBreaking(job);
             if(target.getY()>feet.getY()+1 && job.placedBlocks<MAX_PLACED_BY_ONE_MOB
                     && level.getGameTime()>=job.nextPlacementTick && level.isEmptyBlock(feet.above())
-                    && level.isEmptyBlock(feet.above(2)) && level.isEmptyBlock(feet)) {
+                    && level.isEmptyBlock(feet.above(2)) && level.isEmptyBlock(feet) && allowPlacement(level.getGameTime())) {
                 mob.setPos(mob.getX(),feet.getY()+1.05,mob.getZ());
                 level.setBlockAndUpdate(feet,Blocks.COBBLESTONE.defaultBlockState());
                 job.placedBlocks++;job.nextPlacementTick=level.getGameTime()+20+ThreadLocalRandom.current().nextInt(21);
@@ -103,7 +105,7 @@ public final class SiegeController {
         if(job.placedBlocks < MAX_PLACED_BY_ONE_MOB
                 && level.isLoaded(floor) && level.isEmptyBlock(floor)
                 && level.getGameTime()>=job.nextPlacementTick
-                && level.isEmptyBlock(ahead) && level.isEmptyBlock(ahead.above())) {
+                && level.isEmptyBlock(ahead) && level.isEmptyBlock(ahead.above()) && allowPlacement(level.getGameTime())) {
             level.setBlockAndUpdate(floor,Blocks.COBBLESTONE.defaultBlockState());
             job.placedBlocks++;
             job.nextPlacementTick=level.getGameTime()+20+ThreadLocalRandom.current().nextInt(21);
@@ -111,6 +113,10 @@ public final class SiegeController {
         }
     }
 
+    private static boolean allowPlacement(long tick){
+        long window=tick/20;if(window!=placementWindow){placementWindow=window;placementsInWindow=0;}
+        if(placementsInWindow>=16)return false;placementsInWindow++;return true;
+    }
     private static boolean canMine(ServerLevel level,BlockPos pos) {
         BlockState block=level.getBlockState(pos);
         float hardness=block.getDestroySpeed(level,pos);
@@ -172,7 +178,7 @@ public final class SiegeController {
         Job job=JOBS.remove(id);
         if(job!=null)clearBreaking(job);
     }
-    public static void reset(){for(Job job:JOBS.values())clearBreaking(job);JOBS.clear();}
+    public static void reset(){for(Job job:JOBS.values())clearBreaking(job);JOBS.clear();placementWindow=-1;placementsInWindow=0;}
     public static void cleanup(long now){
         Iterator<Map.Entry<UUID,Job>> iter=JOBS.entrySet().iterator();
         while(iter.hasNext()){

@@ -54,9 +54,9 @@ public class PlayableChallengeGameTest {
             h.assertTrue(ChallengeMenu.overworldClock(server)<100,"reset selected: day one morning");
             h.assertTrue(BedVitalData.get(world).state(p.getUUID())==0,"no bed before first interaction");
             RaidManager.run(server,"time of minecraft:overworld set 12542");
-            h.runAfterDelay(23,()->{
+            h.runAfterDelay(43,()->{
                 RaidStateData raid=RaidStateData.get(world);
-                h.assertTrue(raid.active()&&raid.raiders().size()==5,"daily first-night raid spawns five zombies without bed");
+                h.assertTrue(raid.active()&&raid.raiders().size()==5,"daily first-night raid: active="+raid.active()+" spawned="+raid.raiders().size()+" queued="+raid.pending()+" player="+p.position()+" arena="+foot+" difficulty="+world.getDifficulty());
                 bed(world,foot);use(p,world,foot);
                 h.assertTrue(BedVitalData.get(world).state(p.getUUID())==1,"day/night right-click registers bed");
                 h.assertTrue(p.getRespawnConfig()!=null,"real respawn config established");

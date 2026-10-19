@@ -1,27 +1,20 @@
 # Bed Defense
 
-**Minecraft Java 26.3 Fabric technical prototype. This is not a playable 100-day challenge yet.**
+Minecraft Java **26.3 / Fabric / Java 25** — Phase R1 development build.
 
-## v0.1.0-alpha.5+26.3
+100일 안에 스폰 침대를 지키고 엔더 드래곤을 처치하는 생존 챌린지입니다.
 
-- **클릭형 시작 메뉴:** 월드 입장 시 채팅에 `[게임 시작]`·`[규칙 보기]`가 표시됩니다. `/beddefense menu`로 언제든 다시 열 수 있습니다.
-- **시작 전:** 챌린지 스톱워치는 `00:00:00`, HUD에는 `시작 전` 표시, 레이드 예고 없음. 첫 침대 등록도 챌린지 시작 후 가능.
-- **[게임 시작] 클릭:** 월드에 진행 상태/시작 시각을 저장하며, HUD `1일차`와 스톱워치가 시작됩니다. 같은 월드를 나갔다 들어와도 처음부터 다시 시작되지 않습니다.
-- **재접속:** 시작된 세계는 `진행 중` 메뉴를 표시하며 [진행 상태] 및 [규칙 보기]만 제공. 시작 명령을 다시 실행해도 초기화하지 않습니다.
-- **아직 미구현:** 실제 레이드 소환, 베드 HP·사망/부활/승리·100일 제한 집행. 현재 [게임 시작]은 *도전 상태 및 시간 측정*의 시작입니다.
+1. 테스트용 새 월드에서 채팅의 **[게임 시작]** 또는 `/beddefense`를 엽니다.
+2. 난이도, 시작 시 월드 시간, 레이드 **편성 진행 배속**을 선택합니다. 설정 완료 후 3초 카운트다운으로 시작합니다.
+3. 오버월드 침대를 우클릭해 고유 스폰 침대로 지정합니다. 낮에도 가능하며 다른 일반 침대로는 수면·리스폰을 지정할 수 없습니다.
+4. 매일 밤 레이드가 등장합니다. ×2는 실제 1·2·3일차에 편성 1·3·5를 적용합니다. 침대를 등록하지 않아도 레이드는 발생합니다.
+5. 침대 HP는 100입니다. 철 주괴 우클릭으로 수리하고, 본인이 부수면 고유 아이템으로 회수해 HP를 유지하며 재설치할 수 있습니다.
+6. 침대 미등록·회수·영구 파괴 상태에서 죽으면 탈락합니다. 네더·엔드 사망은 침대 HP 20 감소, 그 죽음으로 HP가 0이면 마지막 리스폰 1회만 허용합니다.
+7. 드래곤을 처치하면 승리합니다. 101일차 시작 또는 모든 참가자 탈락 시 실패하고 타이머가 멈춥니다.
 
-## 이전 프로토타입 기능
+상단 중앙 HP 게이지와 남은 레이드 수, 위험 상태 하트, 액션바 경고가 서버 상태를 표시합니다. 몬스터는 각자 가까운 플레이어/침대를 선택하고 장애물을 채굴하거나 발판을 설치합니다. 오버월드 잔여 레이드는 아침 즉시 정산·제거되며 네더·엔드에서는 누적됩니다.
 
-- Existing Korean HUD: day, XYZ, elapsed stopwatch and biome, without rectangular backgrounds.
-- Upper right: **스폰 침대** label over a short **vanilla boss-bar texture** (approximately 1/4 former bar width).
-- After starting the challenge, first Overworld bed right-click registers the player's first Spawn Bed coordinates even during daytime.
-- A registered bed shows small green particles whenever the bed chunk is loaded, including after a world restart.
-- **Yellow full bar:** no bed registered or known absent. **Green full:** a bed registered and presumed placed. **Red full:** preview only (actual destruction is not implemented).
-- `/bdhud preview` cycles 86%-green, yellow, red and normal, without changing gameplay.
-- `/bdhud` toggles HUD; `/beddefense debug cracks` remains a safe cobblestone visual test.
-- Raid-warning is visual-only and does not spawn monsters.
-
-**Not implemented:** real Spawn Bed block/item, HP/damage, pickup-and-relocation, respawn/permadeath rules, real raids, siege AI, dragon victory, multiplayer revival.
+**개발 빌드:** 자동 서버 GameTests와 사람의 실제 그래픽·소리·100일 전투 체감 검증은 구분합니다. Physical Acceptance Pending 항목과 테스트 절차는 [R1 검증 안내](docs/R1_ACCEPTANCE.md)를 확인하십시오. 현재 난이도별 밸런스는 같으며 미처치/수리/차원 사망 수치는 조정 가능한 임시값입니다.
 
 ## Bed Defense Launcher (Windows)
 
@@ -38,20 +31,14 @@
 
 지원 게임은 **26.3/dev**입니다. 기존 환경의 Loader는 Bed Defense의 `>=0.19.5` 조건과 각 모드의 선언을 검사하며, API는 설치된 버전의 Minecraft·Loader·모드 의존성을 검사합니다. Java 25는 공식 런처가 관리합니다. 메타데이터 검사는 실제 게임 구동 검증을 대체하지 않습니다.
 
-개발 EXE는 아직 코드 서명되지 않았습니다. 런처 자체 자동 업데이트는 지원하지 않으므로 **이번 설치 방식 변경을 사용하려면 새 EXE를 한 번 다운로드**하십시오. 이후 모드 업데이트에는 같은 EXE를 사용합니다.
+이번 R1은 모드 업데이트입니다. **기존 런처에서 업데이트 조회 → 업데이트 설치**를 사용하며 새 EXE를 받을 필요가 없습니다. 개발 EXE는 아직 코드 서명되지 않았습니다.
 
 [상세 설치·오류 복구 안내](launcher/README.md) · [런처 구조와 배포 파이프라인](docs/LAUNCHER_PIPELINE.md) · [Windows 실기기 검증 절차](docs/LAUNCHER_ACCEPTANCE.md)
 
-## In-game prototype test
+## 개발 및 검증
 
-After installing the development build:
+- Java 25, Gradle 9.7.1: `gradle build` (컴파일, 단위 테스트, 격리된 Minecraft/Fabric 서버 GameTests).
+- 테스트 전용 소스는 배포 JAR에 포함하지 않습니다. 기존 런처 Windows 안전성·WPF·배포 검증은 유지합니다.
+- 관리자 테스트 명령은 `/beddefense debug` 아래에만 있습니다. 별도 `/bdhud` 별칭은 없습니다.
 
-1. In a disposable world, verify the Korean chat menu appears on first entry. Click **[게임 시작]** to start the persistent stopwatch; on rejoin it should NOT reset.
-2. Type `/beddefense menu` to reopen the menu or `/beddefense rules` to read rules.
-3. In a disposable world, observe compact yellow bar at top right and `스폰 침대` label.
-4. Place a regular bed and right-click it (even in daytime). Check registration message, green particles and full green bar.
-5. Exit/rejoin world: registration should persist. Check preview with `/bdhud preview` four times.
-
-Build success is not in-game acceptance; please send screenshot and errors if issues arise.
-
-See [HUD testing details](docs/HUD.md), [game design](docs/GAME_DESIGN.md), [testing](docs/TESTING.md).
+[게임 규칙과 저장·통합 내역](docs/GAME_DESIGN.md) · [R1 PC 테스트 절차](docs/R1_ACCEPTANCE.md) · [테스트 구성](docs/TESTING.md)
