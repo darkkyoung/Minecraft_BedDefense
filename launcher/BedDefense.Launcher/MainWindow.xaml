@@ -31,7 +31,7 @@
   </Grid>
   <StackPanel Grid.Row="3" Margin="0,0,0,18"><TextBlock Text="업데이트 내역" FontWeight="Bold" Margin="0,0,0,8"/><TextBox x:Name="NotesBox" Height="115" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Text="최신 배포 정보를 확인하고 있습니다."/></StackPanel>
   <StackPanel Grid.Row="4" Margin="0,0,0,18"><ProgressBar x:Name="ProgressBar" Height="7" Maximum="100" Foreground="#F5BC66" Background="#263B50"/><TextBlock x:Name="StatusText" TextWrapping="Wrap" Margin="0,10,0,0" Text="준비 중"/><TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="#FFAC9B" Margin="0,8,0,0"/></StackPanel>
-  <WrapPanel Grid.Row="5" Margin="0,0,0,20"><Button x:Name="InstallButton" Content="설치" Click="Install_Click" Background="#F5BC66" IsEnabled="False"/><Button x:Name="RefreshButton" Content="업데이트 조회" Click="Refresh_Click"/><Button x:Name="LaunchButton" Content="공식 런처 열기" Click="Launch_Click"/><Button Content="설치 안내" Click="Help_Click"/></WrapPanel>
+  <WrapPanel Grid.Row="5" Margin="0,0,0,20"><Button x:Name="InstallButton" Content="설치" Click="Install_Click" Background="#F5BC66" IsEnabled="False"/><Button x:Name="RefreshButton" Content="업데이트 조회" Click="Refresh_Click"/><Button x:Name="UpdateLauncherButton" Content="런처 업데이트" Click="UpdateLauncher_Click" Visibility="Collapsed"/><Button x:Name="LaunchButton" Content="공식 런처 열기" Click="Launch_Click"/><Button Content="설치 안내" Click="Help_Click"/></WrapPanel>
   <TextBlock Grid.Row="6" Text="설치 전 게임과 공식 런처를 종료해 주세요.&#10;기존 Fabric 모드는 Bed Defense JAR만 교체하며, Loader/API는 자동 변경하지 않습니다.&#10;독립 환경에서 전환해도 이전 환경·월드·설정은 보존됩니다." TextWrapping="Wrap" Foreground="#9CAFC3" FontSize="12"/>
  </Grid>
  </ScrollViewer>

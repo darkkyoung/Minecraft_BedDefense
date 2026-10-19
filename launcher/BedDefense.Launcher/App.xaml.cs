@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using System.Windows;
 using BedDefense.Core;
 
@@ -9,6 +10,20 @@ public partial class App : Application
     {
         base.OnStartup(e);
         var smoke = e.Args.Contains("--smoke-test");
+        if (!smoke && Environment.ProcessPath is string running)
+        {
+            var successor = LauncherUpdates.CachedSuccessor(running);
+            if (successor is not null)
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo(successor) { UseShellExecute = true });
+                    Shutdown(0);
+                    return;
+                }
+                catch { /* Keep old launcher available if hand-off fails. */ }
+            }
+        }
         var window = new MainWindow(smoke);
         MainWindow = window;
         window.Show();

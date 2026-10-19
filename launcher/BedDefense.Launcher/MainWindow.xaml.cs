@@ -11,6 +11,7 @@ public partial class MainWindow : Window
 {
     private readonly Downloads downloads = new();
     private ReleaseManifest? latest;
+    private LauncherUpgrade? launcherUpgrade;
     private bool busy;
     private bool canInstall;
     private bool loadingProfiles;
@@ -91,6 +92,7 @@ public partial class MainWindow : Window
         RefreshButton.IsEnabled = BrowseButton.IsEnabled = LaunchButton.IsEnabled = ModeBox.IsEnabled = MigrateButton.IsEnabled = !value;
         ProfileBox.IsEnabled = !value && ExistingMode;
         InstallButton.IsEnabled = !value && latest is not null && canInstall;
+        UpdateLauncherButton.IsEnabled = !value && launcherUpgrade is not null;
     }
     private void ReadLocal()
     {
@@ -109,7 +111,8 @@ public partial class MainWindow : Window
     private async Task Refresh()
     {
         if (busy) return;
-        canInstall = false; SetBusy(true); latest = null; ErrorText.Text = ""; StatusText.Text = "최신 개발 빌드 조회 중";
+        canInstall = false; launcherUpgrade = null; UpdateLauncherButton.Visibility = Visibility.Collapsed;
+        SetBusy(true); latest = null; ErrorText.Text = ""; StatusText.Text = "최신 개발 빌드 조회 중";
         ProgressBar.IsIndeterminate = true;
         try
         {
@@ -133,10 +136,52 @@ public partial class MainWindow : Window
             StatusText.Text = "조회 완료 · 설치 또는 업데이트할 수 있습니다.";
             var installed = installation.Installed();
             if (installed is not null && installed.BuildNumber == latest.BuildNumber && installation.Healthy(installed)) StatusText.Text = "최신 버전이 설치되어 있습니다.";
+            // Never block regular mod installation when the optional EXE update check fails.
+            try
+            {
+                launcherUpgrade = await LauncherUpdates.Check(downloads, latest, Environment.ProcessPath!);
+                if (launcherUpgrade is not null)
+                {
+                    UpdateLauncherButton.Visibility = Visibility.Visible;
+                    StatusText.Text = "런처 프로그램 업데이트가 있습니다. [런처 업데이트]를 누르면 검증된 최신 EXE로 전환합니다.";
+                }
+            }
+            catch (Exception updateError)
+            {
+                StatusText.Text += " · 런처 자체 업데이트 확인 보류: " + updateError.Message;
+            }
         }
         catch (Exception e) { ErrorText.Text = e is OperationCanceledException ? "조회 시간이 초과되었습니다. 인터넷 연결을 확인하고 다시 시도해 주세요." : e.Message; StatusText.Text = "조회/환경 확인 실패 · 기존 설치 파일은 유지됩니다."; }
         finally { ProgressBar.IsIndeterminate = false; SetBusy(false); }
     }
+
+    private async void UpdateLauncher_Click(object sender, RoutedEventArgs e)
+    {
+        if (busy || launcherUpgrade is null) return;
+        var requested = launcherUpgrade;
+        SetBusy(true);
+        ErrorText.Text = "";
+        StatusText.Text = "새 런처를 검증된 버전별 폴더에 다운로드합니다...";
+        ProgressBar.IsIndeterminate = true;
+        try
+        {
+            var executable = await LauncherUpdates.Download(downloads, requested);
+            Process.Start(new ProcessStartInfo(executable) { UseShellExecute = true })
+                ?? throw new IOException("새 런처를 열지 못했습니다.");
+            Application.Current.Shutdown();
+        }
+        catch (Exception error)
+        {
+            ErrorText.Text = "런처 업데이트 실패: " + error.Message;
+            StatusText.Text = "기존 런처와 Bed Defense 설치 파일은 그대로 유지됩니다.";
+        }
+        finally
+        {
+            ProgressBar.IsIndeterminate = false;
+            SetBusy(false);
+        }
+    }
+
     private async void Refresh_Click(object sender, RoutedEventArgs e) => await Refresh();
     private async void Install_Click(object sender, RoutedEventArgs e)
     {

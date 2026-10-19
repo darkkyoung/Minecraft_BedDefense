@@ -61,6 +61,11 @@ internal static partial class Program
     }
     private static async Task ExistingTests()
     {
+        var sampleSha = new string('a', 64);
+        Check(LauncherUpdates.ParseChecksum(sampleSha + "  BedDefense-Setup.exe") == sampleSha,
+              "launcher self-update checksum parser");
+        Reject(() => LauncherUpdates.ParseChecksum(sampleSha + "  unrelated.exe"),
+               "launcher self-update rejects unrelated checksum files");
         Check(FabricVersions.Matches("26.3", JsonValue.Create("~26.3")), "Fabric tilde current MC");
         Check(!FabricVersions.Matches("26.4", JsonValue.Create("~26.3")), "Fabric tilde rejects next minor");
         Check(FabricVersions.Matches("0.19.6", JsonValue.Create(">=0.19.5 <0.20")), "Fabric comparator conjunction");
