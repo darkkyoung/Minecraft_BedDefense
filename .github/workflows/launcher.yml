@@ -70,6 +70,13 @@ jobs:
           if ($extra.Count -ne 0) { throw "Publish is not a single EXE: $extra" }
           $hash = (Get-FileHash publish/BedDefense-Setup.exe -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  BedDefense-Setup.exe" | Set-Content publish/BedDefense-Setup.exe.sha256 -Encoding utf8NoBOM
+      - name: Actual WPF state matrix, layout scaling and published PE icon acceptance
+        shell: pwsh
+        run: |
+          $p = Start-Process ./publish/BedDefense-Setup.exe -ArgumentList @('--ui-acceptance', '--manifest', "$pwd/release/manifest.json", '--existing-root', "$pwd/ui-fixture") -PassThru
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); throw 'UI acceptance timed out' }
+          if ($p.ExitCode -ne 0) { Get-Content launcher-smoke.txt; throw 'UI acceptance failed' }
+          Get-Content ui-acceptance/results.txt
       - uses: actions/upload-artifact@v4
         with:
           name: windows-launcher
@@ -83,6 +90,7 @@ jobs:
           path: |
             launcher-smoke.txt
             launcher-smoke.png
+            ui-acceptance/
           if-no-files-found: warn
 
   publish-dev:

@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace BedDefense.Core;
 
-public sealed record InstallProgress(string Stage, double Percent);
+public sealed record InstallProgress(string Stage, double Percent, double? DownloadPercent = null);
 public sealed class Installer(Downloads downloads, Action assertIdle)
 {
     public bool Recover(Installation installation)
@@ -49,7 +49,8 @@ public sealed class Installer(Downloads downloads, Action assertIdle)
                     continue; }
                 if (file.Role == "library" && File.Exists(target)) throw new IOException("공유 Fabric 라이브러리의 내용이 다릅니다. 다른 프로필 보호를 위해 덮어쓰지 않습니다: " + target);
                 var temp = SafePaths.Under(stage, $"payload-{i}.tmp");
-                await downloads.Download(file, temp, new InlineProgress<double>(fraction => progress?.Report(new("다운로드: " + file.Name, 5 + 70.0 * (index + fraction) / files.Length))), ct);
+                await downloads.Download(file, temp, new InlineProgress<double>(fraction => progress?.Report(new("다운로드: " + file.Name, 5 + 70.0 * (index + fraction) / files.Length, fraction * 100))), ct);
+                progress?.Report(new("파일 무결성 및 호환성 검증 중: " + file.Name, 75));
                 Installation.ValidatePayload(temp, file, manifest);
                 if (installation.IsExisting) ModCompatibility.Check(installation, manifest, temp);
                 changes.Add(new(target, temp,

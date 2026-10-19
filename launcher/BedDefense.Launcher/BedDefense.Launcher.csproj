@@ -5,8 +5,10 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier><SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile><IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <PublishTrimmed>false</PublishTrimmed><DebugType>none</DebugType>
-    <AssemblyName>BedDefense-Setup</AssemblyName><Version>0.2.0</Version>
+    <AssemblyName>BedDefense-Setup</AssemblyName><Version>0.3.0</Version>
+    <ApplicationIcon>Assets/BedDefense.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
+  <ItemGroup><Resource Include="Assets/BedDefense.ico" /></ItemGroup>
   <ItemGroup><ProjectReference Include="../BedDefense.Core/BedDefense.Core.csproj" /></ItemGroup>
 </Project>

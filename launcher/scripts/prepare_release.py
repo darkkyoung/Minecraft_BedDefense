@@ -102,6 +102,9 @@ def main():
         payload('library', path, url, relative)
     notes = subprocess.check_output(['git', 'log', '-8', '--format=%h %s'], text=True, encoding='utf-8')
     notes = f'Minecraft {mc} / Fabric {loader} / API {api}\n개발 빌드 {args.build} · {sha}\n\n최근 변경 (최대 8개 커밋):\n{notes}\n게임 내 검증과 Windows 실기기 검증은 별도입니다.'
+    launcher_notes = Path('launcher/release-notes.md')
+    if launcher_notes.exists():
+        notes = launcher_notes.read_text(encoding='utf-8') + '\n\n### 빌드 정보 및 상세 커밋\n' + notes
     manifest = dict(schemaVersion=1, channel='dev', minecraftVersion=mc, loaderVersion=loader, fabricApiVersion=api,
                     modVersion=props['version'], commit=sha, buildNumber=args.build, tag=tag, notes=notes, files=files)
     (out / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')

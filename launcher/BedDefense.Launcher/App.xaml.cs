@@ -9,7 +9,8 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        var smoke = e.Args.Contains("--smoke-test");
+        var acceptance = e.Args.Contains("--ui-acceptance");
+        var smoke = e.Args.Contains("--smoke-test") || acceptance;
         if (!smoke && Environment.ProcessPath is string running)
         {
             var successor = LauncherUpdates.CachedSuccessor(running);
@@ -37,6 +38,13 @@ public partial class App : Application
             ReleaseManifest manifest = fixtureIndex >= 0
                 ? ReleaseManifest.Parse(File.ReadAllText(e.Args[fixtureIndex + 1]))
                 : await new ReleaseClient(downloads).Latest();
+            if (acceptance)
+            {
+                var rootIndex = Array.IndexOf(e.Args, "--existing-root");
+                if (rootIndex < 0 || fixtureIndex < 0) throw new IOException("UI acceptance requires isolated manifest and root fixtures");
+                await window.RunVisualAcceptance(manifest, e.Args[rootIndex + 1]);
+                Shutdown(0); return;
+            }
             window.ShowSmokeManifest(manifest);
             var existingIndex = Array.IndexOf(e.Args, "--existing-root");
             if (existingIndex >= 0) window.ShowSmokeExisting(manifest, e.Args[existingIndex + 1]);
