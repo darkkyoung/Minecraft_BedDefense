@@ -84,11 +84,18 @@ public class PlayableChallengeGameTest {
                 ServerLevel nether=server.getLevel(Level.NETHER);
                 Mob persistent=mob(nether,"zombie",new BlockPos(0,100,0));persistent.setNoAi(true);
                 raid.track(persistent.getUUID(),new RaidStateData.Raider("minecraft:the_nether",p.getUUID().toString(),1,1));
-                RaidManager.run(server,"time of minecraft:overworld set 23000");
+                Mob endPersistent=mob(server.getLevel(Level.END),"zombie",new BlockPos(0,100,0));endPersistent.setNoAi(true);
+                raid.track(endPersistent.getUUID(),new RaidStateData.Raider("minecraft:the_end",p.getUUID().toString(),1,1));
+                RaidManager.run(server,"time of minecraft:overworld set 17000");
+                h.runAfterDelay(21,()->{
+                    for(String id:overworldIds)h.assertTrue(world.getEntity(UUID.fromString(id)).isCurrentlyGlowing(),"remaining raiders glow five minutes before sunrise");
+                    int dawnHp=BedVitalData.get(world).hp(p.getUUID());
+                    RaidManager.run(server,"time of minecraft:overworld set 23000");
                 h.runAfterDelay(2,()->{
-                    h.assertTrue(BedVitalData.get(world).hp(p.getUUID())==63-survivors,"dawn penalty fixed before deaths");
+                    h.assertTrue(BedVitalData.get(world).hp(p.getUUID())==dawnHp-survivors,"dawn penalty fixed before deaths");
                     for(String id:overworldIds)h.assertTrue(world.getEntity(UUID.fromString(id))==null,"dawn removes raiders immediately");
                     h.assertTrue(!persistent.isRemoved()&&raid.isRaider(persistent.getUUID()),"Nether mobs survive sunrise");
+                    h.assertTrue(!endPersistent.isRemoved()&&raid.isRaider(endPersistent.getUUID()),"End mobs survive sunrise");
                     p.getAbilities().invulnerable=false;
                     Mob speed=mob(world,"zombie",relocated.offset(8,0,0));speed.setNoAi(true);
                     RaidManager.configureRaider(speed,51,1,"minecraft:zombie");
@@ -102,18 +109,27 @@ public class PlayableChallengeGameTest {
                     // Actual death callback + vanilla player replacement + Fabric AFTER_RESPAWN.
                     p.getAbilities().invulnerable=false;p.kill(world);
                     h.assertTrue(ChallengeData.get(world).playerState(p.getUUID())==ChallengeData.RESPAWNING,"placed-bed death grants normal respawn");
-                    ServerPlayer respawned=server.getPlayerList().respawn(p,false,Entity.RemovalReason.KILLED);
+                    ServerPlayer respawned=respawn(p);
                     h.assertTrue(ChallengeData.get(world).playerState(p.getUUID())==ChallengeData.ALIVE&&!respawned.isSpectator(),"normal respawn consumed once");
                     BedVitalData.get(world).debugHealth(respawned.getUUID(),20);
                     respawned.teleportTo(nether,0,105,0,Set.of(),0,0,false);acknowledgeLoaded(respawned);respawned.kill(nether);
                     h.assertTrue(BedVitalData.get(world).state(respawned.getUUID())==2,"dimension death: bed="+BedVitalData.get(world).state(respawned.getUUID())+" hp="+BedVitalData.get(world).hp(respawned.getUUID())+" dead="+respawned.isDeadOrDying()+" loaded="+respawned.connection.hasClientLoaded()+" participant="+ChallengeData.get(world).playerState(respawned.getUUID()));
                     h.assertTrue(ChallengeData.get(world).playerState(respawned.getUUID())==ChallengeData.FINAL_RESPAWN,"this death gets final respawn");
                     ChallengeLifecycle.death(respawned);h.assertTrue(ChallengeData.get(world).playerState(respawned.getUUID())==ChallengeData.FINAL_RESPAWN,"duplicate death cannot add allowance");
-                    ServerPlayer last=server.getPlayerList().respawn(respawned,false,Entity.RemovalReason.KILLED);
+                    ServerPlayer last=respawn(respawned);
                     h.assertTrue(last.level()==world&&!last.isSpectator(),"final respawn returns to Overworld once");
                     acknowledgeLoaded(last);last.kill(world);h.assertTrue(ChallengeData.get(world).outcome()==ChallengeData.LOST,"next death actually loses");
-                    ServerPlayer spectator=server.getPlayerList().respawn(last,false,Entity.RemovalReason.KILLED);
+                    ServerPlayer spectator=respawn(last);
                     h.assertTrue(spectator.isSpectator(),"eliminated player cannot resume by respawning");
+                    server.getPlayerList().remove(spectator);
+                    for(boolean carried:List.of(false,true)){
+                        world.getDataStorage().set(ChallengeData.TYPE,new ChallengeData());
+                        ChallengeData.get(world).start(world.getGameTime(),ChallengeMenu.overworldClock(server));
+                        ServerPlayer unsafe=survivalPlayer(world);unsafe.setGameMode(GameType.SURVIVAL);ChallengeData.get(world).join(unsafe.getUUID());
+                        if(carried){BlockPos temp=foot.offset(12,0,0);bed(world,temp);use(unsafe,world,temp);SpawnBedPrototype.pickup(unsafe,world);}
+                        unsafe.kill(world);h.assertTrue(ChallengeData.get(world).outcome()==ChallengeData.LOST,"missing/carried bed death loses on real event");
+                        ServerPlayer out=respawn(unsafe);h.assertTrue(out.isSpectator(),"unsafe death cannot respawn into survival");server.getPlayerList().remove(out);
+                    }
                     // A fresh test-only run verifies the actual dragon death event independently of prior defeat.
                     world.getDataStorage().set(ChallengeData.TYPE,new ChallengeData());
                     ChallengeData.get(world).start(world.getGameTime(),ChallengeMenu.overworldClock(server));
@@ -122,7 +138,8 @@ public class PlayableChallengeGameTest {
                     h.assertTrue(ChallengeData.get(world).outcome()==ChallengeData.WON,"real Ender Dragon death wins challenge");
                     long frozen=ChallengeData.get(world).elapsedTicks(world.getGameTime());
                     h.assertTrue(ChallengeData.get(world).elapsedTicks(world.getGameTime()+2000)==frozen,"result freezes timer");
-                    server.getPlayerList().remove(spectator);h.succeed();
+                    h.succeed();
+                });
                 });
             });
         });
@@ -144,6 +161,20 @@ public class PlayableChallengeGameTest {
             if(age<80)h.assertTrue(world.getBlockState(dirt).is(Blocks.DIRT),"must not break dirt early");
             if(age==80){h.assertTrue(world.getBlockState(dirt).isAir(),"dirt breaks after 80 server ticks");SiegeController.clear(miner.getUUID());miner.discard();h.succeed();}
         });}
+    }
+    @GameTest(dimension="minecraft:overworld")
+    public void externalBedReplacementIsPermanent(GameTestHelper h){
+        ServerLevel world=h.getLevel();UUID owner=UUID.randomUUID();BlockPos foot=h.absolutePos(new BlockPos(1,2,1));
+        world.setBlock(foot.below(),Blocks.STONE.defaultBlockState(),2);world.setBlock(foot.south().below(),Blocks.STONE.defaultBlockState(),2);bed(world,foot);
+        SpawnBedData.get(world).registerFirst(owner,foot);BedVitalData.get(world).register(owner);
+        world.setBlock(foot.south(),Blocks.AIR.defaultBlockState(),3);bed(world,foot);
+        h.assertTrue(BedVitalData.get(world).state(owner)==2&&BedVitalData.get(world).hp(owner)==0,"breaking head and replacing ordinary bed cannot revive it");
+        h.succeed();
+    }
+    private static ServerPlayer respawn(ServerPlayer old){
+        old.connection.handleClientCommand(new net.minecraft.network.protocol.game.ServerboundClientCommandPacket(
+            net.minecraft.network.protocol.game.ServerboundClientCommandPacket.Action.PERFORM_RESPAWN));
+        ServerPlayer replacement=old.connection.player;acknowledgeLoaded(replacement);return replacement;
     }
     private static void acknowledgeLoaded(ServerPlayer player){
         player.hasChangedDimension();

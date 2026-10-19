@@ -43,7 +43,13 @@ public final class BedDefense implements ModInitializer {
         });
         ServerEntityEvents.ENTITY_LOAD.register(RaidManager::onLoad);
         ServerEntityEvents.ENTITY_UNLOAD.register((entity,level)->{
-            if(entity.getRemovalReason()!=null&&entity.getRemovalReason().shouldDestroy())RaidManager.onMobDeath(entity,level.getServer());
+            if(entity.getRemovalReason()!=null&&entity.getRemovalReason().shouldDestroy()){
+                RaidManager.onMobDeath(entity,level.getServer());
+                // EnderDragon overrides kill without LivingEntity.die; retain an authoritative kill path.
+                if(entity instanceof net.minecraft.world.entity.boss.enderdragon.EnderDragon
+                    &&entity.getRemovalReason()==net.minecraft.world.entity.Entity.RemovalReason.KILLED)
+                    ChallengeLifecycle.dragonKilled(level.getServer());
+            }
             else SiegeController.clear(entity.getUUID());
         });
         ChallengeLifecycle.init();

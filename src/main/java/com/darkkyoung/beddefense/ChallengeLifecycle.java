@@ -22,6 +22,9 @@ public final class ChallengeLifecycle {
     public static void tick(MinecraftServer server){
         ChallengeData data=ChallengeData.get(server.overworld());if(!data.running())return;
         data.observeDay(ChallengeMenu.overworldClock(server));
+        if(data.elapsedTicks(server.overworld().getGameTime())==20)
+            for(ServerPlayer player:server.getPlayerList().getPlayers())
+                if(data.participating(player.getUUID())&&BedVitalData.get(server.overworld()).state(player.getUUID())!=1)RaidManager.survivalWarning(player,server);
         // Day 100 is fully playable. Crossing into day 101 at world clock 0 ends the run.
         if(data.day(ChallengeMenu.overworldClock(server))>100)finish(server,false,"100일 제한 초과 (101일차 시작)");
     }
