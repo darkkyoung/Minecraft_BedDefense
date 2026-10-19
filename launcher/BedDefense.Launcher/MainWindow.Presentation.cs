@@ -9,16 +9,15 @@ public partial class MainWindow
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (ReleaseCard is null) return;
-        bool narrow = ActualWidth < 900;
+        bool narrow = ActualWidth / (AppLayout.LayoutTransform is System.Windows.Media.ScaleTransform scale ? scale.ScaleX : 1) < 900;
         EnvironmentColumn.Width = new GridLength(narrow ? 1 : 1.35, GridUnitType.Star);
         GutterColumn.Width = new GridLength(narrow ? 0 : 20);
         ReleaseColumn.Width = new GridLength(narrow ? 0 : 1, GridUnitType.Star);
         Grid.SetColumn(ReleaseCard, narrow ? 0 : 2);
-        Grid.SetRow(ReleaseCard, narrow ? 1 : 0);
-        // Error follows both cards in either layout.
+        Grid.SetRow(ReleaseCard, narrow ? 2 : 1);
+        // Error stays above both cards so the disabled-action reason is immediately visible.
         var error = (Border)ContentGrid.Children[2];
-        if (ContentGrid.RowDefinitions.Count == 2) ContentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        Grid.SetRow(error, narrow ? 2 : 1);
+        Grid.SetRow(error, 0);
         ReleaseCard.Margin = new Thickness(0, narrow ? 16 : 0, 0, 0);
         AppLayout.Margin = new Thickness(narrow ? 18 : 28, 20, narrow ? 18 : 28, 18);
         InstallButton.MinWidth = narrow ? 120 : 145;

@@ -9,6 +9,6 @@
     <ApplicationIcon>Assets/BedDefense.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
-  <ItemGroup><Resource Include="Assets/BedDefense.ico" /></ItemGroup>
+  <ItemGroup><Resource Include="Assets/BedDefense.ico" /><Resource Include="Assets/Brand.png" /></ItemGroup>
   <ItemGroup><ProjectReference Include="../BedDefense.Core/BedDefense.Core.csproj" /></ItemGroup>
 </Project>

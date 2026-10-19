@@ -13,7 +13,7 @@ namespace BedDefense.Launcher;
 public partial class MainWindow
 {
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-    private static extern uint ExtractIconEx(string file, int index, IntPtr[]? large, IntPtr[]? small, uint count);
+    private static extern uint ExtractIconEx(string file, int index, [Out] IntPtr[]? large, [Out] IntPtr[]? small, uint count);
     [DllImport("user32.dll")] private static extern bool DestroyIcon(IntPtr icon);
 
     internal async Task RunVisualAcceptance(ReleaseManifest manifest, string root)
@@ -30,12 +30,14 @@ public partial class MainWindow
             NotesExpander.IsExpanded = false; ProfileBox.IsDropDownOpen = false;
             ErrorText.Text = ""; canInstall = true; launchPrimary = false;
             InstallButton.Content = "업데이트 설치";
-            CurrentText.Text = "0.2.0-alpha.1"; LatestText.Text = manifest.ModVersion;
+            CurrentText.Text = manifest.ModVersion; LatestText.Text = manifest.ModVersion;
+            CurrentBuildText.Text = $"dev.{manifest.BuildNumber - 1} · 이전 배포"; LatestBuildText.Text = $"dev.{manifest.BuildNumber} · {manifest.Commit[..7]}";
             InstalledText.Text = "↑ 업데이트 가능"; StatusText.Text = "조회 완료 · 새 버전을 설치할 수 있습니다.";
             ProgressBar.IsIndeterminate = false; ProgressBar.Value = 0;
             SetBusy(false);
             if (scenario == "current")
             {
+                CurrentBuildText.Text = LatestBuildText.Text;
                 launchPrimary = true; SetBusy(false);
                 InstalledText.Text = "✓ 최신 버전 · 파일 검증 완료";
                 InstallButton.Content = "공식 Minecraft Launcher 열기 ↗";
@@ -70,8 +72,8 @@ public partial class MainWindow
                 AppLayout.LayoutTransform = new ScaleTransform(scale, scale);
                 EnvironmentColumn.Width = new GridLength(1, GridUnitType.Star);
                 GutterColumn.Width = new GridLength(0); ReleaseColumn.Width = new GridLength(0);
-                System.Windows.Controls.Grid.SetColumn(ReleaseCard, 0); System.Windows.Controls.Grid.SetRow(ReleaseCard, 1);
-                System.Windows.Controls.Grid.SetRow(ContentGrid.Children[2], 2);
+                System.Windows.Controls.Grid.SetColumn(ReleaseCard, 0); System.Windows.Controls.Grid.SetRow(ReleaseCard, 2);
+                System.Windows.Controls.Grid.SetRow(ContentGrid.Children[2], 0);
                 ReleaseCard.Margin = new Thickness(0, 16, 0, 0);
             }
             UpdateLayout();
@@ -88,7 +90,8 @@ public partial class MainWindow
         if (!ProgressBar.IsIndeterminate || StatusText.Text.Contains('%')) throw new IOException("Fake percentage on verification stage");
         checks.Add("PASS: verification is indeterminate, no synthetic percentage");
         var large = new IntPtr[1]; var small = new IntPtr[1];
-        if (ExtractIconEx(Environment.ProcessPath!, 0, large, small, 1) != 1 || large[0] == IntPtr.Zero || small[0] == IntPtr.Zero) throw new IOException("Published EXE icon resources missing");
+        var extracted = ExtractIconEx(Environment.ProcessPath!, 0, large, small, 1);
+        if (extracted is 0 or uint.MaxValue || large[0] == IntPtr.Zero || small[0] == IntPtr.Zero) throw new IOException($"Published EXE icon resources missing (count={extracted})");
         try
         {
             SaveBitmap(Imaging.CreateBitmapSourceFromHIcon(large[0], Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions()), "ui-acceptance/exe-icon-large.png");

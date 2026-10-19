@@ -103,9 +103,10 @@ public partial class MainWindow : Window
         var installed = installation.Installed();
         var manual = installed is null && installation.IsExisting && File.Exists(installation.BedDefenseTarget)
             ? ModCompatibility.Read(installation.BedDefenseTarget)[0].Version : null;
-        CurrentText.Text = installed?.DisplayVersion ?? (manual is null ? "미설치" : manual + " · 기존 수동 설치");
+        CurrentText.Text = installed?.ModVersion ?? (manual is null ? "미설치" : manual + " · 기존 수동 설치");
+        CurrentBuildText.Text = installed is null ? "" : $"dev.{installed.BuildNumber} · {installed.Commit[..7]}";
         var healthy = installed is not null && installation.Healthy(installed);
-        InstalledText.Text = healthy ? "설치됨 · 파일 검증 완료" : installed is null ? "미설치" : "설치 파일 확인/복구 필요";
+        InstalledText.Text = healthy ? latest is not null && latest.BuildNumber > installed!.BuildNumber ? "↑ 업데이트 가능" : "✓ 설치됨 · 파일 검증 완료" : installed is null ? "○ 미설치" : "! 설치 파일 확인 / 복구 필요";
         FabricText.Text = ExistingMode ? "기존 Loader " + installation.ExistingProfile!.LoaderVersion + " · 호환성 검사 필요" : healthy ? "Loader 0.19.5 · API 0.163.0+26.3 · Java 25 (공식 런처 관리)" : "설치 전 · 순정 26.3 / Java 25 필요";
         launchPrimary = healthy && latest is not null && installed!.BuildNumber == latest.BuildNumber;
         InstallButton.Content = launchPrimary ? "공식 Minecraft Launcher 열기 ↗" : installed is null ? "설치" : latest is not null && latest.BuildNumber > installed.BuildNumber ? "업데이트 설치" : "설치 확인 / 복구";
@@ -127,7 +128,7 @@ public partial class MainWindow : Window
             }
             ReadLocal();
             latest = await new ReleaseClient(downloads).Latest();
-            LatestText.Text = latest.ModVersion; NotesBox.Text = latest.Notes; UpdateNotes(latest.Notes);
+            LatestText.Text = latest.ModVersion; LatestBuildText.Text = $"dev.{latest.BuildNumber} · {latest.Commit[..7]}"; NotesBox.Text = latest.Notes; UpdateNotes(latest.Notes);
             // Never block regular mod installation when the optional EXE update check fails.
             try
             {
