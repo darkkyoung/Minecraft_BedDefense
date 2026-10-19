@@ -16,8 +16,8 @@
     <ScrollViewer x:Name="BodyScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
       <StackPanel>
         <Border x:Name="HeroFrame" Height="160" CornerRadius="5" BorderBrush="{DynamicResource Line}" BorderThickness="1" Margin="0,0,0,14" ClipToBounds="True" Background="#10282D">
-          <Grid>
-            <Image x:Name="HeroImage" Source="Assets/BedDefense-Hero.jpg" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="침대 곁에서 몬스터들을 막아내는 플레이어의 Bed Defense 일러스트"/>
+          <Grid RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="침대 곁에서 몬스터들을 막아내는 플레이어의 Bed Defense 일러스트">
+            <Grid.Background><ImageBrush x:Name="HeroArtwork" ImageSource="Assets/BedDefense-Hero.jpg" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/></Grid.Background>
             <Border VerticalAlignment="Bottom" Padding="15,20,15,12">
               <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#000B191E"/><GradientStop Color="#D90B191E" Offset="1"/></LinearGradientBrush></Border.Background>
               <TextBlock Text="침대를 지키는 밤, 도전이 시작됩니다." Foreground="#FFF5DE" FontWeight="SemiBold" FontSize="14"/>

@@ -50,7 +50,7 @@ public partial class MainWindow
         Grid.SetRow(ErrorCard, 0);
         ReleaseCard.Margin = new Thickness(0, narrow ? 16 : 0, 0, 0);
         AppLayout.Margin = new Thickness(narrow ? 16 : 24, 18, narrow ? 16 : 24, 16);
-        HeroFrame.Height = narrow ? 144 : 160;
+        HeroFrame.Height = narrow ? 112 : 160;
     }
     private void ResetQueryPresentation()
     {

@@ -54,82 +54,82 @@ public partial class MainWindow
         checks.Add("PASS: ComboBox Home/Down/End keyboard routing and full path clipboard copy");
         foreach (string palette in new[] { "Dark", "Light" })
         {
-        ApplyTheme(palette);
-        foreach (var scenario in new[] { "current", "update", "progress", "compatibility-error", "profiles", "long-notes", "narrow", "compact-height", "scale-125", "scale-150", "scale-200" })
-        {
-            ProfileBox.SelectedIndex = originalProfile;
-            AppLayout.LayoutTransform = Transform.Identity;
-            Width = 1060; Height = 780;
-            NotesExpander.IsExpanded = false; EnvironmentDetails.IsExpanded = false; ProfileBox.IsDropDownOpen = false;
-            NotesBox.Text = manifest.Notes; BodyScroll.ScrollToTop();
-            ErrorText.Text = ""; canInstall = true; launchPrimary = false;
-            InstallButton.Content = "업데이트 설치";
-            CurrentText.Text = manifest.ModVersion; LatestText.Text = manifest.ModVersion;
-            CurrentBuildText.Text = $"dev.{manifest.BuildNumber - 1} · 이전 배포"; LatestBuildText.Text = $"dev.{manifest.BuildNumber} · {manifest.Commit[..7]}";
-            InstalledText.Text = "↑ 업데이트 가능"; StatusText.Text = "조회 완료 · 새 버전을 설치할 수 있습니다.";
-            ProgressBar.IsIndeterminate = false; ProgressBar.Value = 0;
-            SetBusy(false);
-            if (scenario == "current")
+            ApplyTheme(palette);
+            foreach (var scenario in new[] { "current", "update", "progress", "compatibility-error", "profiles", "long-notes", "narrow", "compact-height", "scale-125", "scale-150", "scale-200" })
             {
-                CurrentBuildText.Text = LatestBuildText.Text;
-                launchPrimary = true; SetBusy(false);
-                InstalledText.Text = "✓ 최신 버전 · 파일 검증 완료";
-                InstallButton.Content = "공식 Minecraft Launcher 열기 ↗";
-                StatusText.Text = "최신 버전이 설치되어 있습니다.";
+                ProfileBox.SelectedIndex = originalProfile;
+                AppLayout.LayoutTransform = Transform.Identity;
+                Width = 1060; Height = 780;
+                NotesExpander.IsExpanded = false; EnvironmentDetails.IsExpanded = false; ProfileBox.IsDropDownOpen = false;
+                NotesBox.Text = manifest.Notes; BodyScroll.ScrollToTop();
+                ErrorText.Text = ""; canInstall = true; launchPrimary = false;
+                InstallButton.Content = "업데이트 설치";
+                CurrentText.Text = manifest.ModVersion; LatestText.Text = manifest.ModVersion;
+                CurrentBuildText.Text = $"dev.{manifest.BuildNumber - 1} · 이전 배포"; LatestBuildText.Text = $"dev.{manifest.BuildNumber} · {manifest.Commit[..7]}";
+                InstalledText.Text = "↑ 업데이트 가능"; StatusText.Text = "조회 완료 · 새 버전을 설치할 수 있습니다.";
+                ProgressBar.IsIndeterminate = false; ProgressBar.Value = 0;
+                SetBusy(false);
+                if (scenario == "current")
+                {
+                    CurrentBuildText.Text = LatestBuildText.Text;
+                    launchPrimary = true; SetBusy(false);
+                    InstalledText.Text = "✓ 최신 버전 · 파일 검증 완료";
+                    InstallButton.Content = "공식 Minecraft Launcher 열기 ↗";
+                    StatusText.Text = "최신 버전이 설치되어 있습니다.";
+                }
+                if (scenario == "progress")
+                {
+                    SetBusy(true); ShowProgress(new InstallProgress("파일 다운로드 중", 50, 64));
+                    if (InstallButton.IsEnabled || ModeBox.IsEnabled || ProfileBox.IsEnabled || !StatusText.Text.Contains("64%")) throw new IOException("Progress state/operation lock regression");
+                    // Switching palettes while downloading must retain the operation lock and progress.
+                    Theme_Click(this, new RoutedEventArgs()); Theme_Click(this, new RoutedEventArgs());
+                    if (!busy || InstallButton.IsEnabled || ProfileBox.IsEnabled || ProgressBar.Value != 64 || theme != palette) throw new IOException("Theme switch disturbed operation state");
+                    checks.Add("PASS: " + palette + " real byte progress, controls locked, theme switch preserves busy state");
+                }
+                if (scenario == "compatibility-error")
+                {
+                    canInstall = false; SetBusy(false);
+                    InstalledText.Text = "! 설치 보류";
+                    ErrorText.Text = "Fabric API 버전이 선택한 Minecraft 버전과 호환되지 않습니다. 호환되는 Fabric 26.3 프로필을 선택한 뒤 다시 조회해 주세요.\n기존 파일은 변경되지 않았습니다.";
+                    StatusText.Text = "환경 확인 실패 · 오류 안내를 확인해 주세요.";
+                    if (InstallButton.IsEnabled) throw new IOException("Incompatible environment install enabled");
+                    checks.Add("PASS: incompatible profile blocks installation");
+                }
+                if (scenario == "long-notes")
+                {
+                    NotesBox.Text = string.Join("\n", Enumerable.Repeat(manifest.Notes, 12));
+                    NotesExpander.IsExpanded = true;
+                }
+                if (scenario == "narrow") { Width = 640; Height = 610; }
+                if (scenario == "compact-height") { Width = 640; Height = 360; }
+                if (scenario.StartsWith("scale-"))
+                {
+                    // Actual WPF layout/render stress at OS-equivalent scaling, not a claim of changed monitor DPI.
+                    double scale = int.Parse(scenario[6..]) / 100.0;
+                    Width = 1280; Height = 900;
+                    AppLayout.LayoutTransform = new ScaleTransform(scale, scale);
+                    EnvironmentColumn.Width = new GridLength(1, GridUnitType.Star);
+                    GutterColumn.Width = new GridLength(0); ReleaseColumn.Width = new GridLength(0);
+                    System.Windows.Controls.Grid.SetColumn(ReleaseCard, 0); System.Windows.Controls.Grid.SetRow(ReleaseCard, 2);
+                    System.Windows.Controls.Grid.SetRow(ErrorCard, 0);
+                    ReleaseCard.Margin = new Thickness(0, 16, 0, 0);
+                }
+                UpdateLayout();
+                if (scenario == "profiles") { ProfileBox.SelectedItem = ProfileBox.Items.Cast<FabricProfile>().First(p => p.Name.StartsWith("친구")); ProfileBox.Focus(); ProfileBox.IsDropDownOpen = true; }
+                await Dispatcher.InvokeAsync(() => UpdateLayout(), DispatcherPriority.Render);
+                await Task.Delay(180); // Let the real popup and indeterminate animation render.
+                var button = InstallButton.TransformToAncestor(this).TransformBounds(new Rect(InstallButton.RenderSize));
+                if (button.Bottom > ActualHeight || button.Right > ActualWidth || button.Width < 100) throw new IOException("Primary action clipped: " + scenario);
+                if (InstallButton.ActualHeight < 60 || (LaunchButton.IsVisible && LaunchButton.ActualHeight < 60)) throw new IOException("CTA touch target shrank");
+                if (HeroArtwork.ImageSource is not BitmapSource { PixelWidth: > 1000 } || !HeroFrame.IsVisible) throw new IOException("Embedded hero did not load");
+                // Existing visuals must resolve the new palette, not retain stale StaticResource colors.
+                var expectedBackground = ((SolidColorBrush)FindResource("Background")).Color;
+                if (((SolidColorBrush)Background).Color != expectedBackground) throw new IOException("Window palette did not update");
+                AssertContrast("Text", "Surface", 7); AssertContrast("Muted", "Surface", 4.5);
+                AssertContrast("AccentText", "Accent", 4.5); AssertContrast("Error", "ErrorSurface", 4.5);
+                Capture(palette.ToLowerInvariant() + "-" + scenario);
+                checks.Add("PASS: actual WPF " + palette + " " + scenario + "; 60-DIP CTA in view, embedded hero, dynamic palette and contrast");
             }
-            if (scenario == "progress")
-            {
-                SetBusy(true); ShowProgress(new InstallProgress("파일 다운로드 중", 50, 64));
-                if (InstallButton.IsEnabled || ModeBox.IsEnabled || ProfileBox.IsEnabled || !StatusText.Text.Contains("64%")) throw new IOException("Progress state/operation lock regression");
-                // Switching palettes while downloading must retain the operation lock and progress.
-                Theme_Click(this, new RoutedEventArgs()); Theme_Click(this, new RoutedEventArgs());
-                if (!busy || InstallButton.IsEnabled || ProfileBox.IsEnabled || ProgressBar.Value != 64 || theme != palette) throw new IOException("Theme switch disturbed operation state");
-                checks.Add("PASS: " + palette + " real byte progress, controls locked, theme switch preserves busy state");
-            }
-            if (scenario == "compatibility-error")
-            {
-                canInstall = false; SetBusy(false);
-                InstalledText.Text = "! 설치 보류";
-                ErrorText.Text = "Fabric API 버전이 선택한 Minecraft 버전과 호환되지 않습니다. 호환되는 Fabric 26.3 프로필을 선택한 뒤 다시 조회해 주세요.\n기존 파일은 변경되지 않았습니다.";
-                StatusText.Text = "환경 확인 실패 · 오류 안내를 확인해 주세요.";
-                if (InstallButton.IsEnabled) throw new IOException("Incompatible environment install enabled");
-                checks.Add("PASS: incompatible profile blocks installation");
-            }
-            if (scenario == "long-notes")
-            {
-                NotesBox.Text = string.Join("\n", Enumerable.Repeat(manifest.Notes, 12));
-                NotesExpander.IsExpanded = true;
-            }
-            if (scenario == "narrow") { Width = 640; Height = 610; }
-            if (scenario == "compact-height") { Width = 640; Height = 360; }
-            if (scenario.StartsWith("scale-"))
-            {
-                // Actual WPF layout/render stress at OS-equivalent scaling, not a claim of changed monitor DPI.
-                double scale = int.Parse(scenario[6..]) / 100.0;
-                Width = 1280; Height = 900;
-                AppLayout.LayoutTransform = new ScaleTransform(scale, scale);
-                EnvironmentColumn.Width = new GridLength(1, GridUnitType.Star);
-                GutterColumn.Width = new GridLength(0); ReleaseColumn.Width = new GridLength(0);
-                System.Windows.Controls.Grid.SetColumn(ReleaseCard, 0); System.Windows.Controls.Grid.SetRow(ReleaseCard, 2);
-                System.Windows.Controls.Grid.SetRow(ErrorCard, 0);
-                ReleaseCard.Margin = new Thickness(0, 16, 0, 0);
-            }
-            UpdateLayout();
-            if (scenario == "profiles") { ProfileBox.SelectedItem = ProfileBox.Items.Cast<FabricProfile>().First(p => p.Name.StartsWith("친구")); ProfileBox.Focus(); ProfileBox.IsDropDownOpen = true; }
-            await Dispatcher.InvokeAsync(() => UpdateLayout(), DispatcherPriority.Render);
-            await Task.Delay(180); // Let the real popup and indeterminate animation render.
-            var button = InstallButton.TransformToAncestor(this).TransformBounds(new Rect(InstallButton.RenderSize));
-            if (button.Bottom > ActualHeight || button.Right > ActualWidth || button.Width < 100) throw new IOException("Primary action clipped: " + scenario);
-            if (InstallButton.ActualHeight < 60 || (LaunchButton.IsVisible && LaunchButton.ActualHeight < 60)) throw new IOException("CTA touch target shrank");
-            if (HeroImage.Source is not BitmapSource { PixelWidth: > 1000 } || !HeroImage.IsVisible) throw new IOException("Embedded hero did not load");
-            // Existing visuals must resolve the new palette, not retain stale StaticResource colors.
-            var expectedBackground = ((SolidColorBrush)FindResource("Background")).Color;
-            if (((SolidColorBrush)Background).Color != expectedBackground) throw new IOException("Window palette did not update");
-            AssertContrast("Text", "Surface", 7); AssertContrast("Muted", "Surface", 4.5);
-            AssertContrast("AccentText", "Accent", 4.5); AssertContrast("Error", "ErrorSurface", 4.5);
-            Capture(palette.ToLowerInvariant() + "-" + scenario);
-            checks.Add("PASS: actual WPF " + palette + " " + scenario + "; 60-DIP CTA in view, embedded hero, dynamic palette and contrast");
-        }
         }
         busy = false;
         ShowProgress(new InstallProgress("파일 무결성 검증 중", 75));
