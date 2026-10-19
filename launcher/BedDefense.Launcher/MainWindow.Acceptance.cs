@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -23,6 +24,17 @@ public partial class MainWindow
         NotesBox.Text = manifest.Notes; UpdateNotes(manifest.Notes);
         LatestText.Text = manifest.ModVersion;
         var checks = new List<string>();
+        Activate(); ProfileBox.Focus();
+        int originalProfile = ProfileBox.SelectedIndex;
+        void KeyPress(Key key) => ProfileBox.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(ProfileBox)!, 0, key) { RoutedEvent = Keyboard.KeyDownEvent });
+        KeyPress(Key.Home); KeyPress(Key.Down);
+        if (ProfileBox.SelectedIndex != 1) throw new IOException("ComboBox Home/Down keyboard selection failed");
+        KeyPress(Key.End);
+        if (ProfileBox.SelectedIndex != ProfileBox.Items.Count - 1) throw new IOException("ComboBox End keyboard selection failed");
+        ProfileBox.SelectedIndex = originalProfile;
+        CopyPath_Click(this, new RoutedEventArgs());
+        if (Clipboard.GetText() != SelectedInstallation().Instance) throw new IOException("Full game path copy failed");
+        checks.Add("PASS: ComboBox Home/Down/End keyboard routing and full path clipboard copy");
         foreach (var scenario in new[] { "current", "update", "progress", "compatibility-error", "profiles", "long-notes", "narrow", "scale-125", "scale-150", "scale-200" })
         {
             AppLayout.LayoutTransform = Transform.Identity;
@@ -77,7 +89,7 @@ public partial class MainWindow
                 ReleaseCard.Margin = new Thickness(0, 16, 0, 0);
             }
             UpdateLayout();
-            if (scenario == "profiles") { ProfileBox.Focus(); ProfileBox.IsDropDownOpen = true; }
+            if (scenario == "profiles") { ProfileBox.SelectedIndex = ProfileBox.Items.Count - 1; ProfileBox.Focus(); ProfileBox.IsDropDownOpen = true; }
             await Dispatcher.InvokeAsync(() => UpdateLayout(), DispatcherPriority.Render);
             await Task.Delay(180); // Let the real popup and indeterminate animation render.
             var button = InstallButton.TransformToAncestor(this).TransformBounds(new Rect(InstallButton.RenderSize));

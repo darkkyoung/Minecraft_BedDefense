@@ -52,6 +52,12 @@ internal static partial class Program
     private static void PrepareUiFixture(string bundle, string root)
     {
         Directory.CreateDirectory(root); CreateMinecraft(root, false); AddProfile(root, null);
+        // Many real discovered profiles exercise scrolling and long Korean display names.
+        for (var n = 0; n < 10; n++) AddProfile(root, null, "visual-profile-" + n);
+        var profilesFile = Path.Combine(root, "launcher_profiles.json");
+        var profiles = JsonNode.Parse(File.ReadAllText(profilesFile))!;
+        profiles["profiles"]!["visual-profile-9"]!["name"] = "친구들과 함께하는 아주 긴 이름의 Fabric 프로필 · 월드와 모드를 그대로 유지하는 환경";
+        File.WriteAllText(profilesFile, profiles.ToJsonString());
         Directory.CreateDirectory(Path.Combine(root, "mods"));
         var manifest = ReleaseManifest.Parse(File.ReadAllText(Path.Combine(bundle, "manifest.json")));
         var index = Array.FindIndex(manifest.Files, f => f.Role == "fabricApi");

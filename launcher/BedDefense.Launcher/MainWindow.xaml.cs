@@ -109,6 +109,7 @@ public partial class MainWindow : Window
         InstalledText.Text = healthy ? latest is not null && latest.BuildNumber > installed!.BuildNumber ? "↑ 업데이트 가능" : "✓ 설치됨 · 파일 검증 완료" : installed is null ? "○ 미설치" : "! 설치 파일 확인 / 복구 필요";
         FabricText.Text = ExistingMode ? "기존 Loader " + installation.ExistingProfile!.LoaderVersion + " · 호환성 검사 필요" : healthy ? "Loader 0.19.5 · API 0.163.0+26.3 · Java 25 (공식 런처 관리)" : "설치 전 · 순정 26.3 / Java 25 필요";
         launchPrimary = healthy && latest is not null && installed!.BuildNumber == latest.BuildNumber;
+        if (launchPrimary) InstalledText.Text = "✓ 최신 버전 · 파일 검증 완료";
         InstallButton.Content = launchPrimary ? "공식 Minecraft Launcher 열기 ↗" : installed is null ? "설치" : latest is not null && latest.BuildNumber > installed.BuildNumber ? "업데이트 설치" : "설치 확인 / 복구";
     }
     private async Task Refresh()

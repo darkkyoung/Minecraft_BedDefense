@@ -6,6 +6,15 @@ namespace BedDefense.Launcher;
 public partial class MainWindow
 {
     private bool launchPrimary;
+    [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        int enabled = 1;
+        // Native Windows caption and window controls, with the supported dark appearance.
+        _ = DwmSetWindowAttribute(new System.Windows.Interop.WindowInteropHelper(this).Handle, 20, ref enabled, sizeof(int));
+    }
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (ReleaseCard is null) return;
