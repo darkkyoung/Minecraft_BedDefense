@@ -23,7 +23,7 @@ import net.minecraft.world.phys.HitResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Technical prototype only: a Korean HUD and the existing cobblestone crack animation. */
+/** Fabric entrypoint: authoritative challenge events, commands and client state synchronization. */
 public final class BedDefense implements ModInitializer {
     public static final String MOD_ID = "beddefense";
     private static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
@@ -100,7 +100,7 @@ public final class BedDefense implements ModInitializer {
                         .then(Commands.literal("debug")
                                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                                 .executes(ctx -> {
-                                    ctx.getSource().sendSuccess(() -> Component.literal("§6[베드 디펜스] /beddefense debug cracks · preview"),false);
+                                    ctx.getSource().sendSuccess(() -> Component.literal("§6[베드 디펜스] /beddefense debug state · day · raid · hp · cracks · preview"),false);
                                     return 1;
                                 })
                                 .then(Commands.literal("state").executes(ctx->{

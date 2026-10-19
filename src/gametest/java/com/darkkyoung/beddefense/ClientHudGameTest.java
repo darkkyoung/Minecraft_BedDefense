@@ -34,7 +34,11 @@ public class ClientHudGameTest implements FabricClientGameTest {
                 level.setBlock(foot,state.setValue(BedBlock.PART,BedPart.FOOT),2);level.setBlock(foot.south(),state.setValue(BedBlock.PART,BedPart.HEAD),2);
                 SpawnBedPrototype.onUse(p,level,InteractionHand.MAIN_HAND,new BlockHitResult(Vec3.atCenterOf(foot),Direction.UP,foot,false));
             });
-            context.waitFor(mc->!BedDefenseHud.hardcoreRisk());context.waitTicks(20);context.takeScreenshot("r1-placed-normal-hearts");
+            context.waitFor(mc->!BedDefenseHud.hardcoreRisk());
+            world.getServer().runCommand("bossbar add beddefense:test {\"text\":\"보스 게이지 겹침 검사\"}");
+            world.getServer().runCommand("bossbar set beddefense:test players @a");
+            context.waitTicks(20);context.takeScreenshot("r1-placed-normal-hearts");
+            world.getServer().runCommand("bossbar remove beddefense:test");
             world.getServer().runOnServer(server->{var p=server.getPlayerList().getPlayers().getFirst();SpawnBedPrototype.damage(server,p.getUUID(),37,"client_test");});
             context.waitTicks(12);context.takeScreenshot("r1-damaged-hp");
             world.getServer().runOnServer(server->SpawnBedPrototype.pickup(server.getPlayerList().getPlayers().getFirst(),server.overworld()));

@@ -14,7 +14,7 @@ import net.minecraft.world.entity.player.Player;
 /**
  * Korean-only, frameless HUD v2.
  * Live: Overworld date, coordinates, elapsed world-tick stopwatch, biome.
- * Simulated: Spawn Bed bar, preview raid. Never mutates Bed/raid state.
+ * Server-driven bed HP and raid state; debug previews never mutate gameplay.
  */
 public final class BedDefenseHud {
     private static final int WHITE = 0xFFFFFFFF;
@@ -40,9 +40,8 @@ public final class BedDefenseHud {
     private static long flashUntilTick;
     private static long lastVisualTick = -1L;
 
-    // Prototype only: the approximate first time Minecraft permits sleeping.
-    // Must use the real server raid scheduler when raids are implemented.
-    private static final long BEDTIME_TICK = 12542L;
+    // Shared nightly threshold; all scheduling and settlement are server-authoritative.
+    private static final long BEDTIME_TICK = com.darkkyoung.beddefense.RaidManager.BEDTIME_TICK;
     private static final long WARNING_DURATION_TICKS = 20L * 60L;
 
     private enum Preview { OFF, PLACED, UNPLACED, DESTROYED }
@@ -50,6 +49,7 @@ public final class BedDefenseHud {
     private static boolean visible = true;
     private static boolean synced = false;
     private static int outcome;
+    public static boolean reserveBossSpace(){return visible&&synced;}
     public static boolean hardcoreRisk(){return synced&&outcome==1&&serverBedState!=1;}
     private static long serverDayTime;
     private static long serverElapsedTime;

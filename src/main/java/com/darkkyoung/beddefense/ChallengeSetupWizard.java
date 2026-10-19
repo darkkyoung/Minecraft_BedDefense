@@ -15,7 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
 /**
  * Recreates the AllBlocks master settings pattern without sharing code or state.
  * Daily raids always occur; this setting advances the day-by-day *roster* faster.
- * This phase persists settings; actual raid manager is a separate integration.
+ * Settings persist separately from the run lifecycle and are immutable once started.
  */
 public final class ChallengeSetupWizard {
     private static final Map<MinecraftServer, Session> SESSIONS = new WeakHashMap<>();
@@ -119,7 +119,7 @@ public final class ChallengeSetupWizard {
         if (ChallengeData.get(server.overworld()).isStarted()){SESSIONS.remove(server);return;}
         --s.countdown;
         if (s.countdown <= 0) {
-            // Copy options into the saved world state only after the confirmation countdown.
+            // Settings were saved on each edit; only the run begins after the countdown.
             if(s.resetTime) {
                 String[] commands = {
                     "time of minecraft:overworld rate 1",

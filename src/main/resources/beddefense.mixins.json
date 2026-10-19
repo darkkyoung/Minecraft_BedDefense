@@ -7,10 +7,12 @@
     "BedPlayerMixin",
     "DragonFightMixin",
     "RaidMobMixin",
-    "MobGoalAccessor"
+    "MobGoalAccessor",
+    "DragonEntityMixin"
   ],
   "client": [
-    "HardcoreHeartsMixin"
+    "HardcoreHeartsMixin",
+    "BossBarLayoutMixin"
   ],
   "injectors": {
     "defaultRequire": 1
