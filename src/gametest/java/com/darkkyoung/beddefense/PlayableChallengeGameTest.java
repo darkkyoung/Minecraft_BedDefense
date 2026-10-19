@@ -34,7 +34,9 @@ public class PlayableChallengeGameTest {
         world.getDataStorage().set(BedVitalData.TYPE,new BedVitalData());
         world.getDataStorage().set(RaidStateData.TYPE,new RaidStateData());
         ServerPlayer p=survivalPlayer(world);p.setGameMode(GameType.SURVIVAL);p.getAbilities().invulnerable=true;
-        BlockPos foot=h.absolutePos(new BlockPos(2,2,2));
+        // Neighboring GameTests clear entities in/around their structures on completion.
+        // Keep the full raid arena outside those structures so their cleanup cannot kill a raider.
+        BlockPos foot=h.absolutePos(new BlockPos(258,2,258));
         // A loaded flat arena makes spawn retries and navigation deterministic without touching a user world.
         for(int x=-24;x<=24;x++)for(int z=-24;z<=24;z++){
             BlockPos ground=foot.offset(x,-1,z);world.setBlock(ground,Blocks.STONE.defaultBlockState(),2);
