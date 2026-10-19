@@ -6,30 +6,51 @@ namespace BedDefense.Launcher;
 public partial class MainWindow
 {
     private bool launchPrimary;
+    private string theme = "Dark";
+    private void ApplyTheme(string value)
+    {
+        theme = value == "Light" ? "Light" : "Dark";
+        Appearance.Apply(theme);
+        ThemeButton.Content = theme == "Dark" ? "☀ 라이트" : "☾ 다크";
+        ThemeButton.ToolTip = theme == "Dark" ? "라이트 모드로 전환 (선택을 기억합니다)" : "다크 모드로 전환 (선택을 기억합니다)";
+        UpdateCaptionTheme();
+    }
+    private void Theme_Click(object sender, RoutedEventArgs e)
+    {
+        ApplyTheme(theme == "Dark" ? "Light" : "Dark");
+        if (smoke) return;
+        try { Appearance.Save(Appearance.DefaultPath, theme); }
+        catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException)
+        { StatusText.Text = "테마는 적용했지만 선택을 저장하지 못했습니다: " + error.Message; }
+    }
+    private void UpdateCaptionTheme()
+    {
+        var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero) return;
+        int enabled = theme == "Dark" ? 1 : 0;
+        _ = DwmSetWindowAttribute(handle, 20, ref enabled, sizeof(int));
+    }
     [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
-        int enabled = 1;
-        // Native Windows caption and window controls, with the supported dark appearance.
-        _ = DwmSetWindowAttribute(new System.Windows.Interop.WindowInteropHelper(this).Handle, 20, ref enabled, sizeof(int));
+        UpdateCaptionTheme();
     }
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (ReleaseCard is null) return;
         bool narrow = ActualWidth / (AppLayout.LayoutTransform is System.Windows.Media.ScaleTransform scale ? scale.ScaleX : 1) < 900;
-        EnvironmentColumn.Width = new GridLength(narrow ? 1 : 1.35, GridUnitType.Star);
-        GutterColumn.Width = new GridLength(narrow ? 0 : 20);
+        EnvironmentColumn.Width = new GridLength(narrow ? 1 : 1.15, GridUnitType.Star);
+        GutterColumn.Width = new GridLength(narrow ? 0 : 16);
         ReleaseColumn.Width = new GridLength(narrow ? 0 : 1, GridUnitType.Star);
         Grid.SetColumn(ReleaseCard, narrow ? 0 : 2);
         Grid.SetRow(ReleaseCard, narrow ? 2 : 1);
         // Error stays above both cards so the disabled-action reason is immediately visible.
-        var error = (Border)ContentGrid.Children[2];
-        Grid.SetRow(error, 0);
+        Grid.SetRow(ErrorCard, 0);
         ReleaseCard.Margin = new Thickness(0, narrow ? 16 : 0, 0, 0);
-        AppLayout.Margin = new Thickness(narrow ? 18 : 28, 20, narrow ? 18 : 28, 18);
-        InstallButton.MinWidth = narrow ? 120 : 145;
+        AppLayout.Margin = new Thickness(narrow ? 16 : 24, 18, narrow ? 16 : 24, 16);
+        HeroFrame.Height = narrow ? 144 : 160;
     }
     private void ResetQueryPresentation()
     {

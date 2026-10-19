@@ -1,0 +1,16 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <SolidColorBrush x:Key="Background" Color="#F2EEE4"/>
+  <SolidColorBrush x:Key="Surface" Color="#FFFCF5"/>
+  <SolidColorBrush x:Key="Raised" Color="#EAE7DB"/>
+  <SolidColorBrush x:Key="Line" Color="#B9C2BA"/>
+  <SolidColorBrush x:Key="Text" Color="#203331"/>
+  <SolidColorBrush x:Key="Muted" Color="#536660"/>
+  <SolidColorBrush x:Key="Accent" Color="#8F382E"/>
+  <SolidColorBrush x:Key="AccentText" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="Success" Color="#265D3E"/>
+  <SolidColorBrush x:Key="SuccessSurface" Color="#E1EDDD"/>
+  <SolidColorBrush x:Key="Error" Color="#922E2A"/>
+  <SolidColorBrush x:Key="ErrorSurface" Color="#FAE3DC"/>
+  <SolidColorBrush x:Key="Selection" Color="#CBDDD0"/>
+  <SolidColorBrush x:Key="BedRed" Color="#9C4035"/>
+</ResourceDictionary>

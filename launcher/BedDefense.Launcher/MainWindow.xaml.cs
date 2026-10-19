@@ -59,6 +59,7 @@ public partial class MainWindow : Window
     {
         this.smoke = smoke;
         InitializeComponent();
+        ApplyTheme(smoke ? "Dark" : Appearance.Read(Appearance.DefaultPath));
         RootBox.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), ".minecraft");
         if (!smoke)
         {
@@ -90,6 +91,7 @@ public partial class MainWindow : Window
     {
         busy = value;
         LaunchButton.Visibility = launchPrimary ? Visibility.Collapsed : Visibility.Visible;
+        System.Windows.Controls.Grid.SetColumnSpan(InstallButton, launchPrimary ? 2 : 1);
         RefreshButton.IsEnabled = BrowseButton.IsEnabled = LaunchButton.IsEnabled = ModeBox.IsEnabled = MigrateButton.IsEnabled = !value;
         ProfileBox.IsEnabled = !value && ExistingMode;
         InstallButton.IsEnabled = !value && latest is not null && canInstall;

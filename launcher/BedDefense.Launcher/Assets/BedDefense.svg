@@ -1,8 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
- <rect width="256" height="256" rx="54" fill="#0D1520"/>
- <path d="M128 22 224 55v71c0 53-48 88-96 110-48-22-96-57-96-110V55z" fill="#FFAE54"/>
- <path d="M128 42 206 69v57c0 40-36 70-78 91-42-21-78-51-78-91V69z" fill="#182535"/>
- <path d="M64 89h16v48h96v-26h16v66h-16v-24H80v24H64z" fill="#FFAE54"/>
- <rect x="87" y="103" width="28" height="24" rx="5" fill="#F2F5F8"/>
- <path d="M123 103h39a14 14 0 0 1 14 14v10h-53z" fill="#FFAE54"/>
+ <!-- Original block bed mark: broad pillow, red quilt, timber frame. -->
+ <rect x="4" y="4" width="248" height="248" rx="42" fill="#10282D"/>
+ <path d="M36 110 137 52 221 100 120 161Z" fill="#F4EADC"/>
+ <path d="m36 110 84 48v39l-84-48Z" fill="#8F382E"/>
+ <path d="m120 158 101-58v39l-101 58Z" fill="#B74138"/>
+ <path d="m36 110 65-37 84 48-65 37Z" fill="#EC6A53"/>
+ <path d="m101 73 36-21 84 48-36 21Z" fill="#FFFAE8"/>
+ <path d="m36 149 84 48 101-58v17l-101 59-84-49Z" fill="#D59A56"/>
+ <path d="M36 166v28l17 10v-28Zm67 39v29l17 10v-29Zm101-39v28l17-10v-28Z" fill="#A97443"/>
+ <path d="m120 197 101-58v17l-101 59Z" fill="#B78548"/>
 </svg>

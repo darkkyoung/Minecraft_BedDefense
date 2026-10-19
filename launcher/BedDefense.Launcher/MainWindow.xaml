@@ -1,157 +1,118 @@
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="BedDefense.Launcher.MainWindow" Title="Bed Defense Launcher" Width="1060" Height="780" MinWidth="620" MinHeight="340" WindowStartupLocation="CenterScreen" Background="{StaticResource Background}" Foreground="{StaticResource Text}" FontFamily="Segoe UI, Malgun Gothic" FontSize="13" Icon="Assets/BedDefense.ico" UseLayoutRounding="True" SnapsToDevicePixels="True" SizeChanged="Window_SizeChanged">
-  <Grid x:Name="AppLayout" Margin="28,22,28,20">
-    <Grid.RowDefinitions>
-      <RowDefinition Height="Auto"/>
-      <RowDefinition Height="*"/>
-      <RowDefinition Height="Auto"/>
-    </Grid.RowDefinitions>
-    <Grid Margin="0,0,0,22">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="Auto"/>
-        <ColumnDefinition/>
-        <ColumnDefinition Width="Auto"/>
-      </Grid.ColumnDefinitions>
-      <Image Source="Assets/Brand.png" Width="48" Height="48" Margin="0,0,14,0" RenderOptions.BitmapScalingMode="HighQuality"/>
-      <StackPanel Grid.Column="1">
-        <TextBlock Text="BED DEFENSE" FontSize="25" FontWeight="Bold"/>
-        <TextBlock Text="LAUNCHER / DEVELOPMENT" FontSize="10" Foreground="{StaticResource Muted}" Margin="1,3,0,0"/>
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="BedDefense.Launcher.MainWindow" Title="Bed Defense Launcher" Width="1060" Height="780" MinWidth="620" MinHeight="340" WindowStartupLocation="CenterScreen" Background="{DynamicResource Background}" Foreground="{DynamicResource Text}" FontFamily="Segoe UI, Malgun Gothic" FontSize="13" Icon="Assets/BedDefense.ico" UseLayoutRounding="True" SnapsToDevicePixels="True" SizeChanged="Window_SizeChanged">
+  <Grid x:Name="AppLayout" Margin="24,18,24,16">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <Grid Margin="0,0,0,14">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <Image Source="Assets/Brand.png" Width="46" Height="46" Margin="0,0,12,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+        <TextBlock Text="BED DEFENSE" FontSize="24" FontWeight="Bold"/>
+        <TextBlock Text="LAUNCHER / DEVELOPMENT" FontSize="10" Foreground="{DynamicResource Muted}" Margin="1,2,0,0"/>
       </StackPanel>
-      <Button Grid.Column="2" Content="도움말 ↗" Click="Help_Click" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" Padding="12,8"/>
+      <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+        <Button x:Name="ThemeButton" Content="☀ 라이트" Click="Theme_Click" ToolTip="라이트 모드로 전환 (선택을 기억합니다)" AutomationProperties.Name="화면 테마 전환" MinWidth="96" Padding="12,8"/>
+        <Button Content="도움말 ↗" Click="Help_Click" Background="Transparent" BorderThickness="0" Padding="12,8" Margin="4,0,0,0"/>
+      </StackPanel>
     </Grid>
     <ScrollViewer x:Name="BodyScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
-      <Grid x:Name="ContentGrid">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition x:Name="EnvironmentColumn" Width="1.35*"/>
-          <ColumnDefinition x:Name="GutterColumn" Width="20"/>
-          <ColumnDefinition x:Name="ReleaseColumn" Width="*"/>
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <Border x:Name="EnvironmentCard" Grid.Row="1" Style="{StaticResource Card}" VerticalAlignment="Top">
-          <StackPanel>
-            <Grid Margin="0,0,0,18">
-              <TextBlock Text="플레이 환경" FontSize="17" FontWeight="SemiBold"/>
-              <Border HorizontalAlignment="Right" Background="{StaticResource Raised}" CornerRadius="4" Padding="9,4">
-                <TextBlock Text="MINECRAFT 26.3" FontSize="10" Foreground="{StaticResource Muted}"/>
-              </Border>
-            </Grid>
-            <TextBlock Text="설치 방식" Style="{StaticResource Label}"/>
-            <ComboBox x:Name="ModeBox" SelectedIndex="0" SelectionChanged="Selection_Changed" AutomationProperties.Name="설치 방식">
-              <ComboBoxItem Content="기존 Fabric에 설치 (권장)"/>
-              <ComboBoxItem Content="독립 환경에 설치"/>
-            </ComboBox>
-            <TextBlock Text="Fabric 프로필" Style="{StaticResource Label}" Margin="0,18,0,7"/>
-            <ComboBox x:Name="ProfileBox" SelectionChanged="Selection_Changed" AutomationProperties.Name="Fabric 프로필">
-              <ComboBox.ItemTemplate>
-                <DataTemplate>
-                  <TextBlock Text="{Binding Display}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Display}"/>
-                </DataTemplate>
-              </ComboBox.ItemTemplate>
-            </ComboBox>
-            <TextBlock x:Name="ProfileHint" Foreground="{StaticResource Muted}" FontSize="12" Margin="0,9,0,0"/>
-            <TextBlock Text="실제 게임 디렉터리" Style="{StaticResource Label}" Margin="0,20,0,7"/>
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock x:Name="InstanceText" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-              <Button Grid.Column="1" Content="복사" Click="CopyPath_Click" Margin="10,0,0,0" Padding="10,6" MinHeight="32" AutomationProperties.Name="전체 게임 경로 복사"/>
-            </Grid>
-            <Expander Header="Minecraft 폴더 설정">
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBox x:Name="RootBox" IsReadOnly="True" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" AutomationProperties.Name="Minecraft 데이터 폴더"/>
-                <Button x:Name="BrowseButton" Grid.Column="1" Content="변경" Click="Browse_Click" Margin="8,0,0,0"/>
-              </Grid>
-            </Expander>
-            <Border Height="1" Background="{StaticResource Line}" Margin="0,6,0,14"/>
-            <TextBlock x:Name="FabricText" Text="선택한 환경의 호환성을 확인합니다." FontSize="12" Foreground="{StaticResource Muted}"/>
-            <Button x:Name="MigrateButton" Content="기존 Fabric 환경으로 전환" Click="Migrate_Click" Visibility="Collapsed" Margin="0,14,0,0"/>
-          </StackPanel>
-        </Border>
-        <Border x:Name="ReleaseCard" Grid.Row="1" Grid.Column="2" Style="{StaticResource Card}" VerticalAlignment="Top">
-          <StackPanel>
-            <TextBlock Text="Bed Defense" Style="{StaticResource Section}"/>
-            <Border CornerRadius="5" Padding="10,7" HorizontalAlignment="Left" Margin="0,0,0,18">
-              <Border.Style>
-                <Style TargetType="Border">
-                  <Setter Property="Background" Value="#35262C"/>
-                  <Style.Triggers>
-                    <DataTrigger Binding="{Binding Text, ElementName=ErrorText}" Value="">
-                      <Setter Property="Background" Value="#203B33"/>
-                    </DataTrigger>
-                  </Style.Triggers>
-                </Style>
-              </Border.Style>
-              <TextBlock x:Name="InstalledText" Text="○ 설치 상태 확인 중" FontSize="12">
-                <TextBlock.Style>
-                  <Style TargetType="TextBlock">
-                    <Setter Property="Foreground" Value="{StaticResource Error}"/>
-                    <Style.Triggers>
-                      <DataTrigger Binding="{Binding Text, ElementName=ErrorText}" Value="">
-                        <Setter Property="Foreground" Value="{StaticResource Success}"/>
-                      </DataTrigger>
-                    </Style.Triggers>
-                  </Style>
-                </TextBlock.Style>
-              </TextBlock>
+      <StackPanel>
+        <Border x:Name="HeroFrame" Height="160" CornerRadius="5" BorderBrush="{DynamicResource Line}" BorderThickness="1" Margin="0,0,0,14" ClipToBounds="True" Background="#10282D">
+          <Grid>
+            <Image x:Name="HeroImage" Source="Assets/BedDefense-Hero.jpg" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="침대 곁에서 몬스터들을 막아내는 플레이어의 Bed Defense 일러스트"/>
+            <Border VerticalAlignment="Bottom" Padding="15,20,15,12">
+              <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#000B191E"/><GradientStop Color="#D90B191E" Offset="1"/></LinearGradientBrush></Border.Background>
+              <TextBlock Text="침대를 지키는 밤, 도전이 시작됩니다." Foreground="#FFF5DE" FontWeight="SemiBold" FontSize="14"/>
             </Border>
-            <TextBlock Text="설치된 버전" Style="{StaticResource Label}"/>
-            <TextBlock x:Name="CurrentText" Text="확인 중" FontSize="17" FontWeight="SemiBold"/>
-            <TextBlock x:Name="CurrentBuildText" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,3,0,0"/>
-            <TextBlock Text="최신 버전 · 개발 채널" Style="{StaticResource Label}" Margin="0,17,0,7"/>
-            <TextBlock x:Name="LatestText" Text="조회 중" FontSize="20" FontWeight="SemiBold"/>
-            <TextBlock x:Name="LatestBuildText" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,3,0,0"/>
-            <Border Height="1" Background="{StaticResource Line}" Margin="0,20,0,18"/>
-            <TextBlock Text="이번 업데이트" FontWeight="SemiBold" Margin="0,0,0,10"/>
-            <TextBlock x:Name="NotesSummary" Text="배포 정보를 가져오고 있습니다." Foreground="{StaticResource Muted}" LineHeight="22"/>
-            <Expander x:Name="NotesExpander" Header="상세 변경 내역">
-              <TextBox x:Name="NotesBox" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="220" VerticalScrollBarVisibility="Auto" FontSize="12" BorderThickness="0" AutomationProperties.Name="배포 상세 변경 내역"/>
-            </Expander>
-            <Button x:Name="UpdateLauncherButton" Content="런처 업데이트 ↗" Click="UpdateLauncher_Click" Visibility="Collapsed" Margin="0,10,0,0"/>
-          </StackPanel>
+          </Grid>
         </Border>
-        <Border Grid.Row="0" Grid.ColumnSpan="3" Margin="0,0,0,16" Padding="16" CornerRadius="8" Background="#35262C">
-          <Border.Style>
-            <Style TargetType="Border">
-              <Style.Triggers>
-                <DataTrigger Binding="{Binding Text, ElementName=ErrorText}" Value="">
-                  <Setter Property="Visibility" Value="Collapsed"/>
-                </DataTrigger>
-              </Style.Triggers>
-            </Style>
-          </Border.Style>
-          <StackPanel>
-            <TextBlock Text="작업을 진행할 수 없습니다" Foreground="{StaticResource Error}" FontWeight="SemiBold" Margin="0,0,0,7"/>
-            <TextBlock x:Name="ErrorText" Text="" Foreground="{StaticResource Error}"/>
-            <Button Content="오류 내용 복사" Click="CopyError_Click" HorizontalAlignment="Left" Background="Transparent" Margin="0,10,0,0"/>
-          </StackPanel>
-        </Border>
-      </Grid>
+        <Grid x:Name="ContentGrid">
+          <Grid.ColumnDefinitions><ColumnDefinition x:Name="EnvironmentColumn" Width="1.15*"/><ColumnDefinition x:Name="GutterColumn" Width="16"/><ColumnDefinition x:Name="ReleaseColumn" Width="*"/></Grid.ColumnDefinitions>
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <Border x:Name="EnvironmentCard" Grid.Row="1" Style="{StaticResource Card}" VerticalAlignment="Top">
+            <StackPanel>
+              <Grid Margin="0,0,0,12">
+                <TextBlock Text="플레이할 곳" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock Text="MINECRAFT 26.3" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="10" Foreground="{DynamicResource Muted}"/>
+              </Grid>
+              <ComboBox x:Name="ModeBox" SelectedIndex="0" SelectionChanged="Selection_Changed" AutomationProperties.Name="설치 방식" MinHeight="40">
+                <ComboBoxItem Content="기존 Fabric에 설치 (권장)"/><ComboBoxItem Content="독립 환경에 설치"/>
+              </ComboBox>
+              <TextBlock Text="Fabric 프로필" Style="{StaticResource Label}" Margin="0,12,0,6"/>
+              <ComboBox x:Name="ProfileBox" SelectionChanged="Selection_Changed" AutomationProperties.Name="Fabric 프로필">
+                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Display}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Display}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBlock Text="설치 폴더" Style="{StaticResource Label}" Margin="0,12,0,4"/>
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBlock x:Name="InstanceText" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+                <Button Grid.Column="1" Content="복사" Click="CopyPath_Click" Margin="8,0,0,0" Padding="10,6" MinHeight="32" AutomationProperties.Name="전체 게임 경로 복사"/>
+              </Grid>
+              <Expander x:Name="EnvironmentDetails" Header="폴더 설정 · 환경 상세">
+                <StackPanel>
+                  <TextBlock x:Name="ProfileHint" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,10"/>
+                  <TextBlock x:Name="FabricText" Text="선택한 환경의 호환성을 확인합니다." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,0,0,10"/>
+                  <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBox x:Name="RootBox" IsReadOnly="True" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" AutomationProperties.Name="Minecraft 데이터 폴더"/>
+                    <Button x:Name="BrowseButton" Grid.Column="1" Content="변경" Click="Browse_Click" Margin="8,0,0,0"/>
+                  </Grid>
+                </StackPanel>
+              </Expander>
+              <Button x:Name="MigrateButton" Content="기존 Fabric 환경으로 전환" Click="Migrate_Click" Visibility="Collapsed" Margin="0,8,0,0"/>
+            </StackPanel>
+          </Border>
+          <Border x:Name="ReleaseCard" Grid.Row="1" Grid.Column="2" Style="{StaticResource Card}" VerticalAlignment="Top">
+            <StackPanel>
+              <Border CornerRadius="3" Padding="10,7" HorizontalAlignment="Left" Margin="0,0,0,14">
+                <Border.Style><Style TargetType="Border"><Setter Property="Background" Value="{DynamicResource ErrorSurface}"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=ErrorText}" Value=""><Setter Property="Background" Value="{DynamicResource SuccessSurface}"/></DataTrigger></Style.Triggers></Style></Border.Style>
+                <TextBlock x:Name="InstalledText" Text="○ 설치 상태 확인 중" FontSize="13" FontWeight="SemiBold">
+                  <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource Error}"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=ErrorText}" Value=""><Setter Property="Foreground" Value="{DynamicResource Success}"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                </TextBlock>
+              </Border>
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                <StackPanel>
+                  <TextBlock Text="설치된 버전" Style="{StaticResource Label}"/>
+                  <TextBlock x:Name="CurrentText" Text="확인 중" FontSize="17" FontWeight="SemiBold"/>
+                  <TextBlock x:Name="CurrentBuildText" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,3,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                  <TextBlock Text="최신 버전" Style="{StaticResource Label}"/>
+                  <TextBlock x:Name="LatestText" Text="조회 중" FontSize="17" FontWeight="SemiBold"/>
+                  <TextBlock x:Name="LatestBuildText" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,3,0,0"/>
+                </StackPanel>
+              </Grid>
+              <Border Height="1" Background="{DynamicResource Line}" Margin="0,14,0,12"/>
+              <TextBlock Text="이번 업데이트" FontWeight="SemiBold" Margin="0,0,0,7"/>
+              <TextBlock x:Name="NotesSummary" Text="배포 정보를 가져오고 있습니다." Foreground="{DynamicResource Muted}" FontSize="12" LineHeight="20"/>
+              <Expander x:Name="NotesExpander" Header="상세 변경 내역">
+                <TextBox x:Name="NotesBox" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="220" VerticalScrollBarVisibility="Auto" FontSize="12" BorderThickness="0" AutomationProperties.Name="배포 상세 변경 내역"/>
+              </Expander>
+              <Button x:Name="UpdateLauncherButton" Content="런처 업데이트 ↗" Click="UpdateLauncher_Click" Visibility="Collapsed" Margin="0,8,0,0"/>
+            </StackPanel>
+          </Border>
+          <Border x:Name="ErrorCard" Grid.Row="0" Grid.ColumnSpan="3" Margin="0,0,0,14" Padding="16" CornerRadius="5" Background="{DynamicResource ErrorSurface}">
+            <Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=ErrorText}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
+            <StackPanel>
+              <TextBlock Text="작업을 진행할 수 없습니다" Foreground="{DynamicResource Error}" FontWeight="SemiBold" Margin="0,0,0,7"/>
+              <TextBlock x:Name="ErrorText" Text="" Foreground="{DynamicResource Error}"/>
+              <Button Content="오류 내용 복사" Click="CopyError_Click" HorizontalAlignment="Left" Background="Transparent" Margin="0,10,0,0"/>
+            </StackPanel>
+          </Border>
+        </Grid>
+      </StackPanel>
     </ScrollViewer>
-    <StackPanel Grid.Row="2" Margin="0,18,0,0">
-      <ProgressBar x:Name="ProgressBar" Height="3" Minimum="0" Maximum="100" Foreground="{StaticResource Accent}" Background="{StaticResource Raised}" BorderThickness="0"/>
-      <TextBlock x:Name="StatusText" Text="플레이 환경을 확인하고 있습니다…" Foreground="{StaticResource Muted}" Margin="0,10,0,12" FontSize="12" MaxHeight="44" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-      <Grid>
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="Auto"/>
-          <ColumnDefinition/>
-          <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
-        <Button x:Name="RefreshButton" Content="업데이트 조회" Click="Refresh_Click" VerticalAlignment="Center"/>
-        <StackPanel Grid.Column="2" Orientation="Horizontal">
-          <Button x:Name="LaunchButton" Content="공식 런처 열기 ↗" Click="Launch_Click" Margin="0,0,10,0" VerticalAlignment="Center"/>
-          <Button x:Name="InstallButton" Content="설치" Click="Install_Click" Style="{StaticResource Primary}" IsEnabled="False" MinWidth="145"/>
-        </StackPanel>
+    <StackPanel Grid.Row="2" Margin="0,12,0,0">
+      <ProgressBar x:Name="ProgressBar" Height="3" Minimum="0" Maximum="100" Foreground="{DynamicResource Accent}" Background="{DynamicResource Raised}" BorderThickness="0"/>
+      <Grid Margin="0,5,0,7">
+        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <TextBlock x:Name="StatusText" Text="플레이 환경을 확인하고 있습니다…" Foreground="{DynamicResource Muted}" FontSize="12" MaxHeight="34" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Margin="0,0,12,0"/>
+        <Button x:Name="RefreshButton" Grid.Column="1" Content="↻ 업데이트 조회" Click="Refresh_Click" Background="Transparent" BorderThickness="0" MinHeight="32" Padding="8,5" FontSize="12"/>
       </Grid>
-      <TextBlock Text="기존 모드 · 월드 · 설정을 보존합니다.  /  SHA-256 검증 및 자동 복구" FontSize="10" Foreground="{StaticResource Muted}" Margin="0,12,0,0"/>
+      <Grid>
+        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+        <Button x:Name="LaunchButton" Grid.Column="1" Content="공식 런처 열기 ↗" Click="Launch_Click" Margin="12,0,0,0" MinHeight="60" FontSize="16" FontWeight="SemiBold"/>
+        <Button x:Name="InstallButton" Content="설치" Click="Install_Click" Style="{StaticResource Primary}" IsEnabled="False"/>
+      </Grid>
     </StackPanel>
   </Grid>
 </Window>

@@ -29,6 +29,18 @@ public partial class MainWindow
         NotesBox.Text = manifest.Notes; UpdateNotes(manifest.Notes);
         LatestText.Text = manifest.ModVersion;
         var checks = new List<string>();
+        // Theme persistence is exercised only under the disposable acceptance output.
+        string appearancePath = Path.GetFullPath("ui-acceptance/appearance.json");
+        if (Appearance.Read(appearancePath) != "Dark") throw new IOException("Missing preference did not default to Dark");
+        foreach (string choice in new[] { "Light", "Dark" })
+        {
+            Appearance.Save(appearancePath, choice);
+            if (Appearance.Read(appearancePath) != choice) throw new IOException("Manual theme did not survive reload");
+        }
+        File.WriteAllText(appearancePath, "{broken");
+        if (Appearance.Read(appearancePath) != "Dark") throw new IOException("Invalid appearance preference did not recover");
+        File.Delete(appearancePath);
+        checks.Add("PASS: isolated manual Light/Dark preference reload and corrupt/missing fallback");
         Activate(); ProfileBox.Focus();
         int originalProfile = ProfileBox.SelectedIndex;
         void KeyPress(Key key) => ProfileBox.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(ProfileBox)!, 0, key) { RoutedEvent = Keyboard.KeyDownEvent });
@@ -40,12 +52,16 @@ public partial class MainWindow
         CopyPath_Click(this, new RoutedEventArgs());
         if (Clipboard.GetText() != SelectedInstallation().Instance) throw new IOException("Full game path copy failed");
         checks.Add("PASS: ComboBox Home/Down/End keyboard routing and full path clipboard copy");
+        foreach (string palette in new[] { "Dark", "Light" })
+        {
+        ApplyTheme(palette);
         foreach (var scenario in new[] { "current", "update", "progress", "compatibility-error", "profiles", "long-notes", "narrow", "compact-height", "scale-125", "scale-150", "scale-200" })
         {
             ProfileBox.SelectedIndex = originalProfile;
             AppLayout.LayoutTransform = Transform.Identity;
             Width = 1060; Height = 780;
-            NotesExpander.IsExpanded = false; ProfileBox.IsDropDownOpen = false;
+            NotesExpander.IsExpanded = false; EnvironmentDetails.IsExpanded = false; ProfileBox.IsDropDownOpen = false;
+            NotesBox.Text = manifest.Notes; BodyScroll.ScrollToTop();
             ErrorText.Text = ""; canInstall = true; launchPrimary = false;
             InstallButton.Content = "업데이트 설치";
             CurrentText.Text = manifest.ModVersion; LatestText.Text = manifest.ModVersion;
@@ -65,7 +81,10 @@ public partial class MainWindow
             {
                 SetBusy(true); ShowProgress(new InstallProgress("파일 다운로드 중", 50, 64));
                 if (InstallButton.IsEnabled || ModeBox.IsEnabled || ProfileBox.IsEnabled || !StatusText.Text.Contains("64%")) throw new IOException("Progress state/operation lock regression");
-                checks.Add("PASS: real byte progress presentation and operation controls locked");
+                // Switching palettes while downloading must retain the operation lock and progress.
+                Theme_Click(this, new RoutedEventArgs()); Theme_Click(this, new RoutedEventArgs());
+                if (!busy || InstallButton.IsEnabled || ProfileBox.IsEnabled || ProgressBar.Value != 64 || theme != palette) throw new IOException("Theme switch disturbed operation state");
+                checks.Add("PASS: " + palette + " real byte progress, controls locked, theme switch preserves busy state");
             }
             if (scenario == "compatibility-error")
             {
@@ -92,7 +111,7 @@ public partial class MainWindow
                 EnvironmentColumn.Width = new GridLength(1, GridUnitType.Star);
                 GutterColumn.Width = new GridLength(0); ReleaseColumn.Width = new GridLength(0);
                 System.Windows.Controls.Grid.SetColumn(ReleaseCard, 0); System.Windows.Controls.Grid.SetRow(ReleaseCard, 2);
-                System.Windows.Controls.Grid.SetRow(ContentGrid.Children[2], 0);
+                System.Windows.Controls.Grid.SetRow(ErrorCard, 0);
                 ReleaseCard.Margin = new Thickness(0, 16, 0, 0);
             }
             UpdateLayout();
@@ -101,8 +120,16 @@ public partial class MainWindow
             await Task.Delay(180); // Let the real popup and indeterminate animation render.
             var button = InstallButton.TransformToAncestor(this).TransformBounds(new Rect(InstallButton.RenderSize));
             if (button.Bottom > ActualHeight || button.Right > ActualWidth || button.Width < 100) throw new IOException("Primary action clipped: " + scenario);
-            Capture(scenario);
-            checks.Add("PASS: actual WPF " + scenario + "; primary action inside window");
+            if (InstallButton.ActualHeight < 60 || (LaunchButton.IsVisible && LaunchButton.ActualHeight < 60)) throw new IOException("CTA touch target shrank");
+            if (HeroImage.Source is not BitmapSource { PixelWidth: > 1000 } || !HeroImage.IsVisible) throw new IOException("Embedded hero did not load");
+            // Existing visuals must resolve the new palette, not retain stale StaticResource colors.
+            var expectedBackground = ((SolidColorBrush)FindResource("Background")).Color;
+            if (((SolidColorBrush)Background).Color != expectedBackground) throw new IOException("Window palette did not update");
+            AssertContrast("Text", "Surface", 7); AssertContrast("Muted", "Surface", 4.5);
+            AssertContrast("AccentText", "Accent", 4.5); AssertContrast("Error", "ErrorSurface", 4.5);
+            Capture(palette.ToLowerInvariant() + "-" + scenario);
+            checks.Add("PASS: actual WPF " + palette + " " + scenario + "; 60-DIP CTA in view, embedded hero, dynamic palette and contrast");
+        }
         }
         busy = false;
         ShowProgress(new InstallProgress("파일 무결성 검증 중", 75));
@@ -132,8 +159,18 @@ public partial class MainWindow
         {
             var popup = new RenderTargetBitmap((int)Math.Ceiling(child.ActualWidth), (int)Math.Ceiling(child.ActualHeight), 96, 96, PixelFormats.Pbgra32);
             popup.Render(child);
-            SaveBitmap(popup, "ui-acceptance/profile-popup.png");
+            SaveBitmap(popup, "ui-acceptance/" + scenario + "-popup.png");
         }
+    }
+    private void AssertContrast(string foreground, string background, double minimum)
+    {
+        static double Luminance(Color color)
+        {
+            static double Linear(byte value) { double n = value / 255.0; return n <= .04045 ? n / 12.92 : Math.Pow((n + .055) / 1.055, 2.4); }
+            return .2126 * Linear(color.R) + .7152 * Linear(color.G) + .0722 * Linear(color.B);
+        }
+        double a = Luminance(((SolidColorBrush)FindResource(foreground)).Color), b = Luminance(((SolidColorBrush)FindResource(background)).Color);
+        if ((Math.Max(a, b) + .05) / (Math.Min(a, b) + .05) < minimum) throw new IOException($"Insufficient {theme} contrast: {foreground}/{background}");
     }
     private static void SaveBitmap(BitmapSource bitmap, string path)
     {
