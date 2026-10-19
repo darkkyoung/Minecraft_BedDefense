@@ -92,4 +92,10 @@ taskbar/Explorer icon caches and physical keyboard/mouse acceptance require a PC
 7. Check the file, native window and taskbar icons. Existing launchers can also use
    their self-update action to fetch the new EXE.
 
+Startup also compares the verified cached EXE's Windows file version before handing
+off. A newly downloaded launcher cannot reopen an older cached UI. CI file versions
+include the workflow build number; the real prior public EXE is hash-verified and
+used to assert both blocked backward and allowed forward handoff. Install and
+self-update download/cache integrity code remains unchanged.
+
 No Java gameplay or balance files are changed by L2.

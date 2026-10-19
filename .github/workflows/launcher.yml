@@ -73,7 +73,10 @@ jobs:
       - name: Actual WPF state matrix, layout scaling and published PE icon acceptance
         shell: pwsh
         run: |
-          $p = Start-Process ./publish/BedDefense-Setup.exe -ArgumentList @('--ui-acceptance', '--manifest', "$pwd/release/manifest.json", '--existing-root', "$pwd/ui-fixture") -PassThru
+          # Use the actual previously verified public EXE, not a mocked version string.
+          Invoke-WebRequest -Uri 'https://github.com/darkkyoung/Minecraft_BedDefense/releases/download/dev-mc26.3-37-3bd7d7c0e636/BedDefense-Setup.exe' -OutFile previous-launcher.exe
+          if ((Get-FileHash previous-launcher.exe -Algorithm SHA256).Hash.ToLowerInvariant() -ne '2162e8aed81d60beb30a29eedcdfb4add67d07fa7a3ce565c72ceb8ee04dc77a') { throw 'Previous launcher fixture checksum mismatch' }
+          $p = Start-Process ./publish/BedDefense-Setup.exe -ArgumentList @('--ui-acceptance', '--manifest', "$pwd/release/manifest.json", '--existing-root', "$pwd/ui-fixture", '--previous-launcher', "$pwd/previous-launcher.exe") -PassThru
           if (-not $p.WaitForExit(120000)) { $p.Kill(); throw 'UI acceptance timed out' }
           if ($p.ExitCode -ne 0) { Get-Content launcher-smoke.txt; throw 'UI acceptance failed' }
           Get-Content ui-acceptance/results.txt

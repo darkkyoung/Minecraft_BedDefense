@@ -6,6 +6,18 @@ using BedDefense.Core;
 namespace BedDefense.Launcher;
 public partial class App : Application
 {
+    internal static bool CanHandoffTo(string running, string successor)
+    {
+        // CachedSuccessor still owns path/hash validation. This presentation-startup
+        // guard prevents a freshly downloaded EXE from reopening an older cached UI.
+        static Version FileVersion(string path)
+        {
+            var info = FileVersionInfo.GetVersionInfo(path);
+            return new Version(info.FileMajorPart, info.FileMinorPart, info.FileBuildPart, info.FilePrivatePart);
+        }
+        try { return FileVersion(successor) >= FileVersion(running); }
+        catch { return false; } // Keep the directly opened, usable launcher available.
+    }
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -14,7 +26,7 @@ public partial class App : Application
         if (!smoke && Environment.ProcessPath is string running)
         {
             var successor = LauncherUpdates.CachedSuccessor(running);
-            if (successor is not null)
+            if (successor is not null && CanHandoffTo(running, successor))
             {
                 try
                 {
@@ -43,6 +55,14 @@ public partial class App : Application
                 var rootIndex = Array.IndexOf(e.Args, "--existing-root");
                 if (rootIndex < 0 || fixtureIndex < 0) throw new IOException("UI acceptance requires isolated manifest and root fixtures");
                 await window.RunVisualAcceptance(manifest, e.Args[rootIndex + 1]);
+                var previousIndex = Array.IndexOf(e.Args, "--previous-launcher");
+                if (previousIndex >= 0)
+                {
+                    var previous = e.Args[previousIndex + 1];
+                    if (CanHandoffTo(Environment.ProcessPath!, previous) || !CanHandoffTo(previous, Environment.ProcessPath!))
+                        throw new IOException("Published old/new launcher handoff version guard failed");
+                    File.AppendAllText("ui-acceptance/results.txt", "PASS: actual previous public EXE cannot replace the newer launcher; forward handoff remains allowed\n");
+                }
                 Shutdown(0); return;
             }
             window.ShowSmokeManifest(manifest);
