@@ -40,12 +40,11 @@ public final class BedDefense implements ModInitializer {
                 RaidManager.onMobDeath(entity,level.getServer());
         });
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
-            if(entity.getCommandTags().contains(RaidManager.OVERWORLD_TAG)
+            RaidStateData raid=RaidStateData.get(level.getServer().overworld());
+            if(raid.pendingCleanup(entity.getUUID())
                     && level.dimension().equals(net.minecraft.world.level.Level.OVERWORLD)) {
-                long time=Math.floorMod(ChallengeMenu.overworldClock(level.getServer()),24000L);
-                if((time>=RaidManager.SUNRISE_TICK||time<RaidManager.BEDTIME_TICK)
-                        && !RaidManager.isActive(level.getServer()))
-                    entity.discard();
+                entity.discard();
+                raid.completedCleanup(entity.getUUID());
             }
         });
         SpawnBedPrototype.init();

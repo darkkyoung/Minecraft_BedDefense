@@ -48,7 +48,6 @@ public final class RaidManager {
     }
 
     public static void onMobDeath(Entity mob, MinecraftServer server) {
-        if(!mob.getCommandTags().contains(TAG))return;
         RaidStateData state=RaidStateData.get(server.overworld());
         if(state.active())state.remove(mob.getUUID());
         LAST_BED_HIT.remove(mob.getUUID());
@@ -152,10 +151,12 @@ public final class RaidManager {
         String cmd="execute in "+dimension+" run summon "+type+" "+
                 (pos.getX()+0.5)+" "+pos.getY()+" "+(pos.getZ()+0.5)+
                 " {PersistenceRequired:1b,Tags:"+tags+"}";
+        java.util.Set<UUID> before = new java.util.HashSet<>();
+        for(Entity existing:level.getAllEntities()) before.add(existing.getUUID());
         run(server,cmd);
         Entity spawned=null;
-        for(Entity e:level.getAllEntities()){
-            if(e.getCommandTags().contains(unique)){spawned=e;break;}
+        for(Entity e:level.getAllEntities()) {
+            if(!before.contains(e.getUUID()) && e instanceof Mob) {spawned=e;break;}
         }
         if(spawned==null)return null;
         // Speed I from day 11, Speed II from day 25, Speed III from day 41.
@@ -187,7 +188,7 @@ public final class RaidManager {
         state.glowStarted(true);
         for(ServerLevel level:server.getAllLevels()){
             for(Entity e:level.getAllEntities()){
-                if(e.getCommandTags().contains(TAG))e.setGlowingTag(true);
+                if(state.isRaider(e.getUUID()))e.setGlowingTag(true);
             }
         }
         broadcast(server,"§e[베드 디펜스] §f일출까지 5분! 남은 레이드 몬스터에게 발광 표시가 적용됩니다.");
@@ -198,10 +199,13 @@ public final class RaidManager {
         // Settle before players can kill leftover mobs in daylight. No item drops or XP.
         for(ServerLevel level:server.getAllLevels()){
             if(!level.dimension().equals(Level.OVERWORLD))continue;
-            for(Entity e:level.getAllEntities()){
-                if(!e.getCommandTags().contains(OVERWORLD_TAG))continue;
+            List<Entity> remove=new ArrayList<>();
+            for(Entity e:level.getAllEntities())
+                if(state.ids().contains(e.getUUID().toString()))remove.add(e);
+            for(Entity e:remove){
                 level.sendParticles(ParticleTypes.FLAME,e.getX(),e.getY()+0.6,e.getZ(),12,0.3,0.4,0.3,0.02);
                 e.discard();
+                state.remove(e.getUUID()); // don't leave a stale cleanup entry
             }
         }
         // Temporary balance: 1 HP per outstanding Overworld raider, never a slow burn.
@@ -232,7 +236,7 @@ public final class RaidManager {
         int attackers=0;
         for(ServerLevel level:server.getAllLevels()){
             for(Entity e:level.getAllEntities()){
-                if(!(e instanceof Mob mob)||!e.getCommandTags().contains(TAG))continue;
+                if(!(e instanceof Mob mob)||!RaidStateData.get(server.overworld()).isRaider(e.getUUID()))continue;
                 ServerPlayer nearest=null;
                 double min=Double.MAX_VALUE;
                 for(ServerPlayer p:server.getPlayerList().getPlayers()) {
