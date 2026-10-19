@@ -84,7 +84,6 @@ public class PlayableChallengeGameTest {
                 var health=BedVitalData.CODEC.encodeStart(JsonOps.INSTANCE,BedVitalData.get(world)).getOrThrow();
                 world.getDataStorage().set(BedVitalData.TYPE,BedVitalData.CODEC.parse(JsonOps.INSTANCE,health).getOrThrow());
                 h.assertTrue(BedVitalData.get(world).hp(p.getUUID())==63,"bed persisted after reload");
-                Set<String> overworldIds=raid.raiders().keySet();int survivors=raid.remaining();
                 ServerLevel nether=server.getLevel(Level.NETHER);
                 Mob persistent=mob(nether,"zombie",new BlockPos(0,100,0));persistent.setNoAi(true);
                 raid.track(persistent.getUUID(),new RaidStateData.Raider("minecraft:the_nether",p.getUUID().toString(),1,1));
@@ -92,7 +91,15 @@ public class PlayableChallengeGameTest {
                 raid.track(endPersistent.getUUID(),new RaidStateData.Raider("minecraft:the_end",p.getUUID().toString(),1,1));
                 RaidManager.run(server,"time of minecraft:overworld set 17000");
                 h.runAfterDelay(21,()->{
-                    for(String id:overworldIds)h.assertTrue(world.getEntity(UUID.fromString(id)).isCurrentlyGlowing(),"remaining raiders glow five minutes before sunrise");
+                    // Vanilla combat/removal may occur before dawn. Snapshot survivors at settlement,
+                    // not the initial spawn list; unloaded records still count toward the penalty.
+                    Set<String> overworldIds=new HashSet<>();int loaded=0;
+                    for(var entry:raid.raiders().entrySet())if(entry.getValue().dimension().equals(RaidStateData.OVERWORLD)){
+                        overworldIds.add(entry.getKey());Entity entity=world.getEntity(UUID.fromString(entry.getKey()));
+                        if(entity!=null){loaded++;h.assertTrue(entity.isCurrentlyGlowing(),"remaining loaded raiders glow five minutes before sunrise");}
+                    }
+                    h.assertTrue(loaded>0,"glow check exercised actual living raiders");
+                    int survivors=overworldIds.size();
                     int dawnHp=BedVitalData.get(world).hp(p.getUUID());
                     RaidManager.run(server,"time of minecraft:overworld set 23000");
                 h.runAfterDelay(2,()->{
