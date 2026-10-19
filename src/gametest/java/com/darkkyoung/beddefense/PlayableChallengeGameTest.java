@@ -33,7 +33,7 @@ public class PlayableChallengeGameTest {
         world.getDataStorage().set(ChallengeData.TYPE,new ChallengeData());
         world.getDataStorage().set(BedVitalData.TYPE,new BedVitalData());
         world.getDataStorage().set(RaidStateData.TYPE,new RaidStateData());
-        ServerPlayer p=h.makeMockServerPlayerInLevel();p.setGameMode(GameType.SURVIVAL);p.getAbilities().invulnerable=true;
+        ServerPlayer p=survivalPlayer(world);p.setGameMode(GameType.SURVIVAL);p.getAbilities().invulnerable=true;
         BlockPos foot=h.absolutePos(new BlockPos(2,2,2));
         // A loaded flat arena makes spawn retries and navigation deterministic without touching a user world.
         for(int x=-24;x<=24;x++)for(int z=-24;z<=24;z++){
@@ -89,6 +89,7 @@ public class PlayableChallengeGameTest {
                     h.assertTrue(BedVitalData.get(world).hp(p.getUUID())==63-survivors,"dawn penalty fixed before deaths");
                     for(String id:overworldIds)h.assertTrue(world.getEntity(UUID.fromString(id))==null,"dawn removes raiders immediately");
                     h.assertTrue(!persistent.isRemoved()&&raid.isRaider(persistent.getUUID()),"Nether mobs survive sunrise");
+                    p.getAbilities().invulnerable=false;
                     Mob speed=mob(world,"zombie",relocated.offset(8,0,0));speed.setNoAi(true);
                     RaidManager.configureRaider(speed,51,1,"minecraft:zombie");
                     h.assertTrue(speed.getEffect(MobEffects.SPEED)!=null&&speed.getEffect(MobEffects.SPEED).getAmplifier()==2,"real Speed III effect");
@@ -143,6 +144,15 @@ public class PlayableChallengeGameTest {
             if(age<80)h.assertTrue(world.getBlockState(dirt).is(Blocks.DIRT),"must not break dirt early");
             if(age==80){h.assertTrue(world.getBlockState(dirt).isAir(),"dirt breaks after 80 server ticks");SiegeController.clear(miner.getUUID());miner.discard();h.succeed();}
         });}
+    }
+    private static ServerPlayer survivalPlayer(ServerLevel world){
+        var profile=new com.mojang.authlib.GameProfile(UUID.randomUUID(),"R1-test-player");
+        var cookie=net.minecraft.server.network.CommonListenerCookie.createInitial(profile,false);
+        var player=new ServerPlayer(world.getServer(),world,profile,cookie.clientInformation());
+        var connection=new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
+        new io.netty.channel.embedded.EmbeddedChannel(connection);
+        world.getServer().getPlayerList().placeNewPlayer(connection,player,cookie);
+        return player;
     }
     private static Mob mob(ServerLevel world,String name,BlockPos pos){
         Mob mob=(Mob)BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse("minecraft:"+name)).create(world,EntitySpawnReason.COMMAND);
