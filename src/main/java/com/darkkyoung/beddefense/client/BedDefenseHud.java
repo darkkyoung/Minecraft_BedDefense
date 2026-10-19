@@ -31,6 +31,7 @@ public final class BedDefenseHud {
     private static final float BAR_SCALE = 0.25F;
     private static int serverBedState; // 0 unregistered, 1 placed, 2 destroyed, 3 unplaced
     private static int serverBedHp;
+    private static long destroyFlashUntilTick;
     private static int serverBedMax=100;
     private static int activeRaidDay;
     private static int activeRaidRemaining;
@@ -75,6 +76,7 @@ public final class BedDefenseHud {
         long tick = mc.level != null ? mc.level.getGameTime() : 0L;
         if (serverBedState != 1 && state == 1) animatedHpRatio = 0;
         if (serverBedState == 1 && state == 1 && hp < serverBedHp) flashUntilTick=tick+8;
+        if (serverBedState == 1 && state == 2) destroyFlashUntilTick = tick+12;
         serverBedState = state;
         serverBedHp = Math.max(0,hp);
         serverBedMax = Math.max(1,maxHp);
@@ -89,6 +91,7 @@ public final class BedDefenseHud {
             activeRaidDay=0;activeRaidRemaining=0;activeRaidTotal=0;
             animatedHpRatio = 0;
             flashUntilTick = 0;
+            destroyFlashUntilTick=0;
             lastVisualTick = -1;
             receivedAtClientTick = 0;
             serverChallengeDay = -1L;
@@ -169,7 +172,7 @@ public final class BedDefenseHud {
         float visibleRatio=state==1 ? animatedHpRatio : target;
         String color = state==1 ? "green" : state==2 ? "red" : state==3 ? "yellow" : "white";
         boolean flashing = state==1 && nowTick <= flashUntilTick;
-        if(flashing)color="white";
+        if(flashing || (state==2 && nowTick<=destroyFlashUntilTick))color="white";
         int jitter=flashing && nowTick%2==0 ? 1 : flashing ? -1 : 0;
         Identifier background=Identifier.fromNamespaceAndPath("minecraft","boss_bar/"+color+"_background");
         Identifier foreground=Identifier.fromNamespaceAndPath("minecraft","boss_bar/"+color+"_progress");
@@ -190,9 +193,8 @@ public final class BedDefenseHud {
         }
 
         if(activeRaidDay>0 && running) {
-            drawCentered(graphics,font,activeRaidDay+"일차 레이드",screenWidth,63,RED);
-            drawCentered(graphics,font,"남은 몬스터 "+activeRaidRemaining+" / "+activeRaidTotal,
-                    screenWidth,76,WHITE);
+            drawCentered(graphics,font,"남은 몬스터 수 : "+activeRaidRemaining+" / "+activeRaidTotal,
+                    screenWidth,47,WHITE);
         }
         if (preview != Preview.OFF) {
             // All raid indicators are visibly tagged as preview to avoid implying live gameplay.

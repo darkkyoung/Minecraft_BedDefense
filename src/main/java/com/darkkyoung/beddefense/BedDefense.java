@@ -72,8 +72,8 @@ public final class BedDefense implements ModInitializer {
                                                 bool(ChallengeSetupWizard.setTime(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException(),false))))
                                         .then(Commands.literal("reset").executes(ctx ->
                                                 bool(ChallengeSetupWizard.setTime(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException(),true)))))
-                                .then(Commands.literal("interval")
-                                        .then(Commands.argument("days",IntegerArgumentType.integer(1,20)).executes(ctx ->
+                                .then(Commands.literal("stride")
+                                        .then(Commands.argument("days",IntegerArgumentType.integer(1,10)).executes(ctx ->
                                                 bool(ChallengeSetupWizard.setInterval(ctx.getSource().getServer(),ctx.getSource().getPlayerOrException(),
                                                         IntegerArgumentType.getInteger(ctx,"days"))))))
                                 .then(Commands.literal("manual").executes(ctx ->

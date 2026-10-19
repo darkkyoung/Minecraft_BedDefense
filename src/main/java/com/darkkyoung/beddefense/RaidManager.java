@@ -49,7 +49,7 @@ public final class RaidManager {
 
     public static void onMobDeath(Entity mob, MinecraftServer server) {
         RaidStateData state=RaidStateData.get(server.overworld());
-        if(state.active())state.remove(mob.getUUID());
+        state.remove(mob.getUUID());
         LAST_BED_HIT.remove(mob.getUUID());
     }
 
@@ -83,30 +83,31 @@ public final class RaidManager {
             return;
         }
 
-        int interval=ChallengeOptionsData.get(server.overworld()).raidEveryDays();
+        int stride=ChallengeOptionsData.get(server.overworld()).raidStride();
+        int rosterDay=(int)Math.min(100L,1L+(long)(day-1)*stride);
         if(time>=BEDTIME_TICK && time<SUNRISE_TICK &&
-                day>state.lastRaidDay() && (day-1)%interval==0) {
-            launch(server,state,day);
+                day>state.lastRaidDay()) {
+            launch(server,state,day,rosterDay);
         } else {
             moveRaiders(server); // remaining Nether/End raiders continue hunting
         }
     }
 
-    private static void launch(MinecraftServer server,RaidStateData state,int day) {
+    private static void launch(MinecraftServer server,RaidStateData state,int day,int rosterDay) {
         List<String> ids=new ArrayList<>();
-        int intended=totalForDay(day);
+        int intended=totalForDay(rosterDay);
         List<ServerPlayer> activePlayers=server.getPlayerList().getPlayers().stream()
                 .filter(p->!p.isSpectator()).toList();
         if(activePlayers.isEmpty())return; // retry when a player is present
         for(ServerPlayer p:activePlayers) {
             for(int i=0;i<intended;i++) {
-                String mobType=mobForDay(day,i,intended);
-                UUID spawnId=spawn(server,p,mobType,day,i);
+                String mobType=mobForDay(rosterDay,i,intended);
+                UUID spawnId=spawn(server,p,mobType,rosterDay,i);
                 if(spawnId!=null)ids.add(spawnId.toString());
             }
         }
         state.launch(day,ids,activePlayers.size()==1 && activePlayers.get(0).level().dimension().equals(Level.OVERWORLD));
-        broadcast(server,"§c§l[베드 디펜스] §f"+day+"일차 레이드 시작! §7(생성 "+ids.size()+"마리)");
+        broadcast(server,"§c§l[베드 디펜스] §f"+day+"일차 레이드 시작 · 편성 "+rosterDay+"일차! §7(생성 "+ids.size()+"마리)");
         run(server,"playsound minecraft:event.raid.horn master @a ~ ~ ~ 1 1");
     }
 
@@ -159,9 +160,15 @@ public final class RaidManager {
             if(!before.contains(e.getUUID()) && e instanceof Mob) {spawned=e;break;}
         }
         if(spawned==null)return null;
-        // Speed I from day 11, Speed II from day 25, Speed III from day 41.
-        if(day>=11 && type.equals("minecraft:zombie") && index%3==0) {
-            int amplifier=day>=41 && index%5==0 ? 2 : day>=25 && index%2==0 ? 1 : 0;
+        // From Day 51 eligible ground raiders have Speed III by default.
+        // Fast creepers/flying spellcasters are excluded to preserve counterplay.
+        boolean eligible = type.equals("minecraft:zombie") || type.equals("minecraft:husk")
+                || type.equals("minecraft:spider") || type.equals("minecraft:pillager")
+                || type.equals("minecraft:vindicator") || type.equals("minecraft:wither_skeleton");
+        if (eligible && day >= 51) {
+            run(server,"execute in "+dimension+" run effect give @e[tag="+unique+"] minecraft:speed 999999 2 true");
+        } else if (eligible && day >= 11 && index%3==0) {
+            int amplifier = day>=41 && index%5==0 ? 2 : day>=25 && index%2==0 ? 1 : 0;
             run(server,"execute in "+dimension+" run effect give @e[tag="+unique+"] minecraft:speed 999999 "+amplifier+" true");
         }
         return spawned.getUUID();
@@ -233,41 +240,68 @@ public final class RaidManager {
     }
 
     private static void moveRaiders(MinecraftServer server) {
-        int attackers=0;
-        for(ServerLevel level:server.getAllLevels()){
-            for(Entity e:level.getAllEntities()){
-                if(!(e instanceof Mob mob)||!RaidStateData.get(server.overworld()).isRaider(e.getUUID()))continue;
-                ServerPlayer nearest=null;
-                double min=Double.MAX_VALUE;
-                for(ServerPlayer p:server.getPlayerList().getPlayers()) {
-                    if(p.level()!=level||p.isSpectator())continue;
-                    double dist=p.distanceToSqr(mob);
-                    if(dist<min){min=dist;nearest=p;}
-                }
-                if(nearest==null)continue;
-                BlockPos bed=level.dimension().equals(Level.OVERWORLD)
-                        ? SpawnBedPrototype.registeredPosition(nearest,server.overworld()) : null;
-                if(bed==null) {
-                    mob.setTarget(nearest);
-                    continue;
-                }
-                // Spawn Bed > player. Siege block breaking/placing AI still future work.
-                mob.setTarget(null);
-                if(mob.distanceToSqr(bed.getX()+0.5,bed.getY()+0.5,bed.getZ()+0.5)>7.0) {
-                    mob.getNavigation().moveTo(bed.getX()+0.5,bed.getY(),bed.getZ()+0.5,1.05);
-                } else if(attackers<2) {
-                    attackers++;
-                    long now=level.getGameTime();
-                    long interval=(long)Math.max(20,Math.round(80.0*Math.pow(0.93,
-                        Math.floorDiv(Math.max(1,ChallengeData.get(server.overworld()).day(ChallengeMenu.overworldClock(server)))-1,10))));
-                    if(now-LAST_BED_HIT.getOrDefault(mob.getUUID(),0L)>=interval) {
-                        LAST_BED_HIT.put(mob.getUUID(),now);
-                        int dmg=ChallengeData.get(server.overworld()).day(ChallengeMenu.overworldClock(server))>=81?3:
-                            ChallengeData.get(server.overworld()).day(ChallengeMenu.overworldClock(server))>=51?2:1;
-                        BedVitalData vitals=BedVitalData.get(server.overworld());
-                        int next=vitals.damage(nearest.getUUID(),dmg);
-                        if(next==0)bedDestroyed(server);
+        // Each mob independently chooses the nearest living player OR the nearest
+        // placed Spawn Bed; an attacker may switch targets as the battle moves.
+        for (ServerLevel level : server.getAllLevels()) {
+            RaidStateData wave = RaidStateData.get(server.overworld());
+            final double awareness = level.dimension().equals(Level.OVERWORLD) ? 64.0 : 160.0;
+            final double limitSquared = awareness * awareness;
+            for (Entity entity : level.getAllEntities()) {
+                if (!(entity instanceof Mob mob) || !wave.isRaider(entity.getUUID())) continue;
+
+                ServerPlayer bestPlayer = null;
+                ServerPlayer bedOwner = null;
+                BlockPos nearestBed = null;
+                double playerDistance = limitSquared;
+                double bedDistance = limitSquared;
+
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (player.level() != level || player.isSpectator()) continue;
+                    double d = player.distanceToSqr(mob);
+                    if (d < playerDistance) {
+                        playerDistance = d;
+                        bestPlayer = player;
                     }
+                    if (level.dimension().equals(Level.OVERWORLD)) {
+                        BlockPos bed = SpawnBedPrototype.registeredPosition(player, server.overworld());
+                        if (bed == null) continue;
+                        double bd = mob.distanceToSqr(bed.getX()+0.5, bed.getY()+0.5, bed.getZ()+0.5);
+                        if (bd < bedDistance) {
+                            bedDistance = bd;
+                            bedOwner = player;
+                            nearestBed = bed;
+                        }
+                    }
+                }
+
+                if (nearestBed != null && bedDistance < playerDistance) {
+                    // Closer to the bed: advance and attack the bed, not the player.
+                    mob.setTarget(null);
+                    if (bedDistance > 7.0) {
+                        mob.getNavigation().moveTo(nearestBed.getX()+0.5, nearestBed.getY(),
+                                nearestBed.getZ()+0.5, 1.15);
+                    } else {
+                        long now = level.getGameTime();
+                        long challengeDay = Math.max(1L, ChallengeData.get(server.overworld())
+                                .day(ChallengeMenu.overworldClock(server)));
+                        int band = (int)Math.min(9,(challengeDay-1)/10);
+                        int[] intervals={80,70,60,50,46,60,50,44,56,50};
+                        int interval = intervals[band];
+                        if (now - LAST_BED_HIT.getOrDefault(mob.getUUID(),Long.MIN_VALUE/2) >= interval) {
+                            LAST_BED_HIT.put(mob.getUUID(),now);
+                            int damage = challengeDay>=81 ? 3 : challengeDay>=51 ? 2 : 1;
+                            BedVitalData vitals = BedVitalData.get(server.overworld());
+                            int previous = vitals.hp(bedOwner.getUUID());
+                            int result = vitals.damage(bedOwner.getUUID(),damage);
+                            if (previous > 0 && result == 0) bedDestroyed(server);
+                        }
+                    }
+                } else if (bestPlayer != null) {
+                    // Closer to the player: retaliate, pursue and fight normally.
+                    mob.setTarget(bestPlayer);
+                    mob.getNavigation().moveTo(bestPlayer, 1.2);
+                } else {
+                    mob.setTarget(null);
                 }
             }
         }

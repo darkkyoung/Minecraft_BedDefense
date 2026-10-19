@@ -14,7 +14,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Recreates the AllBlocks master settings pattern without sharing code or state.
- * Day raid interval defaults to 1 for Bed Defense (not AllBlocks' 10).
+ * Daily raids always occur; this setting advances the day-by-day *roster* faster.
  * This phase persists settings; actual raid manager is a separate integration.
  */
 public final class ChallengeSetupWizard {
@@ -26,7 +26,7 @@ public final class ChallengeSetupWizard {
         final UUID owner;
         String difficulty = "보통";
         boolean resetTime = false;
-        int raidEvery = 1;
+        int raidStride = 1;
         boolean manual = false;
         int countdown = -1;
         int lastSecond = -1;
@@ -67,8 +67,8 @@ public final class ChallengeSetupWizard {
     }
     public static boolean setInterval(MinecraftServer server, ServerPlayer player, int interval) {
         Session s = controlled(server, player);
-        if (s == null || !(interval == 1 || interval == 5 || interval == 10 || interval == 20)) return false;
-        s.raidEvery = interval;
+        if (s == null || !(interval == 1 || interval == 2 || interval == 3 || interval == 5)) return false;
+        s.raidStride = interval;
         s.manual = false;
         show(player,s);
         return true;
@@ -83,7 +83,7 @@ public final class ChallengeSetupWizard {
     public static boolean adjust(MinecraftServer server, ServerPlayer player, int delta) {
         Session s = controlled(server, player);
         if (s == null || !s.manual) return false;
-        s.raidEvery = Math.max(1, Math.min(100, s.raidEvery + delta));
+        s.raidStride = Math.max(1, Math.min(10, s.raidStride + delta));
         show(player,s);
         return true;
     }
@@ -129,7 +129,7 @@ public final class ChallengeSetupWizard {
                     return;
                 }
             }
-            ChallengeOptionsData.get(server.overworld()).update(s.difficulty, s.resetTime, s.raidEvery);
+            ChallengeOptionsData.get(server.overworld()).update(s.difficulty, s.resetTime, s.raidStride);
             ChallengeMenu.startNow(owner,server);
             SESSIONS.remove(server);
             return;
@@ -178,16 +178,17 @@ public final class ChallengeSetupWizard {
         player.sendSystemMessage(Component.literal("§f시작 시 인게임 시간"));
         player.sendSystemMessage(choice(" [현재 시간 유지] ","/beddefense setup time keep",!s.resetTime)
                 .append(choice("[1일차 아침으로 초기화]","/beddefense setup time reset",s.resetTime)));
-        player.sendSystemMessage(Component.literal("§f레이드 발생 간격: §e"+s.raidEvery+"일 §7(기본: 매일)"));
-        player.sendSystemMessage(choice(" [1일] ","/beddefense setup interval 1",!s.manual&&s.raidEvery==1)
-                .append(choice("[5일] ","/beddefense setup interval 5",!s.manual&&s.raidEvery==5))
-                .append(choice("[10일] ","/beddefense setup interval 10",!s.manual&&s.raidEvery==10))
-                .append(choice("[20일] ","/beddefense setup interval 20",!s.manual&&s.raidEvery==20))
+        player.sendSystemMessage(Component.literal("§f레이드 편성 진행: §e×"+s.raidStride+" §7(매일 레이드 1회)"));
+        player.sendSystemMessage(Component.literal("§7×2 선택 시 실제 1·2·3일차에 편성표 1·3·5일차가 적용됩니다."));
+        player.sendSystemMessage(choice(" [×1] ","/beddefense setup stride 1",!s.manual&&s.raidStride==1)
+                .append(choice("[×2] ","/beddefense setup stride 2",!s.manual&&s.raidStride==2))
+                .append(choice("[×3] ","/beddefense setup stride 3",!s.manual&&s.raidStride==3))
+                .append(choice("[×5] ","/beddefense setup stride 5",!s.manual&&s.raidStride==5))
                 .append(choice("[수동]","/beddefense setup manual",s.manual)));
         if(s.manual){
             player.sendSystemMessage(choice(" [-5] ","/beddefense setup adjust -5",false)
                     .append(choice("[-1] ","/beddefense setup adjust -1",false))
-                    .append(Component.literal(" §e"+s.raidEvery+"일 "))
+                    .append(Component.literal(" §e"+"×"+s.raidStride+" "))
                     .append(choice("[+1] ","/beddefense setup adjust 1",false))
                     .append(choice("[+5]","/beddefense setup adjust 5",false)));
         }

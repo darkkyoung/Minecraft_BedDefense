@@ -41,7 +41,7 @@ public final class ChallengeMenu {
         }
         player.sendSystemMessage(Component.literal("§7목표: §f100일 안에 엔더 드래곤을 처치하세요."));
         player.sendSystemMessage(Component.literal("§7침대: §f첫 번째 스폰 침대가 유일한 리스폰 지점입니다."));
-        player.sendSystemMessage(Component.literal("§7레이드: §f침대 유무와 무관하게 설정한 날 밤에 등장합니다."));
+        player.sendSystemMessage(Component.literal("§7레이드: §f침대 유무와 무관하게 매일 밤 등장하며 편성 진행 배속에 따라 강화됩니다."));
         player.sendSystemMessage(Component.literal("§7패배: §f침대가 없거나 파괴된 후 죽으면 탈락합니다."));
         player.sendSystemMessage(Component.literal("§8/beddefense · 채팅 메뉴 다시 열기"));
     }
