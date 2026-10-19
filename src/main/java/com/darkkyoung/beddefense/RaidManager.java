@@ -17,6 +17,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.Level;
 
 /**
@@ -244,10 +245,12 @@ public final class RaidManager {
         // placed Spawn Bed; an attacker may switch targets as the battle moves.
         for (ServerLevel level : server.getAllLevels()) {
             RaidStateData wave = RaidStateData.get(server.overworld());
-            final double awareness = level.dimension().equals(Level.OVERWORLD) ? 64.0 : 160.0;
-            final double limitSquared = awareness * awareness;
             for (Entity entity : level.getAllEntities()) {
                 if (!(entity instanceof Mob mob) || !wave.isRaider(entity.getUUID())) continue;
+                // Per-mob base follow range, multiplied by dimension.
+                double baseRange = Math.max(1.0, mob.getAttributeValue(Attributes.FOLLOW_RANGE));
+                double awareness = baseRange * (level.dimension().equals(Level.OVERWORLD) ? 2.0 : 5.0);
+                double limitSquared = awareness * awareness;
 
                 ServerPlayer bestPlayer = null;
                 ServerPlayer bedOwner = null;

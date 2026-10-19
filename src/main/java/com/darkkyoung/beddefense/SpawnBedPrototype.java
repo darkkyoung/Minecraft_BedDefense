@@ -49,6 +49,8 @@ public final class SpawnBedPrototype {
             if (foot.equals(data.getPosition(sp.getUUID())) &&
                     BedVitalData.get(overworld).unplace(sp.getUUID())) {
                 sp.sendSystemMessage(Component.literal("§e스폰 침대를 회수했습니다. 설치되지 않은 동안 사망하면 패배합니다."));
+                // Manual removal is YELLOW, but the final-survival warning must still play.
+                RaidManager.bedDestroyed(overworld.getServer());
             }
         });
     }

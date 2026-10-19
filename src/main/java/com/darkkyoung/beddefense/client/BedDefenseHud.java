@@ -75,7 +75,11 @@ public final class BedDefenseHud {
         Minecraft mc = Minecraft.getInstance();
         long tick = mc.level != null ? mc.level.getGameTime() : 0L;
         if (serverBedState != 1 && state == 1) animatedHpRatio = 0;
-        if (serverBedState == 1 && state == 1 && hp < serverBedHp) flashUntilTick=tick+8;
+        if (serverBedState == 1 && state == 1 && hp < serverBedHp) {
+            flashUntilTick=tick+8;
+            if (mc.player != null) mc.player.displayClientMessage(
+                    Component.literal("§c스폰 침대 공격 받는 중!"), true);
+        }
         if (serverBedState == 1 && state == 2) destroyFlashUntilTick = tick+12;
         serverBedState = state;
         serverBedHp = Math.max(0,hp);
