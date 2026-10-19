@@ -127,15 +127,15 @@ public final class BedDefense implements ModInitializer {
         LOGGER.info("Bed Defense 26.3 Korean HUD v2 prototype initialized; real raids and bed HP are not implemented.");
     }
 
-    private static int changeDifficulty(CommandContext<CommandSourceStack> ctx,String key) throws Exception {
+    private static int changeDifficulty(CommandContext<CommandSourceStack> ctx,String key) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ChallengeSetupManager.difficulty(ctx.getSource().getPlayerOrException(),ctx.getSource().getServer(),key);
         return 1;
     }
-    private static int changeClock(CommandContext<CommandSourceStack> ctx,boolean reset) throws Exception {
+    private static int changeClock(CommandContext<CommandSourceStack> ctx,boolean reset) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ChallengeSetupManager.clock(ctx.getSource().getPlayerOrException(),ctx.getSource().getServer(),reset);
         return 1;
     }
-    private static int changeStride(CommandContext<CommandSourceStack> ctx,int value,boolean relative) throws Exception {
+    private static int changeStride(CommandContext<CommandSourceStack> ctx,int value,boolean relative) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ChallengeSetupManager.stride(ctx.getSource().getPlayerOrException(),ctx.getSource().getServer(),value,relative);
         return 1;
     }
