@@ -169,6 +169,9 @@ public partial class MainWindow : Window
             var executable = await LauncherUpdates.Download(downloads, requested);
             if (Process.Start(new ProcessStartInfo(executable) { UseShellExecute = true }) is null)
                 throw new IOException("새 런처를 열지 못했습니다.");
+            // Closing is intentionally blocked while a normal install is busy.
+            // Clear that guard before handing off to the verified replacement EXE.
+            SetBusy(false);
             Application.Current.Shutdown();
         }
         catch (Exception error)
