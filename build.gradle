@@ -45,3 +45,8 @@ fabricApi {
         eula = true
     }
 }
+
+// CI supplies a 24-bit GLX display. Do not nest Loom's default Xvfb inside it.
+tasks.named('runClientGameTest') {
+    if (providers.environmentVariable('DISPLAY').isPresent()) useXvfb = false
+}
