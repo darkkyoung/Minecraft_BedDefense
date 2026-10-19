@@ -126,16 +126,6 @@ public partial class MainWindow : Window
             ReadLocal();
             latest = await new ReleaseClient(downloads).Latest();
             LatestText.Text = latest.DisplayVersion; NotesBox.Text = latest.Notes;
-            ReadLocal();
-            installation.ValidateExistingMinecraft();
-            if (ExistingMode) FabricText.Text = ModCompatibility.Check(installation, latest).Summary;
-            launcher ??= WindowsEnvironment.FindLauncher();
-            if (launcher is null) throw new IOException("공식 Minecraft Launcher를 찾지 못했습니다. 설치 안내를 확인하거나 ‘공식 런처 열기’에서 실행 파일을 선택하고 종료한 뒤 다시 조회해 주세요.");
-            canInstall = true;
-            SavePreferences();
-            StatusText.Text = "조회 완료 · 설치 또는 업데이트할 수 있습니다.";
-            var installed = installation.Installed();
-            if (installed is not null && installed.BuildNumber == latest.BuildNumber && installation.Healthy(installed)) StatusText.Text = "최신 버전이 설치되어 있습니다.";
             // Never block regular mod installation when the optional EXE update check fails.
             try
             {
@@ -150,8 +140,19 @@ public partial class MainWindow : Window
             {
                 StatusText.Text += " · 런처 자체 업데이트 확인 보류: " + updateError.Message;
             }
+            ReadLocal();
+            installation.ValidateExistingMinecraft();
+            if (ExistingMode) FabricText.Text = ModCompatibility.Check(installation, latest).Summary;
+            launcher ??= WindowsEnvironment.FindLauncher();
+            if (launcher is null) throw new IOException("공식 Minecraft Launcher를 찾지 못했습니다. 설치 안내를 확인하거나 ‘공식 런처 열기’에서 실행 파일을 선택하고 종료한 뒤 다시 조회해 주세요.");
+            canInstall = true;
+            SavePreferences();
+            StatusText.Text = "조회 완료 · 설치 또는 업데이트할 수 있습니다.";
+            var installed = installation.Installed();
+            if (installed is not null && installed.BuildNumber == latest.BuildNumber && installation.Healthy(installed)) StatusText.Text = "최신 버전이 설치되어 있습니다.";
+
         }
-        catch (Exception e) { ErrorText.Text = e is OperationCanceledException ? "조회 시간이 초과되었습니다. 인터넷 연결을 확인하고 다시 시도해 주세요." : e.Message; StatusText.Text = "조회/환경 확인 실패 · 기존 설치 파일은 유지됩니다."; }
+        catch (Exception e) { ErrorText.Text = e is OperationCanceledException ? "조회 시간이 초과되었습니다. 인터넷 연결을 확인하고 다시 시도해 주세요." : e.Message; StatusText.Text = launcherUpgrade is not null ? "모드 환경 검사 오류가 있어 설치를 보류했습니다. [런처 업데이트]로 검사 기능을 먼저 갱신할 수 있습니다." : "조회/환경 확인 실패 · 기존 설치 파일은 유지됩니다."; }
         finally { ProgressBar.IsIndeterminate = false; SetBusy(false); }
     }
 
