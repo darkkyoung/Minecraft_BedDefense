@@ -52,6 +52,7 @@ public final class RaidManager {
         RaidStateData state=RaidStateData.get(server.overworld());
         state.remove(mob.getUUID());
         LAST_BED_HIT.remove(mob.getUUID());
+        SiegeController.clear(mob.getUUID());
     }
 
     public static void tick(MinecraftServer server) {
@@ -81,6 +82,7 @@ public final class RaidManager {
                 glowBeforeMorning(server,state);
             }
             moveRaiders(server);
+            SiegeController.cleanup(server.overworld().getGameTime());
             return;
         }
 
@@ -283,6 +285,9 @@ public final class RaidManager {
                     if (bedDistance > 7.0) {
                         mob.getNavigation().moveTo(nearestBed.getX()+0.5, nearestBed.getY(),
                                 nearestBed.getZ()+0.5, 1.15);
+                        SiegeController.attempt(mob,level,nearestBed,
+                            (int)Math.min(100,ChallengeData.get(server.overworld())
+                              .day(ChallengeMenu.overworldClock(server))));
                     } else {
                         long now = level.getGameTime();
                         long challengeDay = Math.max(1L, ChallengeData.get(server.overworld())
@@ -304,6 +309,9 @@ public final class RaidManager {
                     // Closer to the player: retaliate, pursue and fight normally.
                     mob.setTarget(bestPlayer);
                     mob.getNavigation().moveTo(bestPlayer, 1.2);
+                    SiegeController.attempt(mob,level,bestPlayer.blockPosition(),
+                        (int)Math.min(100,ChallengeData.get(server.overworld())
+                          .day(ChallengeMenu.overworldClock(server))));
                 } else {
                     mob.setTarget(null);
                 }
