@@ -70,7 +70,7 @@ public final class ChallengeMenu {
             player.sendSystemMessage(Component.literal("§a진행 중: §f"
                     + data.day(overworldClock(server)) + "일차 · " + time));
             player.sendSystemMessage(Component.literal("§7난이도: " + opts.difficulty()
-                    + " · 레이드 주기 " + opts.raidEveryDays() + "일"));
+                    + " · 레이드 편성 진행 ×" + opts.raidStride() + "일"));
         }
         player.sendSystemMessage(button(" [메뉴] ", ChatFormatting.YELLOW,
                 "/beddefense", "메뉴 다시 열기"));
