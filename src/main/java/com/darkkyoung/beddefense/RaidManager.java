@@ -296,6 +296,7 @@ public final class RaidManager {
                             BedVitalData vitals = BedVitalData.get(server.overworld());
                             int previous = vitals.hp(bedOwner.getUUID());
                             int result = vitals.damage(bedOwner.getUUID(),damage);
+                            run(server, "title @a actionbar {\\\"text\\\":\\\"스폰 침대 공격 받는 중!\\\",\\\"color\\\":\\\"red\\\",\\\"bold\\\":true}");
                             if (previous > 0 && result == 0) bedDestroyed(server);
                         }
                     }
