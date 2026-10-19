@@ -22,6 +22,9 @@ public partial class MainWindow
     internal async Task RunVisualAcceptance(ReleaseManifest manifest, string root)
     {
         Directory.CreateDirectory("ui-acceptance");
+        launchPrimary = true;
+        ResetQueryPresentation(); SetBusy(false);
+        if (launchPrimary || LaunchButton.Visibility != Visibility.Visible || CurrentBuildText.Text.Length != 0) throw new IOException("Profile refresh retained stale primary/version presentation");
         ShowSmokeExisting(manifest, root);
         NotesBox.Text = manifest.Notes; UpdateNotes(manifest.Notes);
         LatestText.Text = manifest.ModVersion;
@@ -37,8 +40,9 @@ public partial class MainWindow
         CopyPath_Click(this, new RoutedEventArgs());
         if (Clipboard.GetText() != SelectedInstallation().Instance) throw new IOException("Full game path copy failed");
         checks.Add("PASS: ComboBox Home/Down/End keyboard routing and full path clipboard copy");
-        foreach (var scenario in new[] { "current", "update", "progress", "compatibility-error", "profiles", "long-notes", "narrow", "scale-125", "scale-150", "scale-200" })
+        foreach (var scenario in new[] { "current", "update", "progress", "compatibility-error", "profiles", "long-notes", "narrow", "compact-height", "scale-125", "scale-150", "scale-200" })
         {
+            ProfileBox.SelectedIndex = originalProfile;
             AppLayout.LayoutTransform = Transform.Identity;
             Width = 1060; Height = 780;
             NotesExpander.IsExpanded = false; ProfileBox.IsDropDownOpen = false;
@@ -78,6 +82,7 @@ public partial class MainWindow
                 NotesExpander.IsExpanded = true;
             }
             if (scenario == "narrow") { Width = 640; Height = 610; }
+            if (scenario == "compact-height") { Width = 640; Height = 360; }
             if (scenario.StartsWith("scale-"))
             {
                 // Actual WPF layout/render stress at OS-equivalent scaling, not a claim of changed monitor DPI.
@@ -91,7 +96,7 @@ public partial class MainWindow
                 ReleaseCard.Margin = new Thickness(0, 16, 0, 0);
             }
             UpdateLayout();
-            if (scenario == "profiles") { ProfileBox.SelectedIndex = ProfileBox.Items.Count - 1; ProfileBox.Focus(); ProfileBox.IsDropDownOpen = true; }
+            if (scenario == "profiles") { ProfileBox.SelectedItem = ProfileBox.Items.Cast<FabricProfile>().First(p => p.Name.StartsWith("친구")); ProfileBox.Focus(); ProfileBox.IsDropDownOpen = true; }
             await Dispatcher.InvokeAsync(() => UpdateLayout(), DispatcherPriority.Render);
             await Task.Delay(180); // Let the real popup and indeterminate animation render.
             var button = InstallButton.TransformToAncestor(this).TransformBounds(new Rect(InstallButton.RenderSize));

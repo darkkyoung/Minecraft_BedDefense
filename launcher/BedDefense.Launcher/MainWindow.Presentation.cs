@@ -31,6 +31,18 @@ public partial class MainWindow
         AppLayout.Margin = new Thickness(narrow ? 18 : 28, 20, narrow ? 18 : 28, 18);
         InstallButton.MinWidth = narrow ? 120 : 145;
     }
+    private void ResetQueryPresentation()
+    {
+        launchPrimary = false;
+        InstallButton.Content = "설치";
+        InstalledText.Text = "○ 환경 확인 중";
+        CurrentText.Text = "확인 중"; CurrentBuildText.Text = "";
+        LatestText.Text = "조회 중"; LatestBuildText.Text = "";
+        InstanceText.Text = "프로필 확인 후 표시됩니다.";
+        FabricText.Text = "선택한 환경의 호환성을 확인합니다.";
+        NotesBox.Text = ""; NotesSummary.Text = "배포 정보를 가져오고 있습니다.";
+        BodyScroll.ScrollToTop();
+    }
     private void UpdateNotes(string notes)
     {
         // Only actual release bullets are promoted. Legacy git logs stay in details.

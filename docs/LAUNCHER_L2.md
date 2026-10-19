@@ -2,6 +2,22 @@
 
 Starting canonical main: `3bd7d7c0e6367f6bd512debe111376bbb8a52ef9`.
 
+## Actual WPF screenshots
+
+These are actual Windows CI render captures, not mockups. The before capture is
+from main `3bd7d7c`; the after capture is from L2 `5a1a3b1` (PR validation build 46).
+Subsequent changes clear stale query state and extend isolated test fixtures.
+The final release workflow produces a fresh complete matrix in `windows-validation`.
+
+| Before | L2 |
+| --- | --- |
+| ![Previous WPF launcher](launcher-l2/before.png) | ![Redesigned WPF launcher](launcher-l2/after.png) |
+
+The first render review found a hidden error panel, bright primary-button text,
+soft header logo and low-contrast disclosure labels. These were corrected and
+recaptured. The final captures show visible errors, dark primary text, sharp
+branding, readable disclosures and fixed actions.
+
 ## Implementation
 
 The launcher uses shared navy/orange resources in `Themes/Launcher.xaml`. Native
@@ -44,7 +60,7 @@ The EXE captures its actual WPF render surface in these states:
 - Current installed build; update available; 64% download.
 - Compatibility error with installation disabled.
 - Open profile popup, including long Korean profile names and scrolling.
-- Long expanded release notes; narrow window.
+- Long expanded release notes; narrow window and short work area.
 - 125%, 150% and 200% WPF layout scaling.
 
 Assertions cover primary action bounds, operation locks, indeterminate verification,

@@ -115,6 +115,7 @@ public partial class MainWindow : Window
     private async Task Refresh()
     {
         if (busy) return;
+        ResetQueryPresentation();
         canInstall = false; launcherUpgrade = null; UpdateLauncherButton.Visibility = Visibility.Collapsed;
         SetBusy(true); latest = null; ErrorText.Text = ""; StatusText.Text = "최신 개발 빌드 조회 중";
         ProgressBar.IsIndeterminate = true;
@@ -156,7 +157,7 @@ public partial class MainWindow : Window
             if (installed is not null && installed.BuildNumber == latest.BuildNumber && installation.Healthy(installed)) StatusText.Text = "최신 버전이 설치되어 있습니다.";
 
         }
-        catch (Exception e) { ErrorText.Text = e is OperationCanceledException ? "조회 시간이 초과되었습니다. 인터넷 연결을 확인하고 다시 시도해 주세요." : e.Message; StatusText.Text = launcherUpgrade is not null ? "모드 환경 검사 오류가 있어 설치를 보류했습니다. [런처 업데이트]로 검사 기능을 먼저 갱신할 수 있습니다." : "조회/환경 확인 실패 · 기존 설치 파일은 유지됩니다."; }
+        catch (Exception e) { InstalledText.Text = "! 환경 확인 필요"; if (CurrentText.Text == "확인 중") CurrentText.Text = "확인 불가"; if (latest is null) { LatestText.Text = "조회되지 않음"; NotesSummary.Text = "환경 확인 후 다시 조회해 주세요."; } ErrorText.Text = e is OperationCanceledException ? "조회 시간이 초과되었습니다. 인터넷 연결을 확인하고 다시 시도해 주세요." : e.Message; StatusText.Text = launcherUpgrade is not null ? "모드 환경 검사 오류가 있어 설치를 보류했습니다. [런처 업데이트]로 검사 기능을 먼저 갱신할 수 있습니다." : "조회/환경 확인 실패 · 기존 설치 파일은 유지됩니다."; }
         finally { ProgressBar.IsIndeterminate = false; SetBusy(false); }
     }
 
