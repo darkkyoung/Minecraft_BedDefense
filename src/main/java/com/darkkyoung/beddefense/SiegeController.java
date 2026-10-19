@@ -7,7 +7,6 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Blocks;
@@ -94,7 +93,7 @@ public final class SiegeController {
             level.setBlockAndUpdate(floor,Blocks.COBBLESTONE.defaultBlockState());
             job.placedBlocks++;
             job.nextPlacementTick=level.getGameTime()+20+ThreadLocalRandom.current().nextInt(21);
-            mob.swing(InteractionHand.MAIN_HAND);
+            // Native block cracks already communicate digging; arm swing pending mapping verification.
         }
     }
 
@@ -140,7 +139,7 @@ public final class SiegeController {
         if(stage!=job.lastStage){
             level.destroyBlockProgress(job.breakerId,pos,stage);
             job.lastStage=stage;
-            mob.swing(InteractionHand.MAIN_HAND);
+            // Native block cracks already communicate digging; arm swing pending mapping verification.
         }
         if(age>=duration){
             level.destroyBlockProgress(job.breakerId,pos,-1);
