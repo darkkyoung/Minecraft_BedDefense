@@ -37,6 +37,8 @@ public class PlayableChallengeGameTest {
         // Neighboring GameTests clear entities in/around their structures on completion.
         // Keep the full raid arena outside those structures so their cleanup cannot kill a raider.
         BlockPos foot=h.absolutePos(new BlockPos(258,2,258));
+        for(int x=(foot.getX()-24)>>4;x<=(foot.getX()+24)>>4;x++)
+            for(int z=(foot.getZ()-24)>>4;z<=(foot.getZ()+24)>>4;z++)world.setChunkForced(x,z,true);
         // A loaded flat arena makes spawn retries and navigation deterministic without touching a user world.
         for(int x=-24;x<=24;x++)for(int z=-24;z<=24;z++){
             BlockPos ground=foot.offset(x,-1,z);world.setBlock(ground,Blocks.STONE.defaultBlockState(),2);
@@ -56,7 +58,7 @@ public class PlayableChallengeGameTest {
             h.assertTrue(ChallengeMenu.overworldClock(server)<100,"reset selected: day one morning");
             h.assertTrue(BedVitalData.get(world).state(p.getUUID())==0,"no bed before first interaction");
             RaidManager.run(server,"time of minecraft:overworld set 12542");
-            h.runAfterDelay(43,()->{
+            waitForFirstRaid(h,world,()->{
                 RaidStateData raid=RaidStateData.get(world);
                 h.assertTrue(raid.active()&&raid.raiders().size()==5,"daily first-night raid: active="+raid.active()+" spawned="+raid.raiders().size()+" queued="+raid.pending()+" player="+p.position()+" arena="+foot+" difficulty="+world.getDifficulty());
                 bed(world,foot);use(p,world,foot);
@@ -143,8 +145,14 @@ public class PlayableChallengeGameTest {
                     h.succeed();
                 });
                 });
-            });
+            },200);
         });
+    }
+    private static void waitForFirstRaid(GameTestHelper h,ServerLevel world,Runnable assertions,int remainingTicks){
+        // Chunk promotion is asynchronous; assert the actual five spawns, not a runner-speed-dependent delay.
+        var raid=RaidStateData.get(world);
+        if(raid.raiders().size()==5||remainingTicks<=0){assertions.run();return;}
+        h.runAfterDelay(10,()->waitForFirstRaid(h,world,assertions,remainingTicks-10));
     }
     @GameTest(maxTicks=180,dimension="minecraft:overworld")
     public void siegeMiningUsesRealBlocks(GameTestHelper h){
