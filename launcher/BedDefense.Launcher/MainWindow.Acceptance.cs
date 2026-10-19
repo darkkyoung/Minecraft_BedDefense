@@ -108,13 +108,9 @@ public partial class MainWindow
                     double scale = int.Parse(scenario[6..]) / 100.0;
                     Width = 1280; Height = 900;
                     AppLayout.LayoutTransform = new ScaleTransform(scale, scale);
-                    EnvironmentColumn.Width = new GridLength(1, GridUnitType.Star);
-                    GutterColumn.Width = new GridLength(0); ReleaseColumn.Width = new GridLength(0);
-                    System.Windows.Controls.Grid.SetColumn(ReleaseCard, 0); System.Windows.Controls.Grid.SetRow(ReleaseCard, 2);
-                    System.Windows.Controls.Grid.SetRow(ErrorCard, 0);
-                    ReleaseCard.Margin = new Thickness(0, 16, 0, 0);
+
                 }
-                UpdateLayout();
+                UpdateLayout(); UpdateResponsiveLayout(); UpdateLayout();
                 if (scenario == "profiles") { ProfileBox.SelectedItem = ProfileBox.Items.Cast<FabricProfile>().First(p => p.Name.StartsWith("친구")); ProfileBox.Focus(); ProfileBox.IsDropDownOpen = true; }
                 await Dispatcher.InvokeAsync(() => UpdateLayout(), DispatcherPriority.Render);
                 await Task.Delay(180); // Let the real popup and indeterminate animation render.

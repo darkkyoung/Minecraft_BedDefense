@@ -37,7 +37,8 @@ public partial class MainWindow
         base.OnSourceInitialized(e);
         UpdateCaptionTheme();
     }
-    private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+    private void Window_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateResponsiveLayout();
+    private void UpdateResponsiveLayout()
     {
         if (ReleaseCard is null) return;
         bool narrow = ActualWidth / (AppLayout.LayoutTransform is System.Windows.Media.ScaleTransform scale ? scale.ScaleX : 1) < 900;

@@ -10,3 +10,5 @@
 
 ### 사용 안내
 헤더의 라이트/다크 버튼으로 화면을 전환합니다. 폴더 변경과 호환성 정보는 ‘폴더 설정 · 환경 상세’에서 펼칩니다.
+
+[실제 Windows 화면과 PC 확인 절차](https://github.com/darkkyoung/Minecraft_BedDefense/blob/main/docs/LAUNCHER_L3.md)

@@ -1,4 +1,4 @@
-# BED DEFENSE LAUNCHER — Phase L1 existing Fabric follow-up
+# BED DEFENSE LAUNCHER — Phase L3
 
 Windows 11 x64 · .NET 10 WPF · 사용자별 설치 · 관리자 권한 불필요.
 공식 Minecraft Launcher의 설치 도우미이며 계정 인증과 실제 게임 실행은 공식 런처를 사용합니다.
@@ -6,8 +6,8 @@ Windows 11 x64 · .NET 10 WPF · 사용자별 설치 · 관리자 권한 불필�
 ## 기존 Fabric에 설치 — 기본값
 
 1. 기존 Fabric **26.3** 프로필을 공식 런처에서 한 번 실행합니다. 게임과 공식 런처를 종료합니다.
-2. [Releases](https://github.com/darkkyoung/Minecraft_BedDefense/releases)에서 최신 `dev-mc26.3-…`의 **BedDefense-Setup.exe**를 받습니다. 별도 .NET은 필요 없습니다. 이전 L1 EXE에는 새 프로필 선택 기능이 없으므로 이번에는 새 EXE를 받으십시오.
-3. 공식 Minecraft 데이터 폴더를 확인합니다. 다른 위치는 **폴더 선택**으로 `launcher_profiles.json` 또는 `launcher_profiles_microsoft_store.json`이 있는 루트를 선택합니다.
+2. [Releases](https://github.com/darkkyoung/Minecraft_BedDefense/releases)에서 최신 `dev-mc26.3-…`의 **BedDefense-Setup.exe**를 받습니다. 별도 .NET은 필요 없습니다. 기존 런처의 **런처 업데이트**로도 새 화면을 받을 수 있습니다.
+3. 공식 Minecraft 데이터 폴더를 확인합니다. 다른 위치는 **폴더 설정 · 환경 상세 → 변경**으로 `launcher_profiles.json` 또는 `launcher_profiles_microsoft_store.json`이 있는 루트를 선택합니다.
 4. **기존 Fabric에 설치 (기본)**에서 프로필을 선택하고 **실제 게임 폴더**를 확인합니다. 프로필에 `gameDir`가 없으면 Minecraft 루트, 있으면 해당 경로를 사용합니다. 사용자 지정 외부 드라이브, 상대 경로와 Windows 환경 변수도 해석합니다. 네트워크 경로·링크·정션·해석 불가 경로는 거부합니다.
 5. 호환성 검사를 통과하면 **설치**를 누릅니다. 설치한 뒤 **공식 런처 열기**에서 선택한 기존 프로필로 플레이합니다. 자동 프로필 선택은 지원하지 않습니다.
 6. 이후 **업데이트 조회 → 업데이트 설치**를 누릅니다. 현재/최신 빌드와 변경 내역을 표시하고 새 버전만 적용합니다.
@@ -42,7 +42,7 @@ Windows 11 x64 · .NET 10 WPF · 사용자별 설치 · 관리자 권한 불필�
 | 프로필/다른 모드가 검사 후 변경됨 | 파일 적용을 중단합니다. 새 상태를 확인하고 재조회합니다. |
 | 복구 보류 | 백업·transaction.json을 지우지 말고 오류와 배포 태그를 알려 주세요. 이후 외부 변경 파일을 자동 덮어쓰지 않습니다. |
 
-백업에 개인 프로필 정보가 포함될 수 있으므로 백업 전체를 공개하지 마십시오. 코드 서명과 런처 자체 업데이트는 후속 단계입니다.
+백업에 개인 프로필 정보가 포함될 수 있으므로 백업 전체를 공개하지 마십시오. 런처 자체 업데이트는 지원하며 코드 서명은 아직 적용되지 않았습니다.
 
 ## 개발 구조
 
@@ -64,3 +64,8 @@ dotnet publish launcher/BedDefense.Launcher -c Release -r win-x64 --self-contain
 ## Launcher L2 UI
 
 [Actual Windows screenshots, implementation boundaries and PC acceptance](../docs/LAUNCHER_L2.md).
+
+## Launcher L3
+
+다크/라이트 전환, 침대 방어 배너와 큰 작업 버튼을 제공합니다.
+[실제 Windows 화면과 PC 확인 절차](../docs/LAUNCHER_L3.md)를 참고하십시오.
