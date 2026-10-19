@@ -3,6 +3,9 @@ package com.darkkyoung.beddefense;
 import com.darkkyoung.beddefense.network.ClockSyncPayload;
 import com.darkkyoung.beddefense.network.BedStatusPayload;
 import com.darkkyoung.beddefense.network.HudControlPayload;
+import com.darkkyoung.beddefense.network.RaidStatusPayload;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -31,6 +34,20 @@ public final class BedDefense implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(ClockSyncPayload.TYPE, ClockSyncPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BedStatusPayload.TYPE, BedStatusPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(HudControlPayload.TYPE, HudControlPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(RaidStatusPayload.TYPE, RaidStatusPayload.CODEC);
+        ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if(entity.level() instanceof ServerLevel level)
+                RaidManager.onMobDeath(entity,level.getServer());
+        });
+        ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
+            if(entity.getTags().contains(RaidManager.OVERWORLD_TAG)
+                    && level.dimension().equals(net.minecraft.world.level.Level.OVERWORLD)) {
+                long time=Math.floorMod(ChallengeMenu.overworldClock(level.getServer()),24000L);
+                if((time>=RaidManager.SUNRISE_TICK||time<RaidManager.BEDTIME_TICK)
+                        && !RaidManager.isActive(level.getServer()))
+                    entity.discard();
+            }
+        });
         SpawnBedPrototype.init();
         ChallengeMenu.init();
 
@@ -104,6 +121,7 @@ public final class BedDefense implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             BlockCrackDemo.tick(server);
             ChallengeSetupWizard.tick(server);
+            RaidManager.tick(server);
             SpawnBedPrototype.tick(server);
             if (++hudClockSyncCounter < 20) {
                 return;
@@ -114,6 +132,11 @@ public final class BedDefense implements ModInitializer {
             long elapsed = challenge.elapsedTicks(server.overworld().getGameTime());
             long day = challenge.day(overworldTime);
             ClockSyncPayload payload = new ClockSyncPayload(overworldTime, elapsed, day);
+            RaidStateData raid=RaidStateData.get(server.overworld());
+            RaidStatusPayload raidPayload=new RaidStatusPayload(
+                raid.active()?(int)raid.activeDay():0,
+                raid.active()?raid.remaining():0,
+                raid.active()?raid.totalSpawned():0);
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 if (ServerPlayNetworking.canSend(player, ClockSyncPayload.TYPE)) {
                     ServerPlayNetworking.send(player, payload);
@@ -122,6 +145,8 @@ public final class BedDefense implements ModInitializer {
                             new BedStatusPayload(SpawnBedPrototype.status(player,server.overworld())[0],
                                     BedVitalData.get(server.overworld()).hp(player.getUUID()),
                                     BedVitalData.MAX_HEALTH));
+                        if(ServerPlayNetworking.canSend(player,RaidStatusPayload.TYPE))
+                            ServerPlayNetworking.send(player,raidPayload);
                     }
                 }
             }

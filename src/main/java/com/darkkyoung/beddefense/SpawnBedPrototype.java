@@ -28,6 +28,18 @@ public final class SpawnBedPrototype {
 
     public static void init() {
         UseBlockCallback.EVENT.register(SpawnBedPrototype::onUse);
+        PlayerBlockBreakEvents.BEFORE.register((world,player,pos,state,blockEntity) -> {
+            if(world.isClientSide() || !(player instanceof ServerPlayer sp)
+                    || !(state.getBlock() instanceof BedBlock)
+                    || !world.dimension().equals(Level.OVERWORLD)) return true;
+            BlockPos foot=footPosition(pos,state);
+            if(foot.equals(SpawnBedData.get((ServerLevel)world).getPosition(sp.getUUID()))
+                    && RaidManager.isActive(((ServerLevel)world).getServer())) {
+                sp.sendSystemMessage(Component.literal("§c레이드 중에는 스폰 침대를 회수할 수 없습니다."));
+                return false;
+            }
+            return true;
+        });
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
             if (!(player instanceof ServerPlayer sp) || world.isClientSide() || !(state.getBlock() instanceof BedBlock)
                     || !world.dimension().equals(Level.OVERWORLD)) return;
@@ -60,12 +72,17 @@ public final class SpawnBedPrototype {
                 sp.sendSystemMessage(Component.literal("§c다른 일반 침대는 수면 및 리스폰 지정이 불가능합니다. 스폰 침대만 사용할 수 있습니다."));
                 return InteractionResult.FAIL;
             }
+            if(RaidManager.isActive(sp.getServer()))return InteractionResult.FAIL;
             return InteractionResult.PASS;
         }
         if(registered.registerFirst(sp.getUUID(),foot)) {
             bed.register(sp.getUUID());
             sp.sendSystemMessage(Component.literal("§a스폰 침대가 지정되었습니다. §7(침대 HP·재설치·사망 규칙은 개발 중)"));
             particles(overworld,foot,true);
+        }
+        if(RaidManager.isActive(overworld.getServer())) {
+            sp.sendSystemMessage(Component.literal("§c레이드 도중에는 잠을 잘 수 없습니다."));
+            return InteractionResult.FAIL;
         }
         return InteractionResult.PASS;
     }

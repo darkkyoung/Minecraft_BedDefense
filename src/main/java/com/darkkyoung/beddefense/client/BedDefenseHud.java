@@ -32,6 +32,9 @@ public final class BedDefenseHud {
     private static int serverBedState; // 0 unregistered, 1 placed, 2 destroyed, 3 unplaced
     private static int serverBedHp;
     private static int serverBedMax=100;
+    private static int activeRaidDay;
+    private static int activeRaidRemaining;
+    private static int activeRaidTotal;
     private static float animatedHpRatio;
     private static long flashUntilTick;
     private static long lastVisualTick = -1L;
@@ -63,6 +66,10 @@ public final class BedDefenseHud {
         synced = true;
     }
 
+    static void acceptRaidStatus(int day,int remaining,int total){
+        activeRaidDay=day;activeRaidRemaining=remaining;activeRaidTotal=total;
+    }
+
     static void acceptBedState(int state, int hp, int maxHp) {
         Minecraft mc = Minecraft.getInstance();
         long tick = mc.level != null ? mc.level.getGameTime() : 0L;
@@ -79,6 +86,7 @@ public final class BedDefenseHud {
             preview = Preview.OFF;
             serverBedState = 0;
             serverBedHp = 0;
+            activeRaidDay=0;activeRaidRemaining=0;activeRaidTotal=0;
             animatedHpRatio = 0;
             flashUntilTick = 0;
             lastVisualTick = -1;
@@ -181,13 +189,18 @@ public final class BedDefenseHud {
             drawCentered(graphics, font, warning, screenWidth, 47, RAID_ORANGE);
         }
 
+        if(activeRaidDay>0 && running) {
+            drawCentered(graphics,font,activeRaidDay+"일차 레이드",screenWidth,63,RED);
+            drawCentered(graphics,font,"남은 몬스터 "+activeRaidRemaining+" / "+activeRaidTotal,
+                    screenWidth,76,WHITE);
+        }
         if (preview != Preview.OFF) {
             // All raid indicators are visibly tagged as preview to avoid implying live gameplay.
             String previewTitle = "[미리보기] 레이드 몬스터 12 / 16";
             String bedAlert = "스폰 침대 공격 중! [미리보기]";
-            drawCentered(graphics, font, previewTitle, screenWidth, 62, WHITE);
+            drawCentered(graphics, font, previewTitle, screenWidth, 91, WHITE);
             if (preview == Preview.PLACED) {
-                drawCentered(graphics, font, bedAlert, screenWidth, 76, RED);
+                drawCentered(graphics, font, bedAlert, screenWidth, 104, RED);
             }
         }
     }
