@@ -20,7 +20,9 @@ public final class SpawnBedGlowGameTest {
         BlockPos head=foot.south();
         world.setBlock(foot.below(),Blocks.STONE.defaultBlockState(),2);
         world.setBlock(head.below(),Blocks.STONE.defaultBlockState(),2);
-        var block=Blocks.WHITE_BED.defaultBlockState().setValue(BedBlock.FACING,Direction.SOUTH);
+        var block=net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                .getValue(net.minecraft.resources.Identifier.parse("minecraft:white_bed"))
+                .defaultBlockState().setValue(BedBlock.FACING,Direction.SOUTH);
         world.setBlock(foot,block.setValue(BedBlock.PART,BedPart.FOOT),2);
         world.setBlock(head,block.setValue(BedBlock.PART,BedPart.HEAD),2);
 
