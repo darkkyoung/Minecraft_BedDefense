@@ -4,6 +4,7 @@ import com.darkkyoung.beddefense.network.ClockSyncPayload;
 import com.darkkyoung.beddefense.network.BedStatusPayload;
 import com.darkkyoung.beddefense.network.HudControlPayload;
 import com.darkkyoung.beddefense.network.RaidStatusPayload;
+import com.darkkyoung.beddefense.network.MenuUiPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -29,6 +30,13 @@ public final class BedDefenseClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(RaidStatusPayload.TYPE,
                 (payload, context) -> context.client().execute(
                     () -> BedDefenseHud.acceptRaidStatus(payload.day(),payload.remaining(),payload.total())));
+        // Same clear/close protocol as AllBlocks master. Serialized packets arrive
+        // before subsequent menu/title messages, preventing duplicated menu blocks.
+        ClientPlayNetworking.registerGlobalReceiver(MenuUiPayload.TYPE,
+                (payload, context) -> context.client().execute(() -> {
+                    context.client().gui.hud.getChat().clearMessages(false);
+                    if (payload.closeScreen()) context.client().gui.setScreen(null);
+                }));
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("beddefense", "hud"),
                 BedDefenseHud::render);
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
