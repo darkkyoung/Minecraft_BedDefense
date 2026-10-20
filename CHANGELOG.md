@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0-alpha.5+26.3 — Unique Spawn Bed world-drop fix
+- A player breaking either half of their registered Spawn Bed now drops exactly **one** unique Spawn Bed as a world ItemEntity, following ordinary Minecraft pickup behavior. It is no longer inserted directly into inventory.
+- Both BedBlock halves are removed before neighbors are notified, preventing a vanilla **ordinary bed duplicate** when removing the special bed.
+- Keeps single-use bed owner token, permanent HP, and existing no-raid-warning-on-manual-pickup behavior.
+- Real server GameTest now mines both foot and head through Fabric PlayerBlockBreakEvents, checks exactly one tagged ground drop, zero direct inventory insertion, and successful reinstallation with HP preserved.
+
+
 ## 0.2.0-alpha.4+26.3 — Welcome introduction and pale-lime setup confirm
 - First join and `/beddefense` before starting now present the **AllBlocks-inspired greeting → introduction/goal/essential rules → [게임 시작]** order. Start action remains a clickable command to open the existing setup.
 - **[설정 완료 · 시작]** is now a bold pale-lime primary chat action instead of the generic gray unselected control.

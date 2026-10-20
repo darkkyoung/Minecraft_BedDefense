@@ -13,6 +13,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -56,9 +57,18 @@ public final class SpawnBedPrototype {
         ItemStack item=new ItemStack(state.getBlock().asItem());
         CompoundTag tag=new CompoundTag();tag.putString("beddefense_owner",owner.toString());tag.putString("beddefense_token",health.token(owner));
         item.set(DataComponents.CUSTOM_DATA,CustomData.of(tag));item.set(DataComponents.CUSTOM_NAME,Component.literal("§a스폰 침대"));
+        // One authoritative dropped entity. Never insert directly into player inventory,
+        // nor allow the vanilla two-part BedBlock to emit its own ordinary bed.
+        ItemEntity drop = new ItemEntity(world,foot.getX()+0.5,foot.getY()+0.45,foot.getZ()+0.5,item);
+        drop.setDefaultPickUpDelay();
+        if(!world.addFreshEntity(drop)){
+            // Do not lose the only unique bed if an entity-insertion hook rejects it.
+            health.place(owner,health.token(owner));
+            player.sendSystemMessage(Component.literal("§c스폰 침대 아이템을 떨어뜨리지 못해 회수가 취소되었습니다."));
+            return false;
+        }
         removeBlocks(world,foot);
-        if(!player.getInventory().add(item))player.spawnAtLocation(world,item);
-        player.sendSystemMessage(Component.literal("§e스폰 침대 회수 · HP "+health.hp(owner)+" 유지 · 미설치 상태에서 사망하면 탈락합니다."));
+        player.sendSystemMessage(Component.literal("§e스폰 침대 회수 · HP "+health.hp(owner)+" 유지 · 아이템을 바닥에 떨어뜨렸습니다."));
         // Manual pickup is a temporary unsafe state, NOT an enemy victory.
         return true;
     }
@@ -175,9 +185,15 @@ public final class SpawnBedPrototype {
             BlockState state=world.getBlockState(foot);
             if(state.getBlock() instanceof BedBlock){
                 BlockPos head=foot.relative(state.getValue(BedBlock.FACING));
+                // BedBlock has TWO linked halves. Remove both without neighbor
+                // notifications first; otherwise an orphan half may emit a second
+                // ordinary bed when a vanilla neighbor update runs mid-removal.
+                if(world.getBlockState(head).getBlock() instanceof BedBlock)
+                    world.setBlock(head,Blocks.AIR.defaultBlockState(),2);
                 world.setBlock(foot,Blocks.AIR.defaultBlockState(),2);
-                if(world.getBlockState(head).getBlock() instanceof BedBlock)world.setBlock(head,Blocks.AIR.defaultBlockState(),3);
-                world.updateNeighborsAt(foot,state.getBlock());
+                // Let surrounding blocks see the final, consistent two-air state.
+                world.updateNeighborsAt(foot,Blocks.AIR);
+                world.updateNeighborsAt(head,Blocks.AIR);
             }
         }finally{changingBed=previous;}
     }
