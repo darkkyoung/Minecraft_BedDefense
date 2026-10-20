@@ -18,14 +18,12 @@ public final class ChallengeLifecycle {
         ChallengeData data=ChallengeData.get(server.overworld());
         if(data.running()&&!player.isSpectator())data.join(player.getUUID());
         if(data.isStarted()&&(data.playerState(player.getUUID())==ChallengeData.ELIMINATED||data.outcome()==ChallengeData.LOST))player.setGameMode(GameType.SPECTATOR);
-        if(data.running()&&BedVitalData.get(server.overworld()).state(player.getUUID())!=1)RaidManager.survivalWarning(player,server);
+        // Missing/unregistered beds never trigger the dramatic raid-destruction warning.
     }
     public static void tick(MinecraftServer server){
         ChallengeData data=ChallengeData.get(server.overworld());if(!data.running())return;
         data.observeDay(ChallengeMenu.overworldClock(server));
-        if(data.elapsedTicks(server.overworld().getGameTime())==20)
-            for(ServerPlayer player:server.getPlayerList().getPlayers())
-                if(data.participating(player.getUUID())&&BedVitalData.get(server.overworld()).state(player.getUUID())!=1)RaidManager.survivalWarning(player,server);
+        // Risky missing-bed state is represented by the hearts/HUD, not a title.
         // Day 100 is fully playable. Crossing into day 101 at world clock 0 ends the run.
         if(data.day(ChallengeMenu.overworldClock(server))>100)finish(server,false,"100일 제한 초과 (101일차 시작)");
     }
@@ -62,7 +60,7 @@ public final class ChallengeLifecycle {
                 BlockPos safe=SpawnBedPrototype.safeRespawn(server.overworld(),foot);
                 RaidManager.run(server,"execute in minecraft:overworld run tp "+id+" "+(safe.getX()+.5)+" "+safe.getY()+" "+(safe.getZ()+.5));
             }
-            if(BedVitalData.get(server.overworld()).state(id)!=1)RaidManager.survivalWarning(player,server);
+            // Dimension penalty/final respawn must not impersonate a direct raid bed kill.
         }
     }
     /**
