@@ -68,3 +68,10 @@ CI executes compiler, unit tests and real server GameTests; the release pipeline
 - World entry before the challenge starts: **greeting → introduction and objective/rules → clickable [게임 시작]**. The action opens the existing settings screen. Completed and running challenge menus remain unchanged.
 - Setup final `[설정 완료 · 시작]` button is **bold pale-lime** (#A8FF73), while `[취소]` remains secondary gray. Existing 3-second countdown behavior remains unchanged.
 - **Not changed yet** (awaiting user discussion): spacing between setup groups; Spawn Bed glowing visual effect; difficulty multiplier balancing. No increased mob counts, AI stats, or damage effects in this alpha.
+
+## Alpha.5 — one physical bed drop, no normal duplicate
+- In an expendable world, place and register the unique bed. **Break its foot**, check one green-named Spawn Bed item appears in the world; inventory must NOT instantly gain the item. No ordinary bed item may also appear.
+- Pick it up normally and reinstall, confirming HP and owner-token integrity.
+- **Break its head** and repeat the one-drop/no-duplicate test. Confirm the BedBlock foot/head are both air, and no delayed ordinary drop appears from neighbor updates.
+- Destroy the bed in a raid: must NOT drop a portable Spawn Bed. Only player manual pickup produces the unique portable item.
+- Confirm no direct inventory insertion in Creative or Survival; user must collect the ground item.

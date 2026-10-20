@@ -1,6 +1,9 @@
 package com.darkkyoung.beddefense;
 
 import com.mojang.serialization.JsonOps;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Items;
 import java.util.*;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
@@ -83,14 +86,42 @@ public class PlayableChallengeGameTest {
                 h.assertTrue(BedVitalData.get(world).hp(p.getUUID())==100 &&
                         p.getMainHandItem().isEmpty(),"diamond consumed for exactly 1 HP");
                 SpawnBedPrototype.damage(server,p.getUUID(),37,"test");
-                h.assertTrue(SpawnBedPrototype.pickup(p,world),"owner pickup succeeds");
-                ItemStack portable=ItemStack.EMPTY;
-                for(int i=0;i<p.getInventory().getContainerSize();i++)if(SpawnBedPrototype.isPortable(p.getInventory().getItem(i)))portable=p.getInventory().getItem(i);
-                h.assertTrue(!portable.isEmpty(),"pickup gives real portable item");ItemStack duplicate=portable.copy();
+                // Exercise the REAL Fabric before-block-break callback, not only
+                // direct pickup(); both halves must disappear and spawn ONE special bed.
+                int beforeInventory=portableInventoryCount(p);
+                h.assertTrue(!PlayerBlockBreakEvents.BEFORE.invoker().beforeBlockBreak(
+                        world,p,foot,world.getBlockState(foot),null),
+                        "special-bed break must cancel vanilla block destruction");
+                ItemEntity dropped=soleBedDrop(h,world,foot);
+                h.assertTrue(dropped!=null,"one uniquely tagged portable bed item on ground");
+                h.assertTrue(!world.getBlockState(foot).getBlock().equals(Blocks.WHITE_BED)
+                        && world.getBlockState(foot.south()).isAir(),
+                        "both bed halves removed before vanilla neighbor drops");
+                h.assertTrue(portableInventoryCount(p)==beforeInventory,
+                        "no unique Spawn Bed teleports directly into inventory");
+                ItemStack portable=dropped.getItem().copy();
+                dropped.discard(); // Simulates physically collecting the dropped item.
+                h.assertTrue(!portable.isEmpty()&&SpawnBedPrototype.isPortable(portable),
+                        "picked-up ground drop retains owner token and HP");
+                ItemStack duplicate=portable.copy();
                 BlockPos relocated=foot.offset(0,0,5);p.setYRot(0);
                 h.assertTrue(SpawnBedPrototype.place(p,world,portable,hit(relocated.below())),"portable reinstallation");
                 h.assertTrue(BedVitalData.get(world).hp(p.getUUID())==63,"HP preserved across relocation");
                 h.assertTrue(!SpawnBedPrototype.place(p,world,duplicate,hit(relocated.offset(4,-1,0))),"copied token rejected");
+                // Head-side mining must have the same one-drop behavior as foot-side mining.
+                BlockPos head=relocated.relative(p.getDirection());
+                h.assertTrue(!PlayerBlockBreakEvents.BEFORE.invoker().beforeBlockBreak(
+                        world,p,head,world.getBlockState(head),null),
+                        "bed HEAD break must cancel vanilla destruction");
+                ItemEntity headDrop=soleBedDrop(h,world,relocated);
+                h.assertTrue(headDrop!=null && SpawnBedPrototype.isPortable(headDrop.getItem()),
+                        "breaking the head emits exactly one tagged bed and no regular duplicate");
+                ItemStack secondPortable=headDrop.getItem().copy();
+                headDrop.discard();
+                h.assertTrue(SpawnBedPrototype.place(p,world,secondPortable,hit(relocated.below())),
+                        "head-side ground drop can restore the same unique bed");
+                h.assertTrue(BedVitalData.get(world).hp(p.getUUID())==63,
+                        "second pickup/reinstall still preserves HP 63");
                 h.assertTrue(world.getBlockState(other).is(BuiltInRegistries.BLOCK.getValue(Identifier.parse("minecraft:white_bed"))),"unrelated bed preserved");
                 // Persist/reload codec snapshots exactly as world storage does.
                 var saved=ChallengeData.CODEC.encodeStart(JsonOps.INSTANCE,ChallengeData.get(world)).getOrThrow();
@@ -178,6 +209,28 @@ public class PlayableChallengeGameTest {
             },200);
         });
     }
+    private static int portableInventoryCount(ServerPlayer player) {
+        int amount=0;
+        for(int i=0;i<player.getInventory().getContainerSize();i++)
+            if(SpawnBedPrototype.isPortable(player.getInventory().getItem(i)))
+                amount+=player.getInventory().getItem(i).getCount();
+        return amount;
+    }
+
+    private static ItemEntity soleBedDrop(GameTestHelper test,ServerLevel world,BlockPos position){
+        ItemEntity single=null;
+        int all=0;
+        for(Entity entity:world.getAllEntities()){
+            if(entity instanceof ItemEntity drop && drop.getItem().is(Items.WHITE_BED)
+                && entity.distanceToSqr(position.getX()+0.5,position.getY()+0.5,position.getZ()+0.5)<9){
+                all++;
+                if(SpawnBedPrototype.isPortable(drop.getItem()))single=drop;
+            }
+        }
+        test.assertTrue(all==1,"exactly ONE bed item in the world, no vanilla duplicate: "+all);
+        return single;
+    }
+
     private static void waitForFirstRaid(GameTestHelper h,ServerLevel world,Runnable assertions,int remainingTicks){
         // Chunk promotion is asynchronous; assert the actual five spawns, not a runner-speed-dependent delay.
         var raid=RaidStateData.get(world);
