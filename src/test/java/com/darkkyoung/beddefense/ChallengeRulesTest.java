@@ -7,6 +7,29 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ChallengeRulesTest {
+    @Test void welcomeIntroducesChallengeBeforeStartButton(){
+        var lines=ChallengeMenu.welcomeMessages();
+        var visible=lines.stream().map(net.minecraft.network.chat.Component::getString).toList();
+        int greeting=visible.indexOf("베드 디펜스에 오신 것을 환영합니다!");
+        int intro=visible.indexOf("낮에는 탐험하고, 밤에는 몬스터의 습격으로부터 침대를 지키는 100일 생존 챌린지입니다.");
+        int start=-1;
+        for(int i=0;i<visible.size();i++)if(visible.get(i).contains("[게임 시작]")){start=i;break;}
+        assertTrue(greeting>=0 && intro>greeting && start>intro,
+                "welcome must display greeting, description and only then the clickable start");
+        assertTrue(lines.get(start).getStyle().isBold());
+        assertInstanceOf(net.minecraft.network.chat.ClickEvent.RunCommand.class,
+                lines.get(start).getStyle().getClickEvent());
+    }
+    @Test void confirmActionUsesBoldPaleLimeNotInactiveGray(){
+        var button=ChallengeSetupWizard.confirmStartButton();
+        assertEquals(net.minecraft.network.chat.TextColor.fromRgb(0xA8FF73),
+                button.getStyle().getColor());
+        assertTrue(button.getStyle().isBold());
+        assertInstanceOf(net.minecraft.network.chat.ClickEvent.RunCommand.class,
+                button.getStyle().getClickEvent());
+        assertTrue(button.getString().contains("[설정 완료 · 시작]"));
+    }
+
     @Test void rosterProgressionAndCap(){
         assertEquals(List.of(1,3,5,7,9),java.util.stream.LongStream.rangeClosed(1,5).mapToObj(d->ChallengeBalance.rosterDay(d,2)).toList());
         assertEquals(100,ChallengeBalance.rosterDay(100,100));assertEquals(100,ChallengeBalance.rosterDay(101,1));

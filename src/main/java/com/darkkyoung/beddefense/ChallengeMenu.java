@@ -46,9 +46,9 @@ public final class ChallengeMenu {
         clearMenuChat(player);
         ChallengeData data = ChallengeData.get(server.overworld());
         if (!data.isStarted()) {
-            // Requested layout: start button FIRST, rules below as plain chat text.
-            player.sendSystemMessage(button(" [게임 시작] ", ChatFormatting.GREEN,
-                    "/beddefense setup", "난이도·시간·레이드 편성 진행 배속을 설정합니다"));
+            // AllBlocks master welcome sequence: greeting, introduction, then action.
+            for (Component line : welcomeMessages()) player.sendSystemMessage(line);
+            return;
         } else if(!data.running()) {
             player.sendSystemMessage(Component.literal(data.outcome()==ChallengeData.WON?"§a지난 챌린지 성공!":"§c지난 챌린지 실패: "+data.reason()));
             player.sendSystemMessage(button(" [다시 시작] ", ChatFormatting.GREEN,
@@ -66,6 +66,26 @@ public final class ChallengeMenu {
         player.sendSystemMessage(Component.literal("§7패배: §f침대가 없거나 파괴된 후 죽으면 탈락합니다."));
         player.sendSystemMessage(Component.literal("§7수리: §f에메랄드 또는 다이아몬드 1개 = HP 1 · 회수: 침대 파괴"));
         player.sendSystemMessage(Component.literal("§8/beddefense · 채팅 메뉴 다시 열기"));
+    }
+
+    /** Build the first-join chat in AllBlocks master's greeting -> overview -> start order. */
+    static java.util.List<Component> welcomeMessages() {
+        return java.util.List.of(
+                Component.literal("§8━━━━━━━━━━━━━━━━━━━━━━━━━━"),
+                Component.literal("§6§l[ 베드 디펜스 ]"),
+                Component.literal("§f베드 디펜스에 오신 것을 환영합니다!"),
+                Component.literal("§f낮에는 탐험하고, 밤에는 몬스터의 습격으로부터 침대를 지키는 100일 생존 챌린지입니다."),
+                Component.literal(""),
+                Component.literal("§e목표: §f100일 안에 엔더 드래곤을 처치하세요."),
+                Component.literal("§7첫 번째로 지정한 침대만 리스폰 지점으로 사용할 수 있습니다."),
+                Component.literal("§7레이드는 침대 유무와 관계없이 매일 밤 등장합니다."),
+                Component.literal("§7침대가 없거나 파괴된 상태에서 사망하면 챌린지에서 탈락합니다."),
+                Component.literal(""),
+                button("   [게임 시작]", ChatFormatting.GREEN,
+                        "/beddefense setup", "난이도·시간·레이드 편성 배속을 설정합니다"),
+                Component.literal("§8/beddefense · 채팅 메뉴 다시 열기"),
+                Component.literal("§8━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        );
     }
 
     /** Called only after the explicit setup wizard and 3-second countdown. */

@@ -63,3 +63,8 @@ CI executes compiler, unit tests and real server GameTests; the release pipeline
 - Summon Ender Dragon boss bar outside raid: should sit just below the special-bed status line; during a raid/countdown, spacing remains sufficient for the warning/count.
 - Finish a run, type /beddefense: [다시 시작] opens settings, 3-second countdown, new 1일차 and stopwatch. Previous bed owner and HP, raid day and players are reset. Normal world construction/inventory is **not** rolled back (it is not a new seed/world).
 - A completed run's restart must not be triggered by merely opening setup or cancelling it; reset happens only at confirmed countdown finish.
+
+## Alpha.4 scoped first-join chat UX
+- World entry before the challenge starts: **greeting → introduction and objective/rules → clickable [게임 시작]**. The action opens the existing settings screen. Completed and running challenge menus remain unchanged.
+- Setup final `[설정 완료 · 시작]` button is **bold pale-lime** (#A8FF73), while `[취소]` remains secondary gray. Existing 3-second countdown behavior remains unchanged.
+- **Not changed yet** (awaiting user discussion): spacing between setup groups; Spawn Bed glowing visual effect; difficulty multiplier balancing. No increased mob counts, AI stats, or damage effects in this alpha.

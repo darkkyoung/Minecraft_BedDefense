@@ -9,6 +9,7 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -180,6 +181,15 @@ public final class ChallengeSetupWizard {
                 .withHoverEvent(new HoverEvent.ShowText(Component.literal("선택: "+label))));
     }
 
+    /** Dedicated pale-lime primary action, distinct from the gray inactive options. */
+    static MutableComponent confirmStartButton() {
+        return Component.literal(" [설정 완료 · 시작] ").withStyle(style -> style
+                .withColor(TextColor.fromRgb(0xA8FF73))
+                .withBold(true)
+                .withClickEvent(new ClickEvent.RunCommand("/beddefense setup confirm"))
+                .withHoverEvent(new HoverEvent.ShowText(Component.literal("설정을 확정하고 3초 후 시작합니다"))));
+    }
+
     public static void show(ServerPlayer player, Session s) {
         ChallengeMenu.clearMenuChat(player);
         player.sendSystemMessage(Component.literal("§6§l──── 베드 디펜스 · 게임 설정 ────"));
@@ -204,7 +214,7 @@ public final class ChallengeSetupWizard {
                     .append(choice("[+1] ","/beddefense setup adjust 1",false))
                     .append(choice("[+5]","/beddefense setup adjust 5",false)));
         }
-        player.sendSystemMessage(choice(" [설정 완료 · 시작] ","/beddefense setup confirm",false)
+        player.sendSystemMessage(confirmStartButton()
                 .append(choice("[취소]","/beddefense setup cancel",false)));
     }
 }

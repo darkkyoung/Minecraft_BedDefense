@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0-alpha.4+26.3 — Welcome introduction and pale-lime setup confirm
+- First join and `/beddefense` before starting now present the **AllBlocks-inspired greeting → introduction/goal/essential rules → [게임 시작]** order. Start action remains a clickable command to open the existing setup.
+- **[설정 완료 · 시작]** is now a bold pale-lime primary chat action instead of the generic gray unselected control.
+- No changes to setup-section spacing, Spawn Bed block highlighting, raid difficulty balance, mod launcher UI, or challenge rules; those are pending user discussion.
+- Added focused unit tests for welcome ordering and primary-action style.
+
+
 ## 0.2.0-alpha.3+26.3 — Bed feedback and same-world replay
 - The large **살아남으세요** title/sound now triggers only when a direct raid mob attack reduces the unique bed to zero HP; manual pickup, missing bed, sunrise and dimensional penalties do not use it.
 - Clicking an ineligible ordinary bed emits subtle black smoke and rejects sleep/respawn.
