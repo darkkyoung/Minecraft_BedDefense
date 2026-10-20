@@ -44,6 +44,7 @@ public final class BedDefense implements ModInitializer {
                 if(entity instanceof net.minecraft.world.entity.boss.enderdragon.EnderDragon)ChallengeLifecycle.dragonKilled(level.getServer());}
         });
         ServerEntityEvents.ENTITY_LOAD.register(RaidManager::onLoad);
+        ServerEntityEvents.ENTITY_LOAD.register(SpawnBedGlow::onLoad);
         ServerEntityEvents.ENTITY_UNLOAD.register((entity,level)->{
             if(entity.getRemovalReason()!=null&&entity.getRemovalReason().shouldDestroy()){
                 RaidManager.onMobDeath(entity,level.getServer());
@@ -145,6 +146,7 @@ public final class BedDefense implements ModInitializer {
             BlockCrackDemo.tick(server);
             ChallengeSetupWizard.tick(server);
             SpawnBedPrototype.tick(server);
+            SpawnBedGlow.finishTick(server);
             if (++hudClockSyncCounter < 4) {
                 return;
             }
