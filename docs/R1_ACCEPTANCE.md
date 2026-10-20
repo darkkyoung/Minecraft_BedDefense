@@ -39,3 +39,19 @@ Target: Minecraft Java 26.3 / Fabric / Java 25. Run in a **new disposable world*
 CI executes compiler, unit tests and real server GameTests; the release pipeline additionally executes Windows launcher file-preservation/recovery, real bundle validation, WPF single-EXE smoke, public updater download/checksum checks.
 
 **Physical Acceptance Pending:** human client graphics/audio, live combat/pathfinding feel, multiplayer latency, modpack interactions and a natural full 100-day playthrough. Headless server tests cannot certify these. The exact external 100-day v2 type sheet was not present; existing PR counts/type distribution are preserved with explicitly documented captain/buff additions.
+
+## Alpha.2: chat countdown and Spawn Bed heading
+
+- First join and every option selection must display only **one** current menu block:
+  the server clears the prior chat menu (same client protocol as AllBlocks master)
+  before sending the new menu; selected options remain in the persistent world settings.
+- Clicking **[설정 완료 · 시작]** closes the chat and clears the previous menu
+  *before* the first centered title `3`; then `2`, `1`, and `시작!` occur.
+  Verify the game view stays visible during the countdown.
+- Top-center `스폰 침대` title uses actual Minecraft **bold** glyphs
+  scaled to 150%, centered above the unchanged vanilla boss bar.
+  Unregistered = neutral gray, installed = green, carried = yellow,
+  destroyed = red. The explanatory status line stays at standard font size.
+- Check all four states using `/beddefense debug preview` in a disposable test world;
+  verify title does not overlap the HP bar, raid count, or vanilla boss bars.
+- These are visual/chat fixes only. No gameplay/launcher install logic changed.

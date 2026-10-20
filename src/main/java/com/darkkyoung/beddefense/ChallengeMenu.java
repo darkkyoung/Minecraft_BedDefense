@@ -1,6 +1,8 @@
 package com.darkkyoung.beddefense;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.darkkyoung.beddefense.network.MenuUiPayload;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -20,6 +22,20 @@ public final class ChallengeMenu {
                 }));
     }
 
+    /** Mirrors AllBlocks master: remove the last menu before printing its updated state. */
+    public static void clearMenuChat(ServerPlayer player) {
+        if (ServerPlayNetworking.canSend(player, MenuUiPayload.TYPE))
+            ServerPlayNetworking.send(player, new MenuUiPayload(false));
+    }
+
+    /** Send once before the first countdown title; avoid leaving chat over the 3-2-1. */
+    public static void closeChatForCountdown(MinecraftServer server) {
+        for (ServerPlayer target : server.getPlayerList().getPlayers()) {
+            if (ServerPlayNetworking.canSend(target, MenuUiPayload.TYPE))
+                ServerPlayNetworking.send(target, new MenuUiPayload(true));
+        }
+    }
+
     public static long overworldClock(MinecraftServer server) {
         return server.clockManager()
                 .getInstance(server.overworld().dimensionType().defaultClock().orElseThrow())
@@ -27,6 +43,7 @@ public final class ChallengeMenu {
     }
 
     public static void show(ServerPlayer player, MinecraftServer server) {
+        clearMenuChat(player);
         ChallengeData data = ChallengeData.get(server.overworld());
         if (!data.isStarted()) {
             // Requested layout: start button FIRST, rules below as plain chat text.
@@ -65,6 +82,7 @@ public final class ChallengeMenu {
     }
 
     public static void status(ServerPlayer player, MinecraftServer server) {
+        clearMenuChat(player);
         ChallengeData data = ChallengeData.get(server.overworld());
         if (!data.isStarted()) {
             player.sendSystemMessage(Component.literal("§e도전 시작 전입니다."));

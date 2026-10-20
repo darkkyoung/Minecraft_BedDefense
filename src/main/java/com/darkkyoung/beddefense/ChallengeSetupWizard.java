@@ -107,7 +107,8 @@ public final class ChallengeSetupWizard {
         if(s.countdown >= 0)return false;
         s.countdown = COUNTDOWN_TICKS;
         s.lastSecond = 3;
-        player.sendSystemMessage(Component.literal("§6[베드 디펜스] §f3초 뒤 도전을 시작합니다."));
+        // AllBlocks master: remove the chat overlay first, then show title 3/2/1.
+        ChallengeMenu.closeChatForCountdown(server);
         countdownTitle(server,3);
         return true;
     }
@@ -180,6 +181,7 @@ public final class ChallengeSetupWizard {
     }
 
     public static void show(ServerPlayer player, Session s) {
+        ChallengeMenu.clearMenuChat(player);
         player.sendSystemMessage(Component.literal("§6§l──── 베드 디펜스 · 게임 설정 ────"));
         player.sendSystemMessage(Component.literal("§f난이도: §e"+s.difficulty+" §7(현재 밸런스는 모두 동일)"));
         player.sendSystemMessage(choice(" [쉬움] ","/beddefense setup difficulty easy",s.difficulty.equals("쉬움"))

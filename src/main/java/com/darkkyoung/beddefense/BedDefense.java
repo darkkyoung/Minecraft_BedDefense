@@ -4,6 +4,7 @@ import com.darkkyoung.beddefense.network.ClockSyncPayload;
 import com.darkkyoung.beddefense.network.BedStatusPayload;
 import com.darkkyoung.beddefense.network.HudControlPayload;
 import com.darkkyoung.beddefense.network.RaidStatusPayload;
+import com.darkkyoung.beddefense.network.MenuUiPayload;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.api.ModInitializer;
@@ -35,6 +36,7 @@ public final class BedDefense implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(BedStatusPayload.TYPE, BedStatusPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(HudControlPayload.TYPE, HudControlPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RaidStatusPayload.TYPE, RaidStatusPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(MenuUiPayload.TYPE, MenuUiPayload.CODEC);
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
             if(entity.level() instanceof ServerLevel level)
                 {RaidManager.onMobDeath(entity,level.getServer());

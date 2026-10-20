@@ -156,7 +156,7 @@ public final class BedDefenseHud {
 
         // Vanilla boss bar positioned like AllBlocks progress bar at top-center.
         int barX = (screenWidth - BAR_WIDTH) / 2;
-        int barY = 21;
+        int barY = 26;
         int state = switch(preview) {
             case OFF -> serverBedState;
             case PLACED -> 1;
@@ -189,20 +189,28 @@ public final class BedDefenseHud {
         if(progress>0)graphics.blitSprite(RenderPipelines.GUI_TEXTURED, foreground,
                 BAR_WIDTH,BAR_HEIGHT,0,0,barX+jitter,barY,progress,BAR_HEIGHT);
 
-        drawCentered(graphics,font,"스폰 침대",screenWidth,8,WHITE);
-        if(state==0)drawCentered(graphics,font,"스폰 침대를 지정하세요",screenWidth,32,WHITE);
-        if(state==3)drawCentered(graphics,font,"스폰 침대 미설치 · 사망 시 패배",screenWidth,32,YELLOW);
-        if(state==2)drawCentered(graphics,font,"스폰 침대 파괴 · 마지막 생존",screenWidth,32,RED);
+        // AllBlocks-style centerpiece: the BED NAME is larger and bolder than its status.
+        // Unregistered stays neutral gray; live states mirror their HP bar colors.
+        int bedTitleColor = switch (state) {
+            case 1 -> GREEN;   // registered/placed
+            case 2 -> RED;     // permanently destroyed
+            case 3 -> YELLOW;  // portable/unplaced
+            default -> 0xFFB8B8B8;
+        };
+        drawCenteredBoldScaled(graphics, font, "스폰 침대", screenWidth, 5, bedTitleColor, 1.5F);
+        if(state==0)drawCentered(graphics,font,"스폰 침대를 지정하세요",screenWidth,35,WHITE);
+        if(state==3)drawCentered(graphics,font,"스폰 침대 미설치 · 사망 시 패배",screenWidth,35,YELLOW);
+        if(state==2)drawCentered(graphics,font,"스폰 침대 파괴 · 마지막 생존",screenWidth,35,RED);
 
         long toRaid = ticksUntilBedtime(dayTime);
         if (outcome==1 && toRaid > 0L && toRaid <= WARNING_DURATION_TICKS) {
             String warning = "레이드까지 " + formatWarning(toRaid) + "초...";
-            drawCentered(graphics, font, warning, screenWidth, 61, RAID_ORANGE);
+            drawCentered(graphics, font, warning, screenWidth, 64, RAID_ORANGE);
         }
 
         if(activeRaidDay>0 && running) {
             drawCentered(graphics,font,"남은 몬스터 수 : "+activeRaidRemaining+" / "+activeRaidTotal,
-                    screenWidth,47,WHITE);
+                    screenWidth,50,WHITE);
         }
         if (preview != Preview.OFF) {
             // All raid indicators are visibly tagged as preview to avoid implying live gameplay.
@@ -246,6 +254,19 @@ public final class BedDefenseHud {
                     return translated.equals(translationKey) ? "알 수 없는 생물 군계" : translated;
                 })
                 .orElse("알 수 없는 생물 군계");
+    }
+
+    /** Render vanilla bold glyphs 50% larger without distorting the boss-bar sprite. */
+    private static void drawCenteredBoldScaled(GuiGraphicsExtractor graphics, Font font,
+                                               String label, int screenWidth, int y,
+                                               int color, float scale) {
+        Component boldLabel = Component.literal(label).withStyle(net.minecraft.ChatFormatting.BOLD);
+        float left = (screenWidth - font.width(boldLabel) * scale) / 2.0F;
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(left, y);
+        graphics.pose().scale(scale, scale);
+        graphics.text(font, boldLabel, 0, 0, color, true);
+        graphics.pose().popMatrix();
     }
 
     private static void drawCentered(GuiGraphicsExtractor graphics, Font font,

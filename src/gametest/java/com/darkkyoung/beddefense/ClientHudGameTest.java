@@ -25,7 +25,10 @@ public class ClientHudGameTest implements FabricClientGameTest {
             context.runOnClient(mc->mc.player.connection.sendCommand("beddefense setup"));context.waitTicks(3);
             context.runOnClient(mc->mc.player.connection.sendCommand("beddefense setup time reset"));
             context.runOnClient(mc->mc.player.connection.sendCommand("beddefense setup stride 2"));
+            // Exercise actual client-side chat closing on the setup confirmation.
+            context.runOnClient(mc->mc.gui.setScreen(new net.minecraft.client.gui.screens.ChatScreen("", false)));
             context.runOnClient(mc->mc.player.connection.sendCommand("beddefense setup confirm"));
+            context.waitFor(mc->mc.gui.screen()==null);
             context.waitTicks(65);context.waitFor(mc->BedDefenseHud.hardcoreRisk());
             context.waitFor(mc->"살아남으세요".equals(title(mc)));
             context.runOnClient(mc->{
