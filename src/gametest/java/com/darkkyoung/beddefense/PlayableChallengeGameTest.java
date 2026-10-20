@@ -3,7 +3,6 @@ package com.darkkyoung.beddefense;
 import com.mojang.serialization.JsonOps;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.Items;
 import java.util.*;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
@@ -94,7 +93,7 @@ public class PlayableChallengeGameTest {
                         "special-bed break must cancel vanilla block destruction");
                 ItemEntity dropped=soleBedDrop(h,world,foot);
                 h.assertTrue(dropped!=null,"one uniquely tagged portable bed item on ground");
-                h.assertTrue(!world.getBlockState(foot).getBlock().equals(Blocks.WHITE_BED)
+                h.assertTrue(world.getBlockState(foot).isAir()
                         && world.getBlockState(foot.south()).isAir(),
                         "both bed halves removed before vanilla neighbor drops");
                 h.assertTrue(portableInventoryCount(p)==beforeInventory,
@@ -221,7 +220,7 @@ public class PlayableChallengeGameTest {
         ItemEntity single=null;
         int all=0;
         for(Entity entity:world.getAllEntities()){
-            if(entity instanceof ItemEntity drop && drop.getItem().is(Items.WHITE_BED)
+            if(entity instanceof ItemEntity drop && drop.getItem().is(BuiltInRegistries.ITEM.getValue(Identifier.parse("minecraft:white_bed")))
                 && entity.distanceToSqr(position.getX()+0.5,position.getY()+0.5,position.getZ()+0.5)<9){
                 all++;
                 if(SpawnBedPrototype.isPortable(drop.getItem()))single=drop;
