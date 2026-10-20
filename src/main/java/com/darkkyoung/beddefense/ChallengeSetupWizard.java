@@ -35,7 +35,7 @@ public final class ChallengeSetupWizard {
     }
 
     public static boolean begin(MinecraftServer server, ServerPlayer player) {
-        if (ChallengeData.get(server.overworld()).isStarted()) {
+        if (ChallengeData.get(server.overworld()).running()) {
             player.sendSystemMessage(Component.literal("§e이미 진행 중입니다. 설정을 다시 시작할 수 없습니다."));
             return false;
         }
@@ -117,7 +117,7 @@ public final class ChallengeSetupWizard {
         if(s==null||s.countdown<0)return;
         ServerPlayer owner = server.getPlayerList().getPlayer(s.owner);
         if(owner==null){SESSIONS.remove(server);return;}
-        if (ChallengeData.get(server.overworld()).isStarted()){SESSIONS.remove(server);return;}
+        if (ChallengeData.get(server.overworld()).running()){SESSIONS.remove(server);return;}
         --s.countdown;
         if (s.countdown <= 0) {
             // Settings were saved on each edit; only the run begins after the countdown.
@@ -165,7 +165,7 @@ public final class ChallengeSetupWizard {
     private static Session controlled(MinecraftServer server, ServerPlayer player) {
         Session s=SESSIONS.get(server);
         if(s==null||s.countdown>=0||!s.owner.equals(player.getUUID())
-                ||ChallengeData.get(server.overworld()).isStarted()) {
+                ||ChallengeData.get(server.overworld()).running()) {
             player.sendSystemMessage(Component.literal("§c설정 권한이 없거나 이미 시작되었습니다. /beddefense"));
             return null;
         }

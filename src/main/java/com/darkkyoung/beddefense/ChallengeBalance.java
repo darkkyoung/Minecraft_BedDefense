@@ -5,7 +5,7 @@ public final class ChallengeBalance {
     private ChallengeBalance(){}
     public static final int SUNRISE_HP_PER_SURVIVOR=1;
     public static final int DIMENSION_DEATH_HP=20;
-    public static final int REPAIR_HP_PER_IRON=10;
+    public static final int REPAIR_HP_PER_GEM=1;
     public static final int ACTIVE_RAIDERS_PER_DIMENSION=128;
     public static final int SPAWNS_PER_SECOND=8;
     public static final int PATH_REQUESTS_PER_SECOND=32;

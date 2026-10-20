@@ -94,4 +94,9 @@ public final class RaidStateData extends SavedData {
     }
     public void finish(){activeDay=-1;glowStarted=false;totalSpawned=remaining();setDirty();}
     public void stop(){cleanup.addAll(raiders.keySet());raiders.clear();pending.clear();finish();}
+    /** Preserve unload-cleanup UUIDs, but reset the day-one spawn ledger. */
+    public void resetForNewRun(){
+        cleanup.addAll(raiders.keySet());raiders.clear();pending.clear();
+        lastRaidDay=0;activeDay=-1;totalSpawned=0;glowStarted=false;setDirty();
+    }
 }

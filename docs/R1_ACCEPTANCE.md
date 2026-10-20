@@ -55,3 +55,11 @@ CI executes compiler, unit tests and real server GameTests; the release pipeline
 - Check all four states using `/beddefense debug preview` in a disposable test world;
   verify title does not overlap the HP bar, raid count, or vanilla boss bars.
 - These are visual/chat fixes only. No gameplay/launcher install logic changed.
+
+## Alpha.3 feedback acceptance (2026-10-20)
+- Test raid-mob last HP hit vs owner pickup, externally destroyed bed, sunrise penalty, Nether/End penalty and no-bed start. **Only raid hit triggers '살아남으세요' title and Wither sound.** Risk hearts remain a separate visual state.
+- Attempt other ordinary bed with a registered Spawn Bed: smoke from the rejected bed, error chat; no vanilla spawn setting or sleep.
+- At HP 99, repair with one emerald or diamond: HP reaches 100 and consumes one item. Iron ingot does not repair; no item consumed at full HP.
+- Summon Ender Dragon boss bar outside raid: should sit just below the special-bed status line; during a raid/countdown, spacing remains sufficient for the warning/count.
+- Finish a run, type /beddefense: [다시 시작] opens settings, 3-second countdown, new 1일차 and stopwatch. Previous bed owner and HP, raid day and players are reset. Normal world construction/inventory is **not** rolled back (it is not a new seed/world).
+- A completed run's restart must not be triggered by merely opening setup or cancelling it; reset happens only at confirmed countdown finish.

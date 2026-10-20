@@ -59,7 +59,8 @@ public final class SpawnBedPrototype {
         removeBlocks(world,foot);
         if(!player.getInventory().add(item))player.spawnAtLocation(world,item);
         player.sendSystemMessage(Component.literal("§e스폰 침대 회수 · HP "+health.hp(owner)+" 유지 · 미설치 상태에서 사망하면 탈락합니다."));
-        if(ChallengeData.get(world).running())RaidManager.survivalWarning(player,world.getServer());return true;
+        // Manual pickup is a temporary unsafe state, NOT an enemy victory.
+        return true;
     }
     public static boolean isPortable(ItemStack item){return item.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag().contains("beddefense_token");}
     public static InteractionResult onUse(net.minecraft.world.entity.player.Player player,Level world,InteractionHand hand,BlockHitResult hit){
@@ -78,24 +79,33 @@ public final class SpawnBedPrototype {
         }
         BlockPos foot=footPosition(hit.getBlockPos(),state);UUID owner=ownerAt(overworld,foot,world.getBlockState(foot));
         BedVitalData health=BedVitalData.get(overworld);SpawnBedData positions=SpawnBedData.get(overworld);
-        if(owner!=null&&!owner.equals(sp.getUUID()))return deny(sp,"다른 플레이어의 스폰 침대입니다.");
+        if(owner!=null&&!owner.equals(sp.getUUID()))return denyBedChoice(sp,overworld,foot,"다른 플레이어의 스폰 침대입니다.");
         if(positions.isRegistered(sp.getUUID())){
             if(health.state(sp.getUUID())==0)health.register(sp.getUUID());
             if(health.state(sp.getUUID())!=1||!foot.equals(positions.getPosition(sp.getUUID())))
-                return deny(sp,"다른 일반 침대로 수면·리스폰 지정·스폰 침대 교체를 할 수 없습니다.");
+                return denyBedChoice(sp,overworld,foot,"이 침대는 사용할 수 없습니다. 지정한 스폰 침대만 사용할 수 있습니다.");
         }else{
             positions.registerFirst(sp.getUUID(),foot);health.register(sp.getUUID());
             setRespawn(sp,overworld,foot);particles(overworld,foot,true);
-            sp.sendSystemMessage(Component.literal("§a스폰 침대가 지정되었습니다. HP 100 · 철 주괴로 수리할 수 있습니다."));
+            sp.sendSystemMessage(Component.literal("§a스폰 침대가 지정되었습니다. HP 100 · 에메랄드/다이아몬드 1개로 HP 1 회복"));
         }
         setRespawn(sp,overworld,foot); // Daytime registration does not depend on vanilla sleep success.
-        if(held.is(Items.IRON_INGOT)&&health.repair(sp.getUUID(),ChallengeBalance.REPAIR_HP_PER_IRON)>0){
+        if((held.is(Items.EMERALD)||held.is(Items.DIAMOND))
+                &&health.repair(sp.getUUID(),ChallengeBalance.REPAIR_HP_PER_GEM)>0){
             held.shrink(1);particles(overworld,foot,true);return InteractionResult.SUCCESS;
         }
         if(RaidManager.isActive(level.getServer()))return deny(sp,"레이드 중에는 잠을 잘 수 없습니다.");
         return InteractionResult.PASS;
     }
     private static InteractionResult deny(ServerPlayer player,String message){player.sendSystemMessage(Component.literal("§c"+message));return InteractionResult.FAIL;}
+    private static InteractionResult denyBedChoice(ServerPlayer player,ServerLevel world,BlockPos foot,String reason){
+        // Subtle dark smoke at the rejected bed: feedback without placing or setting spawn.
+        world.sendParticles(ParticleTypes.SMOKE,foot.getX()+0.5,foot.getY()+0.65,foot.getZ()+0.5,
+                6,0.28,0.13,0.28,0.008);
+        return deny(player,reason);
+    }
+    /** Only a raider's direct HP attack can play the large survival title/sound. */
+    public static boolean isRaiderBedKill(String cause){return "raid".equals(cause);}
     public static boolean place(ServerPlayer player,ServerLevel world,ItemStack item,BlockHitResult hit){
         ServerLevel overworld=world.getServer().overworld();BedVitalData health=BedVitalData.get(overworld);
         CompoundTag tag=item.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
@@ -145,12 +155,16 @@ public final class SpawnBedPrototype {
         if(old.getBlock()==next.getBlock()&&old.getValue(BedBlock.FACING)==next.getValue(BedBlock.FACING)&&old.getValue(BedBlock.PART)==next.getValue(BedBlock.PART))return;
         UUID owner=ownerAt(world,pos,old);if(owner==null)return;
         BedVitalData.get(world).destroy(owner,"external_block_removal");
-        removeBlocks(world,footPosition(pos,old));warnOwner(world.getServer(),owner);
+        // Explosions, commands and external block changes do not use the raid-kill title.
+        removeBlocks(world,footPosition(pos,old));
     }
     public static int damage(MinecraftServer server,UUID owner,int amount,String cause){
         BedVitalData health=BedVitalData.get(server.overworld());int before=health.hp(owner);
         int remaining=health.damage(owner,amount,cause);
-        if(before>0&&remaining==0){removeBlocks(server.overworld(),SpawnBedData.get(server.overworld()).getPosition(owner));warnOwner(server,owner);}
+        if(before>0&&remaining==0){
+            removeBlocks(server.overworld(),SpawnBedData.get(server.overworld()).getPosition(owner));
+            if(isRaiderBedKill(cause))warnOwner(server,owner);
+        }
         return remaining;
     }
     private static void warnOwner(MinecraftServer server,UUID owner){ServerPlayer p=server.getPlayerList().getPlayer(owner);if(p!=null)RaidManager.survivalWarning(p,server);}
@@ -173,7 +187,7 @@ public final class SpawnBedPrototype {
         for(var entry:SpawnBedData.get(world).positions().entrySet()){
             if(BedVitalData.get(world).state(entry.getKey())!=1||!world.isLoaded(entry.getValue()))continue;
             if(!(world.getBlockState(entry.getValue()).getBlock() instanceof BedBlock)){
-                BedVitalData.get(world).destroy(entry.getKey());warnOwner(server,entry.getKey());
+                BedVitalData.get(world).destroy(entry.getKey());
             }else particles(world,entry.getValue(),false);
         }
     }

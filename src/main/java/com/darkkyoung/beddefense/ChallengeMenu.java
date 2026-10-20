@@ -50,7 +50,10 @@ public final class ChallengeMenu {
             player.sendSystemMessage(button(" [게임 시작] ", ChatFormatting.GREEN,
                     "/beddefense setup", "난이도·시간·레이드 편성 진행 배속을 설정합니다"));
         } else if(!data.running()) {
-            player.sendSystemMessage(Component.literal(data.outcome()==ChallengeData.WON?"§a챌린지 성공!":"§c챌린지 실패: "+data.reason()));
+            player.sendSystemMessage(Component.literal(data.outcome()==ChallengeData.WON?"§a지난 챌린지 성공!":"§c지난 챌린지 실패: "+data.reason()));
+            player.sendSystemMessage(button(" [다시 시작] ", ChatFormatting.GREEN,
+                    "/beddefense setup","기존 월드를 보존하고 새 도전의 설정을 엽니다"));
+            player.sendSystemMessage(Component.literal("§7이전 침대 HP·레이드·도전 시간만 초기화하며, 월드·일반 아이템은 유지됩니다."));
         } else {
             player.sendSystemMessage(Component.literal("§a진행 중 §f"
                     + data.day(overworldClock(server)) + "일차"));
@@ -61,13 +64,17 @@ public final class ChallengeMenu {
         player.sendSystemMessage(Component.literal("§7침대: §f첫 번째 스폰 침대가 유일한 리스폰 지점입니다."));
         player.sendSystemMessage(Component.literal("§7레이드: §f침대 유무와 무관하게 매일 밤 등장하며 편성 진행 배속에 따라 강화됩니다."));
         player.sendSystemMessage(Component.literal("§7패배: §f침대가 없거나 파괴된 후 죽으면 탈락합니다."));
-        player.sendSystemMessage(Component.literal("§7수리: §f철 주괴를 들고 스폰 침대 우클릭 · 회수: 침대 파괴"));
+        player.sendSystemMessage(Component.literal("§7수리: §f에메랄드 또는 다이아몬드 1개 = HP 1 · 회수: 침대 파괴"));
         player.sendSystemMessage(Component.literal("§8/beddefense · 채팅 메뉴 다시 열기"));
     }
 
     /** Called only after the explicit setup wizard and 3-second countdown. */
     public static boolean startNow(ServerPlayer player, MinecraftServer server) {
         ChallengeData data = ChallengeData.get(server.overworld());
+        if (!ChallengeLifecycle.resetFinishedRun(server)) {
+            player.sendSystemMessage(Component.literal("§c기존 도전을 정리할 수 없어 다시 시작하지 않았습니다."));
+            return false;
+        }
         if (!data.start(server.overworld().getGameTime(), overworldClock(server))) {
             player.sendSystemMessage(Component.literal("§e이미 진행 중인 챌린지입니다."));
             return false;

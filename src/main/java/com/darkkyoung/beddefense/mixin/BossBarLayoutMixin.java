@@ -9,5 +9,5 @@ import org.spongepowered.asm.mixin.injection.ModifyConstant;
 @Mixin(BossHealthOverlay.class)
 abstract class BossBarLayoutMixin {
     @ModifyConstant(method="extractRenderState",constant=@Constant(intValue=12))
-    private int beddefense$reserveTop(int vanilla){return BedDefenseHud.reserveBossSpace()?86:vanilla;}
+    private int beddefense$reserveTop(int vanilla){return BedDefenseHud.vanillaBossBarTop(vanilla);}
 }

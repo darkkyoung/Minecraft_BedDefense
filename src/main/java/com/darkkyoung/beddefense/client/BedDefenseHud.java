@@ -49,7 +49,15 @@ public final class BedDefenseHud {
     private static boolean visible = true;
     private static boolean synced = false;
     private static int outcome;
-    public static boolean reserveBossSpace(){return visible&&synced;}
+    public static int vanillaBossBarTop(int original){
+        if(!visible||!synced)return original;
+        // Place the vanilla boss name immediately below the Spawn Bed status line,
+        // but keep room when daily-raid counters or the one-minute warning are present.
+        long countdown=ticksUntilBedtime(serverDayTime);
+        if(outcome==1&&countdown>0&&countdown<=WARNING_DURATION_TICKS)return 84;
+        if(activeRaidDay>0&&activeRaidRemaining>0)return 69;
+        return 49;
+    }
     public static boolean hardcoreRisk(){return synced&&outcome==1&&serverBedState!=1;}
     private static long serverDayTime;
     private static long serverElapsedTime;

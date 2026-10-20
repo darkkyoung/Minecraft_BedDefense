@@ -68,6 +68,20 @@ public class PlayableChallengeGameTest {
                 h.assertTrue(use(p,world,other)==InteractionResult.FAIL,"ordinary replacement bed blocked");
                 h.assertTrue(!p.startSleeping(other),"direct ordinary sleep also blocked by server mixin");
                 h.assertTrue(!p.startSleeping(foot),"raid blocks registered bed sleeping");
+                // Both precious materials restore exactly ONE HP each; iron no longer repairs.
+                p.setItemInHand(InteractionHand.MAIN_HAND,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_INGOT));
+                SpawnBedPrototype.damage(server,p.getUUID(),1,"test");
+                use(p,world,foot);
+                h.assertTrue(BedVitalData.get(world).hp(p.getUUID())==99,"iron ingot must NOT repair");
+                p.setItemInHand(InteractionHand.MAIN_HAND,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.EMERALD));
+                use(p,world,foot);
+                h.assertTrue(BedVitalData.get(world).hp(p.getUUID())==100 &&
+                        p.getMainHandItem().isEmpty(),"emerald consumed for exactly 1 HP");
+                SpawnBedPrototype.damage(server,p.getUUID(),1,"test");
+                p.setItemInHand(InteractionHand.MAIN_HAND,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND));
+                use(p,world,foot);
+                h.assertTrue(BedVitalData.get(world).hp(p.getUUID())==100 &&
+                        p.getMainHandItem().isEmpty(),"diamond consumed for exactly 1 HP");
                 SpawnBedPrototype.damage(server,p.getUUID(),37,"test");
                 h.assertTrue(SpawnBedPrototype.pickup(p,world),"owner pickup succeeds");
                 ItemStack portable=ItemStack.EMPTY;
@@ -149,6 +163,15 @@ public class PlayableChallengeGameTest {
                     h.assertTrue(ChallengeData.get(world).outcome()==ChallengeData.WON,"real Ender Dragon death wins challenge");
                     long frozen=ChallengeData.get(world).elapsedTicks(world.getGameTime());
                     h.assertTrue(ChallengeData.get(world).elapsedTicks(world.getGameTime()+2000)==frozen,"result freezes timer");
+                    // A completed run can be restarted safely in the same world.
+                    h.assertTrue(ChallengeLifecycle.resetFinishedRun(server),"completed run can reset on explicit confirmation");
+                    h.assertTrue(!ChallengeData.get(world).isStarted(),"old outcome and timer cleared");
+                    h.assertTrue(RaidStateData.get(world).lastRaidDay()==0,"old raid day no longer blocks day-one waves");
+                    h.assertTrue(SpawnBedData.get(world).positions().isEmpty(),"old owner-bed positions cleared");
+                    h.assertTrue(ChallengeData.get(world).start(world.getGameTime(),ChallengeMenu.overworldClock(server)),
+                        "new run begins again at day 1");
+                    h.assertTrue(ChallengeData.get(world).day(ChallengeMenu.overworldClock(server))==1,
+                        "new challenge starts at first day");
                     h.succeed();
                 });
                 });
