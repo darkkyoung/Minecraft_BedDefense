@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0-alpha.6+26.3 — Glowing unique bed marker
+- The sole Spawn Bed receives a green vanilla Glowing outline, in addition to the existing green particles.
+- A tiny, non-colliding two-part BlockDisplay overlay exactly tracks the real bed orientation. It never acts as a bed item or changes the bed's block state.
+- Outline entities are removed on pickup, block destruction, HP-zero or challenge restart; stale chunk-load entities are validated at the next server tick.
+- The earlier **one dropped portable Spawn Bed, no ordinary duplicate** fix is preserved unchanged.
+- Other challenge rules, difficulty and Windows launcher are unchanged.
+
+
 ## 0.2.0-alpha.5+26.3 — Unique Spawn Bed world-drop fix
 - A player breaking either half of their registered Spawn Bed now drops exactly **one** unique Spawn Bed as a world ItemEntity, following ordinary Minecraft pickup behavior. It is no longer inserted directly into inventory.
 - Both BedBlock halves are removed before neighbors are notified, preventing a vanilla **ordinary bed duplicate** when removing the special bed.

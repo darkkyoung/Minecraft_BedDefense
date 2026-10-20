@@ -67,6 +67,7 @@ public final class SpawnBedPrototype {
             player.sendSystemMessage(Component.literal("§c스폰 침대 아이템을 떨어뜨리지 못해 회수가 취소되었습니다."));
             return false;
         }
+        SpawnBedGlow.clear(world,foot);
         removeBlocks(world,foot);
         player.sendSystemMessage(Component.literal("§e스폰 침대 회수 · HP "+health.hp(owner)+" 유지 · 아이템을 바닥에 떨어뜨렸습니다."));
         // Manual pickup is a temporary unsafe state, NOT an enemy victory.
@@ -97,6 +98,7 @@ public final class SpawnBedPrototype {
         }else{
             positions.registerFirst(sp.getUUID(),foot);health.register(sp.getUUID());
             setRespawn(sp,overworld,foot);particles(overworld,foot,true);
+            SpawnBedGlow.ensure(overworld,foot);
             sp.sendSystemMessage(Component.literal("§a스폰 침대가 지정되었습니다. HP 100 · 에메랄드/다이아몬드 1개로 HP 1 회복"));
         }
         setRespawn(sp,overworld,foot); // Daytime registration does not depend on vanilla sleep success.
@@ -142,6 +144,7 @@ public final class SpawnBedPrototype {
             world.updateNeighborsAt(foot,block);world.updateNeighborsAt(head,block);
         }finally{changingBed=false;}
         setRespawn(player,overworld,foot);particles(world,foot,true);
+        SpawnBedGlow.ensure(world,foot);
         player.sendSystemMessage(Component.literal("§a스폰 침대 재설치 · HP "+health.hp(owner)));return true;
     }
     public static void setRespawn(ServerPlayer player,ServerLevel level,BlockPos foot){
@@ -165,6 +168,7 @@ public final class SpawnBedPrototype {
         if(old.getBlock()==next.getBlock()&&old.getValue(BedBlock.FACING)==next.getValue(BedBlock.FACING)&&old.getValue(BedBlock.PART)==next.getValue(BedBlock.PART))return;
         UUID owner=ownerAt(world,pos,old);if(owner==null)return;
         BedVitalData.get(world).destroy(owner,"external_block_removal");
+        SpawnBedGlow.clear(world,footPosition(pos,old));
         // Explosions, commands and external block changes do not use the raid-kill title.
         removeBlocks(world,footPosition(pos,old));
     }
@@ -172,6 +176,7 @@ public final class SpawnBedPrototype {
         BedVitalData health=BedVitalData.get(server.overworld());int before=health.hp(owner);
         int remaining=health.damage(owner,amount,cause);
         if(before>0&&remaining==0){
+            SpawnBedGlow.clear(server.overworld(),SpawnBedData.get(server.overworld()).getPosition(owner));
             removeBlocks(server.overworld(),SpawnBedData.get(server.overworld()).getPosition(owner));
             if(isRaiderBedKill(cause))warnOwner(server,owner);
         }
@@ -180,6 +185,7 @@ public final class SpawnBedPrototype {
     private static void warnOwner(MinecraftServer server,UUID owner){ServerPlayer p=server.getPlayerList().getPlayer(owner);if(p!=null)RaidManager.survivalWarning(p,server);}
     public static void removeBlocks(ServerLevel world,BlockPos foot){
         if(foot==null)return;
+        SpawnBedGlow.clear(world,foot);
         boolean previous=changingBed;changingBed=true;
         try{
             BlockState state=world.getBlockState(foot);
@@ -201,10 +207,19 @@ public final class SpawnBedPrototype {
         if(server.overworld().getGameTime()%12!=0)return;
         ServerLevel world=server.overworld();
         for(var entry:SpawnBedData.get(world).positions().entrySet()){
-            if(BedVitalData.get(world).state(entry.getKey())!=1||!world.isLoaded(entry.getValue()))continue;
-            if(!(world.getBlockState(entry.getValue()).getBlock() instanceof BedBlock)){
+            BlockPos foot=entry.getValue();
+            if(!world.isLoaded(foot))continue;
+            if(BedVitalData.get(world).state(entry.getKey())!=1){
+                SpawnBedGlow.clear(world,foot);
+                continue;
+            }
+            if(!(world.getBlockState(foot).getBlock() instanceof BedBlock)){
                 BedVitalData.get(world).destroy(entry.getKey());
-            }else particles(world,entry.getValue(),false);
+                SpawnBedGlow.clear(world,foot);
+            }else{
+                particles(world,foot,false);
+                SpawnBedGlow.ensure(world,foot);
+            }
         }
     }
     public static int[] status(ServerPlayer player,ServerLevel world){

@@ -85,6 +85,7 @@ public final class ChallengeLifecycle {
         // old chunks can never rejoin a new run.
         RaidManager.stop(server);
         RaidStateData.get(world).resetForNewRun();
+        SpawnBedGlow.clearAll(world);
         BedVitalData.get(world).resetForNewRun();
         SpawnBedData.get(world).resetForNewRun();
         if(!run.resetFinishedRun())return false;

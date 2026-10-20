@@ -75,3 +75,10 @@ CI executes compiler, unit tests and real server GameTests; the release pipeline
 - **Break its head** and repeat the one-drop/no-duplicate test. Confirm the BedBlock foot/head are both air, and no delayed ordinary drop appears from neighbor updates.
 - Destroy the bed in a raid: must NOT drop a portable Spawn Bed. Only player manual pickup produces the unique portable item.
 - Confirm no direct inventory insertion in Creative or Survival; user must collect the ground item.
+
+## Alpha.6 glowing Spawn Bed visibility acceptance
+1. On a throwaway survival world, register a two-part bed: existing green happy particles persist, plus a green glowing outline appears on both halves, even behind close walls.
+2. Break the head then the foot in separate tests: **exactly one** portable unique bed item drops in-world. No inventory teleport or second ordinary bed.
+3. Collect and reinstall the item: new outlined bed appears at the new location; old outline disappears.
+4. Break or permanently destroy the placed bed: no invisible glowing markers remain. Rejoin and revisit unloaded chunks after a new challenge to ensure stale markers are removed.
+5. Confirm transparent display entities have no collision or click interception and no obvious duplicate-texture flicker with shaders (Sodium/Iris).
