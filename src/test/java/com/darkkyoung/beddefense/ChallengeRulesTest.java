@@ -58,6 +58,59 @@ class ChallengeRulesTest {
         data.observeDay(100*24000);assertTrue(data.finish(ChallengeData.LOST,2100,"deadline"));assertFalse(data.finish(ChallengeData.WON,2200,"dragon"));
         assertEquals(2000,data.elapsedTicks(999999));assertEquals(101,data.day(0));
     }
+    @Test void completedChallengeRestartsWithNewDayOneButActiveRunCannotReset(){
+        ChallengeData state=new ChallengeData();
+        UUID owner=UUID.randomUUID();
+        state.start(100,0);state.join(owner);
+        assertFalse(state.resetFinishedRun()); // never reset an ongoing run
+        state.playerState(owner,ChallengeData.ELIMINATED);
+        assertTrue(state.finish(ChallengeData.LOST,400,"test"));
+        assertTrue(state.canRestart());
+        assertTrue(state.resetFinishedRun());
+        assertFalse(state.isStarted());
+        assertEquals(ChallengeData.READY,state.outcome());
+        assertEquals(-1,state.elapsedTicks(999));
+        assertFalse(state.allEliminated());
+        assertEquals("",state.reason());
+        assertFalse(state.resetFinishedRun()); // cannot reset READY twice
+        assertTrue(state.start(2000,3*24000));
+        assertEquals(1,state.day(3*24000));
+        assertEquals(0,state.elapsedTicks(2000));
+        state.join(owner);assertTrue(state.participating(owner));
+    }
+    @Test void newRunClearsBedAndRaidLedgerButRetainsUnloadedCleanup(){
+        UUID owner=UUID.randomUUID(),oldRaider=UUID.randomUUID();
+        BedVitalData bed=new BedVitalData();
+        bed.register(owner);bed.damage(owner,75);assertEquals(25,bed.hp(owner));
+        bed.resetForNewRun();
+        assertEquals(0,bed.state(owner));
+        assertEquals(0,bed.hp(owner));
+        bed.register(owner);
+        assertEquals(100,bed.hp(owner));
+        RaidStateData raid=new RaidStateData();
+        raid.launch(43,java.util.List.of(new RaidStateData.Pending(
+                "minecraft:overworld",owner.toString(),43,43,0,2)));
+        raid.track(oldRaider,new RaidStateData.Raider(
+                "minecraft:overworld",owner.toString(),43,43));
+        raid.resetForNewRun();
+        assertFalse(raid.active());
+        assertEquals(0,raid.lastRaidDay());
+        assertEquals(0,raid.remaining());
+        assertTrue(raid.pendingCleanup(oldRaider));
+        raid.launch(1,java.util.List.of(new RaidStateData.Pending(
+                "minecraft:overworld",owner.toString(),1,1,0,5)));
+        assertEquals(5,raid.remaining());
+        assertEquals(1,raid.lastRaidDay());
+    }
+    @Test void onlyDirectRaidBedDestructionShowsSurvivalTitle(){
+        assertTrue(SpawnBedPrototype.isRaiderBedKill("raid"));
+        for(String cause:java.util.List.of("owner_pickup","sunrise","dimension_death",
+                "external_block_removal","debug","client_test"))
+            assertFalse(SpawnBedPrototype.isRaiderBedKill(cause));
+        assertFalse(SpawnBedPrototype.isRaiderBedKill(null));
+        assertEquals(1,ChallengeBalance.REPAIR_HP_PER_GEM);
+    }
+
     @Test void clockRewindCannotExtendDeadline(){ChallengeData d=new ChallengeData();d.start(0,0);d.observeDay(40*24000);assertEquals(41,d.day(0));}
     @Test void morningLedgerCountsUnloadedAndQueuedByDimensionAndOwner(){
         String a=UUID.randomUUID().toString(),b=UUID.randomUUID().toString();UUID unloaded=UUID.randomUUID(),nether=UUID.randomUUID();

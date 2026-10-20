@@ -36,6 +36,8 @@ public final class SpawnBedData extends SavedData {
         return overworld.getDataStorage().computeIfAbsent(TYPE);
     }
 
+    /** Old registered beds become ordinary world beds when beginning a new run. */
+    public void resetForNewRun(){beds.clear();setDirty();}
     public boolean isRegistered(UUID player) {
         return beds.containsKey(player.toString());
     }

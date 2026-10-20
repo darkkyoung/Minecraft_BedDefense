@@ -57,5 +57,7 @@ public final class BedVitalData extends SavedData {
         states.put(owner.toString(),2);hp.put(owner.toString(),0);tokens.remove(owner.toString());causes.put(owner.toString(),cause);setDirty();return true;
     }
     public void debugHealth(UUID owner,int value){if(state(owner)!=1)return;if(value<=0)destroy(owner,"debug");else{hp.put(owner.toString(),Math.min(100,value));setDirty();}}
+    /** Discard only special bed ownership/HP from a completed run, not normal world blocks. */
+    public void resetForNewRun(){hp.clear();states.clear();tokens.clear();causes.clear();setDirty();}
     public boolean permanentlyDestroyed(UUID owner){return state(owner)==2;}
 }

@@ -37,6 +37,13 @@ public final class ChallengeData extends SavedData {
     }
     public static ChallengeData get(ServerLevel world) {return world.getDataStorage().computeIfAbsent(TYPE);}
     public boolean isStarted(){return startGameTick>=0;}
+    /** Completed challenges may be restarted; resetting never silently rewinds terrain. */
+    public boolean canRestart(){return isStarted()&&!running();}
+    public boolean resetFinishedRun(){
+        if(!canRestart())return false;
+        startGameTick=-1;startDayIndex=-1;stoppedElapsed=-1;lastDay=1;
+        outcome=READY;reason="";players.clear();setDirty();return true;
+    }
     public boolean running(){return outcome==RUNNING;}
     public int outcome(){return outcome;}
     public String reason(){return reason;}
