@@ -197,9 +197,11 @@ public final class ChallengeSetupWizard {
         player.sendSystemMessage(choice(" [쉬움] ","/beddefense setup difficulty easy",s.difficulty.equals("쉬움"))
                 .append(choice("[보통] ","/beddefense setup difficulty normal",s.difficulty.equals("보통")))
                 .append(choice("[어려움]","/beddefense setup difficulty hard",s.difficulty.equals("어려움"))));
+        player.sendSystemMessage(Component.literal(" "));
         player.sendSystemMessage(Component.literal("§f시작 시 인게임 시간"));
         player.sendSystemMessage(choice(" [현재 시간 유지] ","/beddefense setup time keep",!s.resetTime)
                 .append(choice("[1일차 아침으로 초기화]","/beddefense setup time reset",s.resetTime)));
+        player.sendSystemMessage(Component.literal(" "));
         player.sendSystemMessage(Component.literal("§f레이드 편성 진행: §e×"+s.raidStride+" §7(매일 레이드 1회)"));
         player.sendSystemMessage(Component.literal("§7×2 선택 시 실제 1·2·3일차에 편성표 1·3·5일차가 적용됩니다."));
         player.sendSystemMessage(choice(" [×1] ","/beddefense setup stride 1",!s.manual&&s.raidStride==1)
@@ -214,6 +216,7 @@ public final class ChallengeSetupWizard {
                     .append(choice("[+1] ","/beddefense setup adjust 1",false))
                     .append(choice("[+5]","/beddefense setup adjust 5",false)));
         }
+        player.sendSystemMessage(Component.literal(" "));
         player.sendSystemMessage(confirmStartButton()
                 .append(choice("[취소]","/beddefense setup cancel",false)));
     }
