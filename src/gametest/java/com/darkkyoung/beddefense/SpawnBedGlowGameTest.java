@@ -28,7 +28,7 @@ public final class SpawnBedGlowGameTest {
         SpawnBedGlow.ensure(world,foot); // Never spawn more markers when called every 12 ticks.
         var visual=world.getEntitiesOfClass(Display.BlockDisplay.class,
                 new AABB(foot).inflate(2.0),
-                entity->entity.getTags().contains("beddefense:spawn_bed_outline"));
+                entity->entity.entityTags().contains("beddefense:spawn_bed_outline"));
         h.assertTrue(visual.size()==2,
                 "Both bed halves have exactly one display glow each, not duplicate items: "+visual.size());
         for(var marker:visual){
@@ -39,7 +39,7 @@ public final class SpawnBedGlowGameTest {
         SpawnBedGlow.clear(world,foot);
         h.assertTrue(world.getEntitiesOfClass(Display.BlockDisplay.class,
                 new AABB(foot).inflate(2.0),
-                entity->entity.getTags().contains("beddefense:spawn_bed_outline")).isEmpty(),
+                entity->entity.entityTags().contains("beddefense:spawn_bed_outline")).isEmpty(),
                 "No glowing marker remains after manual pickup/destruction");
         h.succeed();
     }

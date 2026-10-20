@@ -64,7 +64,8 @@ public final class SpawnBedGlow {
             first.setGlowColorOverride(GLOW_COLOR);
             return;
         }
-        Display.BlockDisplay display=new Display.BlockDisplay(EntityType.BLOCK_DISPLAY,world);
+        Display.BlockDisplay display=new Display.BlockDisplay(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(
+                net.minecraft.resources.Identifier.fromNamespaceAndPath("minecraft","block_display")),world);
         display.addTag(TAG);
         display.addTag(positionTag(foot));
         display.addTag(halfTag);
@@ -90,16 +91,16 @@ public final class SpawnBedGlow {
                                                        BlockPos part,String half) {
         return level.getEntitiesOfClass(Display.BlockDisplay.class,
                 new AABB(part).inflate(0.2),
-                entity -> entity.getTags().contains(TAG) &&
-                        entity.getTags().contains(positionTag(foot)) &&
-                        entity.getTags().contains(half));
+                entity -> entity.entityTags().contains(TAG) &&
+                        entity.entityTags().contains(positionTag(foot)) &&
+                        entity.entityTags().contains(half));
     }
 
     public static void clear(ServerLevel world,BlockPos foot) {
         if(foot==null || !world.isLoaded(foot)) return;
         String encoded=positionTag(foot);
         for(Display.BlockDisplay display:world.getEntitiesOfClass(Display.BlockDisplay.class,
-                new AABB(foot).inflate(2.0),e->e.getTags().contains(TAG)&&e.getTags().contains(encoded)))
+                new AABB(foot).inflate(2.0),e->e.entityTags().contains(TAG)&&e.entityTags().contains(encoded)))
             display.discard();
     }
 
@@ -115,7 +116,7 @@ public final class SpawnBedGlow {
      */
     public static void onLoad(Entity entity,ServerLevel level) {
         if(entity instanceof Display.BlockDisplay &&
-                entity.getTags().contains(TAG) && level.dimension().equals(Level.OVERWORLD))
+                entity.entityTags().contains(TAG) && level.dimension().equals(Level.OVERWORLD))
             PENDING_LOADS.put(entity.getUUID(),level);
     }
 
@@ -133,7 +134,7 @@ public final class SpawnBedGlow {
     }
 
     private static BlockPos readFoot(Display.BlockDisplay display) {
-        for(String tag:display.getTags()){
+        for(String tag:display.entityTags()){
             if(tag.startsWith(POSITION_PREFIX)){
                 try{return BlockPos.of(Long.parseLong(tag.substring(POSITION_PREFIX.length())));}
                 catch(NumberFormatException ignored){return null;}
