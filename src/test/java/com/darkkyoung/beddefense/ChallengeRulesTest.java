@@ -9,7 +9,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class ChallengeRulesTest {
     @Test void welcomeIntroducesChallengeBeforeStartButton(){
         var lines=ChallengeMenu.welcomeMessages();
-        var visible=lines.stream().map(net.minecraft.network.chat.Component::getString).toList();
+        var visible=lines.stream().map(net.minecraft.network.chat.Component::getString)
+                .map(value->value.replaceAll("§[0-9a-fk-or]","")).toList();
         int greeting=visible.indexOf("베드 디펜스에 오신 것을 환영합니다!");
         int intro=visible.indexOf("낮에는 탐험하고, 밤에는 몬스터의 습격으로부터 침대를 지키는 100일 생존 챌린지입니다.");
         int start=-1;
