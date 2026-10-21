@@ -22,16 +22,19 @@ public final class ChallengeData extends SavedData {
         Codec.LONG.optionalFieldOf("stopped_elapsed",-1L).forGetter(d->d.stoppedElapsed),
         Codec.LONG.optionalFieldOf("last_day",1L).forGetter(d->d.lastDay),
         Codec.unboundedMap(Codec.STRING,Codec.INT).optionalFieldOf("participants",Map.of()).forGetter(d->Map.copyOf(d.players)),
-        Codec.STRING.optionalFieldOf("result_reason","").forGetter(d->d.reason)
+        Codec.STRING.optionalFieldOf("result_reason","").forGetter(d->d.reason),
+        Codec.BOOL.optionalFieldOf("hard_raid_profile",false).forGetter(d->d.hardRaidProfile)
     ).apply(i,ChallengeData::new));
     static final SavedDataType<ChallengeData> TYPE = new SavedDataType<>(
         Identifier.fromNamespaceAndPath("beddefense","challenge"),ChallengeData::new,CODEC,null);
     private long startGameTick,startDayIndex,stoppedElapsed,lastDay;
     private int outcome;
     private String reason;
+    private boolean hardRaidProfile;
     private final Map<String,Integer> players;
-    public ChallengeData() {this(-1,-1,0,-1,1,Map.of(),"");}
-    private ChallengeData(long tick,long day,int result,long stopped,long last,Map<String,Integer> players,String reason) {
+    public ChallengeData() {this(-1,-1,0,-1,1,Map.of(),"",false);}
+    private ChallengeData(long tick,long day,int result,long stopped,long last,Map<String,Integer> players,String reason,boolean hardRaidProfile) {
+        this.hardRaidProfile=hardRaidProfile;
         startGameTick=tick;startDayIndex=day;outcome=result==0&&tick>=0?RUNNING:result;
         stoppedElapsed=stopped;lastDay=last;this.players=new HashMap<>(players);this.reason=reason;
     }
@@ -42,14 +45,17 @@ public final class ChallengeData extends SavedData {
     public boolean resetFinishedRun(){
         if(!canRestart())return false;
         startGameTick=-1;startDayIndex=-1;stoppedElapsed=-1;lastDay=1;
-        outcome=READY;reason="";players.clear();setDirty();return true;
+        outcome=READY;reason="";hardRaidProfile=false;players.clear();setDirty();return true;
     }
     public boolean running(){return outcome==RUNNING;}
     public int outcome(){return outcome;}
     public String reason(){return reason;}
-    public boolean start(long tick,long clock){
+    public boolean hardRaidProfile(){return hardRaidProfile;}
+    public boolean start(long tick,long clock){return start(tick,clock,false);}
+    public boolean start(long tick,long clock,boolean hard){
         if(isStarted())return false;
-        startGameTick=tick;startDayIndex=Math.floorDiv(clock,24000);outcome=RUNNING;lastDay=1;setDirty();return true;
+        startGameTick=tick;startDayIndex=Math.floorDiv(clock,24000);outcome=RUNNING;lastDay=1;
+        hardRaidProfile=hard;setDirty();return true;
     }
     public long elapsedTicks(long tick){return !isStarted()?-1:stoppedElapsed>=0?stoppedElapsed:Math.max(0,tick-startGameTick);}
     public long day(long clock){return !isStarted()?-1:running()?Math.max(lastDay,Math.floorDiv(clock,24000)-startDayIndex+1):lastDay;}
