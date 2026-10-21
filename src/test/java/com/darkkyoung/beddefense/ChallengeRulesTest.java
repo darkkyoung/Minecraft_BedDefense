@@ -31,6 +31,62 @@ class ChallengeRulesTest {
         assertTrue(button.getString().contains("[설정 완료 · 시작]"));
     }
 
+    @Test void hardRosterAndBabyZombieSlots(){
+        assertEquals(12,HardRaidBalance.totalForDay(1));
+        assertEquals(58,HardRaidBalance.totalForDay(10));
+        assertEquals(107,HardRaidBalance.totalForDay(50));
+        assertEquals(125,HardRaidBalance.totalForDay(100));
+        for(int day=1;day<=100;day++){
+            int total=HardRaidBalance.totalForDay(day);
+            assertTrue(total<=HardRaidBalance.MAX_ROSTER);
+            int allocated=java.util.Arrays.stream(HardRaidBalance.composition(day)).sum()+(day%10==0?1:0);
+            assertEquals(total,allocated,"hard roster partition day "+day);
+            for(int n=0;n<total;n++)assertNotNull(HardRaidBalance.mobForDay(day,n));
+        }
+        assertEquals(0,HardRaidBalance.babyCount(9));
+        assertTrue(HardRaidBalance.babyCount(10)>=2);
+        assertTrue(java.util.stream.IntStream.range(0,58)
+                .mapToObj(i->HardRaidBalance.mobForDay(10,i))
+                .anyMatch(HardRaidBalance.BABY_ZOMBIE::equals));
+        assertEquals("minecraft:vindicator",HardRaidBalance.mobForDay(10,57));
+        assertEquals("minecraft:ravager",HardRaidBalance.mobForDay(100,124));
+    }
+    @Test void hardSpeedIIIStartsOnDay10WithoutOverbuffingBabies(){
+        for(int day=1;day<10;day++)
+            for(int i=0;i<100;i++)assertNotEquals(2,HardRaidBalance.speedAmplifier("minecraft:zombie",day,i));
+        assertTrue(java.util.stream.IntStream.range(0,58)
+                .anyMatch(i->HardRaidBalance.speedAmplifier("minecraft:zombie",10,i)==2));
+        for(int day:new int[]{10,50,100}){
+            for(int i=0;i<HardRaidBalance.totalForDay(day);i++){
+                assertEquals(-1,HardRaidBalance.speedAmplifier(HardRaidBalance.BABY_ZOMBIE,day,i));
+                assertEquals(-1,HardRaidBalance.speedAmplifier("minecraft:creeper",day,i));
+            }
+        }
+    }
+    @Test void preUpdateChallengeNeverAccidentallyEnablesHardMode(){
+        var legacy=ChallengeData.CODEC.parse(JsonOps.INSTANCE,
+                JsonParser.parseString("{\"start_game_tick\":100,\"start_day_index\":1}")).getOrThrow();
+        assertEquals(ChallengeData.PROFILE_LEGACY,legacy.raidProfile());
+        var hard=new ChallengeData();
+        assertTrue(hard.start(100,0,ChallengeData.PROFILE_HARD));
+        hard=ChallengeData.CODEC.parse(JsonOps.INSTANCE,
+                ChallengeData.CODEC.encodeStart(JsonOps.INSTANCE,hard).getOrThrow()).getOrThrow();
+        assertEquals(ChallengeData.PROFILE_HARD,hard.raidProfile());
+        assertTrue(hard.finish(ChallengeData.WON,120,"test"));
+        assertTrue(hard.resetFinishedRun());
+        assertEquals(ChallengeData.PROFILE_LEGACY,hard.raidProfile());
+    }
+    @Test void hardMorningSettlementDoesNotPenalizeUnspawnedQueue(){
+        var state=new RaidStateData();
+        var owner=UUID.randomUUID().toString();
+        state.launch(1,java.util.List.of(new RaidStateData.Pending("minecraft:overworld",owner,1,1,0,12)));
+        UUID id=UUID.randomUUID();
+        state.track(id,new RaidStateData.Raider("minecraft:overworld",owner,1,1));
+        var penalty=state.settleMorning(false);
+        assertEquals(1,penalty.get(owner));
+        assertEquals(0,state.remaining());
+        assertTrue(state.pendingCleanup(id));
+    }
     @Test void rosterProgressionAndCap(){
         assertEquals(List.of(1,3,5,7,9),java.util.stream.LongStream.rangeClosed(1,5).mapToObj(d->ChallengeBalance.rosterDay(d,2)).toList());
         assertEquals(100,ChallengeBalance.rosterDay(100,100));assertEquals(100,ChallengeBalance.rosterDay(101,1));
