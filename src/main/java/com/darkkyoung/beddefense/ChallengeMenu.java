@@ -95,7 +95,8 @@ public final class ChallengeMenu {
             player.sendSystemMessage(Component.literal("§c기존 도전을 정리할 수 없어 다시 시작하지 않았습니다."));
             return false;
         }
-        if (!data.start(server.overworld().getGameTime(), overworldClock(server))) {
+        boolean hard = HardRaidBalance.enabled(ChallengeOptionsData.get(server.overworld()).difficulty());
+        if (!data.start(server.overworld().getGameTime(), overworldClock(server), hard)) {
             player.sendSystemMessage(Component.literal("§e이미 진행 중인 챌린지입니다."));
             return false;
         }
