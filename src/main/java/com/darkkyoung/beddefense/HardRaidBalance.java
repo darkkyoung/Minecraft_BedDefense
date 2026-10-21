@@ -1,6 +1,7 @@
 package com.darkkyoung.beddefense;
 
 import java.util.List;
+import java.util.random.RandomGenerator;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -20,6 +21,10 @@ import net.minecraft.world.item.enchantment.Enchantments;
 public final class HardRaidBalance {
     public static final String BABY_ZOMBIE = "beddefense:baby_zombie";
     public static final int MAX_ROSTER = 150;
+    // The agreed representative playtest values (day 30 deliberately uses 70).
+    // Ratios interpolate between anchors; existing original hard totals remain the ceiling.
+    private static final int[] NERF_ANCHOR_DAYS = {10,20,30,50,75,90};
+    private static final int[] NERF_ANCHOR_BASIS_POINTS = {7500,7866,7777,8785,9568,10000};
     // One-player night totals, indexed by effective roster day (not calendar day).
     private static final int[] TOTALS = {
         12,17,22,27,32,38,43,48,53,58,60,62,63,65,67,69,70,72,73,75,
@@ -60,6 +65,35 @@ public final class HardRaidBalance {
 
     public static boolean enabled(String difficulty) { return "어려움".equals(difficulty); }
     public static int totalForDay(int day) { return Math.min(MAX_ROSTER, TOTALS[Math.max(1,Math.min(100,day))-1]); }
+
+    /** The top end of each night's hard-mode range remains the original alpha.7 roster. */
+    public static int maxForDay(int day) {return totalForDay(day);}
+
+    /** Base proposed nerf: 25% fewer early; anchor-interpolated toward original by day 90. */
+    public static int recommendedForDay(int day) {
+        int clamped=Math.max(1,Math.min(100,day));
+        int basis=NERF_ANCHOR_BASIS_POINTS[0];
+        for(int i=1;i<NERF_ANCHOR_DAYS.length;i++) {
+            if(clamped<=NERF_ANCHOR_DAYS[i]){
+                int left=NERF_ANCHOR_DAYS[i-1],right=NERF_ANCHOR_DAYS[i];
+                int width=right-left, progress=Math.max(0,clamped-left);
+                basis=(NERF_ANCHOR_BASIS_POINTS[i-1]*(width-progress)
+                        +NERF_ANCHOR_BASIS_POINTS[i]*progress+width/2)/width;
+                break;
+            }
+            basis=NERF_ANCHOR_BASIS_POINTS[i];
+        }
+        return (totalForDay(clamped)*basis+9999)/10000; // ceil, preserve promised anchors
+    }
+    /** Minimum = ceil(70% of the recommended nerfed number). */
+    public static int minForDay(int day) {
+        return (recommendedForDay(day)*7+9)/10;
+    }
+    /** Exactly one uniform inclusive draw per launched night; caller persists the result. */
+    public static int rollForDay(int day,RandomGenerator random) {
+        int low=minForDay(day), high=maxForDay(day);
+        return random.nextInt(low,high+1);
+    }
     public static Stage stage(int day) {
         int clamped = Math.max(1,Math.min(100,day));
         for (Stage stage : STAGES) if(clamped <= stage.to())return stage;
@@ -69,7 +103,11 @@ public final class HardRaidBalance {
         return day>=60 ? "minecraft:ravager" : day>=30 ? "minecraft:evoker" : "minecraft:vindicator";
     }
     public static int[] composition(int day) {
-        int total=totalForDay(day);
+        return composition(day,totalForDay(day));
+    }
+    /** Allocate exactly the drawn number of mobs, including a single tenth-day captain. */
+    public static int[] composition(int day,int total) {
+        if(total<1||total>MAX_ROSTER)throw new IllegalArgumentException("Invalid hard raid count");
         int regular=total-(day%10==0?1:0);
         int[] roleCounts = new int[ROLES.size()+1]; // zero = ordinary + baby zombies
         int taken=0;
@@ -82,18 +120,22 @@ public final class HardRaidBalance {
         if(roleCounts[0]<0)throw new IllegalStateException("Hard roster ratios exceed 100%");
         return roleCounts;
     }
-    public static int babyCount(int day) {
+    public static int babyCount(int day) {return babyCount(day,totalForDay(day));}
+    public static int babyCount(int day,int total) {
         if(day<10)return 0;
-        int zombies=composition(day)[0];
+        int zombies=composition(day,total)[0];
         return Math.min(8,Math.min(zombies,Math.max(2,Math.round(zombies*(day>=60?.25f:.15f)))));
     }
     public static String mobForDay(int day,int index) {
-        int total=totalForDay(day);
-        if(index<0||index>=total)throw new IllegalArgumentException("Invalid hard roster index");
+        return mobForDay(day,index,totalForDay(day));
+    }
+    public static String mobForDay(int day,int index,int total) {
+        if(total<1||total>MAX_ROSTER||index<0||index>=total)
+            throw new IllegalArgumentException("Invalid hard roster index/count");
         if(day%10==0&&index==total-1)return captainType(day);
-        int[] counts=composition(day);
+        int[] counts=composition(day,total);
         int zombieCount=counts[0];
-        if(index<zombieCount)return index>=zombieCount-babyCount(day)?BABY_ZOMBIE:"minecraft:zombie";
+        if(index<zombieCount)return index>=zombieCount-babyCount(day,total)?BABY_ZOMBIE:"minecraft:zombie";
         int cursor=zombieCount;
         for(int i=0;i<ROLES.size();i++){
             if(index<cursor+counts[i+1])return ROLES.get(i);
