@@ -15,7 +15,7 @@ public final class ChallengeData extends SavedData {
     public static final int READY=0, RUNNING=1, WON=2, LOST=3;
     // Participant states: alive, death awaiting respawn, final death awaiting respawn, eliminated.
     public static final int ALIVE=0, RESPAWNING=1, FINAL_RESPAWN=2, ELIMINATED=3;
-    public static final int PROFILE_LEGACY=0, PROFILE_EASY=1, PROFILE_HARD=2;
+    public static final int PROFILE_LEGACY=0, PROFILE_EASY=1, PROFILE_HARD=2, PROFILE_HARD_V2=3;
     public static final Codec<ChallengeData> CODEC = RecordCodecBuilder.create(i -> i.group(
         Codec.LONG.fieldOf("start_game_tick").forGetter(d->d.startGameTick),
         Codec.LONG.fieldOf("start_day_index").forGetter(d->d.startDayIndex),
@@ -52,10 +52,11 @@ public final class ChallengeData extends SavedData {
     public int outcome(){return outcome;}
     public String reason(){return reason;}
     public int raidProfile(){return raidProfile;}
-    public boolean hardRaidProfile(){return raidProfile==PROFILE_HARD;}
+    public boolean hardRaidProfile(){return raidProfile==PROFILE_HARD||raidProfile==PROFILE_HARD_V2;}
+    public boolean randomizedHardRaidProfile(){return raidProfile==PROFILE_HARD_V2;}
     public boolean start(long tick,long clock){return start(tick,clock,PROFILE_LEGACY);}
     public boolean start(long tick,long clock,int profile){
-        if(isStarted() || profile<PROFILE_LEGACY || profile>PROFILE_HARD)return false;
+        if(isStarted() || profile<PROFILE_LEGACY || profile>PROFILE_HARD_V2)return false;
         startGameTick=tick;startDayIndex=Math.floorDiv(clock,24000);outcome=RUNNING;lastDay=1;
         raidProfile=profile;setDirty();return true;
     }

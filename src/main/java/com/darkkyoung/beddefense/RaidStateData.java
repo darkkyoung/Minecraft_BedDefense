@@ -34,18 +34,21 @@ public final class RaidStateData extends SavedData {
         Codec.STRING.listOf().optionalFieldOf("persistent_raiders",List.of()).forGetter(s->List.<String>of()),
         Codec.STRING.listOf().optionalFieldOf("sunrise_cleanup",List.of()).forGetter(s->List.copyOf(s.cleanup)),
         Codec.unboundedMap(Codec.STRING,Raider.CODEC).optionalFieldOf("raiders",Map.of()).forGetter(s->Map.copyOf(s.raiders)),
-        Pending.CODEC.listOf().optionalFieldOf("pending",List.of()).forGetter(s->List.copyOf(s.pending))
+        Pending.CODEC.listOf().optionalFieldOf("pending",List.of()).forGetter(s->List.copyOf(s.pending)),
+        Codec.LONG.optionalFieldOf("last_random_wave",-1L).forGetter(s->s.lastRandomWave),
+        Codec.INT.optionalFieldOf("last_random_roster",-1).forGetter(s->s.lastRandomRoster)
     ).apply(i,RaidStateData::new));
     static final SavedDataType<RaidStateData> TYPE=new SavedDataType<>(Identifier.fromNamespaceAndPath("beddefense","raid_state"),RaidStateData::new,CODEC,null);
-    private long lastRaidDay,activeDay;
-    private int totalSpawned;
+    private long lastRaidDay,activeDay,lastRandomWave;
+    private int totalSpawned,lastRandomRoster;
     private boolean glowStarted;
     private final Map<String,Raider> raiders;
     private final List<Pending> pending;
     private final Set<String> cleanup;
-    public RaidStateData(){this(0,-1,List.of(),false,false,0,List.of(),List.of(),Map.of(),List.of());}
-    private RaidStateData(long last,long active,List<String> oldIds,boolean glow,boolean oldOverworld,int total,List<String> oldPersistent,List<String> cleanup,Map<String,Raider> raiders,List<Pending> pending){
+    public RaidStateData(){this(0,-1,List.of(),false,false,0,List.of(),List.of(),Map.of(),List.of(),-1L,-1);}
+    private RaidStateData(long last,long active,List<String> oldIds,boolean glow,boolean oldOverworld,int total,List<String> oldPersistent,List<String> cleanup,Map<String,Raider> raiders,List<Pending> pending,long lastRandomWave,int lastRandomRoster){
         lastRaidDay=last;activeDay=active;glowStarted=glow;totalSpawned=total;
+        this.lastRandomWave=lastRandomWave;this.lastRandomRoster=lastRandomRoster;
         this.raiders=new HashMap<>(raiders);this.pending=new ArrayList<>(pending);this.cleanup=new HashSet<>(cleanup);
         // Legacy records lacked dimension and ownership. Known Overworld waves settle globally;
         // unknown mixed waves are conservatively retained until ENTITY_LOAD supplies their dimension.
@@ -56,6 +59,8 @@ public final class RaidStateData extends SavedData {
     public boolean active(){return activeDay>=1;}
     public long activeDay(){return activeDay;}
     public long lastRaidDay(){return lastRaidDay;}
+    public long lastRandomWave(){return lastRandomWave;}
+    public int lastRandomRoster(){return lastRandomRoster;}
     public boolean glowStarted(){return glowStarted;}
     public int totalSpawned(){return Math.max(totalSpawned,remaining());}
     public void glowStarted(boolean value){glowStarted=value;setDirty();}
@@ -70,9 +75,16 @@ public final class RaidStateData extends SavedData {
     public void loaded(UUID id,String dimension){
         Raider r=raider(id);if(r!=null&&!r.dimension.equals(dimension)){raiders.put(id.toString(),new Raider(dimension,r.owner,r.roster,r.wave));setDirty();}
     }
-    public void launch(long day,List<Pending> batches){
+    public void launch(long day,List<Pending> batches){launch(day,batches,-1);}
+    /** Persist one chosen mob count for all participants in a nightly randomized raid. */
+    public void launch(long day,List<Pending> batches,int rolledCount){
         if(active()||day<=lastRaidDay)throw new IllegalStateException("Duplicate raid launch");
-        lastRaidDay=day;activeDay=day;glowStarted=false;pending.addAll(batches);totalSpawned=remaining();setDirty();
+        if(rolledCount>0 && batches.stream().anyMatch(p->p.next()!=0||p.count()!=rolledCount))
+            throw new IllegalArgumentException("Night roster does not match its recorded draw");
+        lastRaidDay=day;activeDay=day;glowStarted=false;
+        lastRandomWave=rolledCount>0?day:-1L;
+        lastRandomRoster=rolledCount>0?rolledCount:-1;
+        pending.addAll(batches);totalSpawned=remaining();setDirty();
     }
     public void spawned(Pending batch,UUID id){
         if(!pending.remove(batch))throw new IllegalStateException("Stale spawn batch");
@@ -99,6 +111,7 @@ public final class RaidStateData extends SavedData {
     /** Preserve unload-cleanup UUIDs, but reset the day-one spawn ledger. */
     public void resetForNewRun(){
         cleanup.addAll(raiders.keySet());raiders.clear();pending.clear();
-        lastRaidDay=0;activeDay=-1;totalSpawned=0;glowStarted=false;setDirty();
+        lastRaidDay=0;activeDay=-1;totalSpawned=0;glowStarted=false;
+        lastRandomWave=-1L;lastRandomRoster=-1;setDirty();
     }
 }
