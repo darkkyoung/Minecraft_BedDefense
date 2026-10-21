@@ -44,6 +44,11 @@ public final class ChallengeSetupWizard {
             return false;
         }
         Session previous = SESSIONS.get(server);
+        if (previous != null && previous.countdown >= 0
+                && server.getPlayerList().getPlayer(previous.owner) != null) {
+            player.sendSystemMessage(Component.literal("§e게임 시작 카운트다운이 진행 중입니다."));
+            return false;
+        }
         if (previous != null && !previous.owner.equals(player.getUUID()) &&
                 server.getPlayerList().getPlayer(previous.owner) != null) {
             player.sendSystemMessage(Component.literal("§c다른 플레이어가 설정 중입니다."));
@@ -140,7 +145,14 @@ public final class ChallengeSetupWizard {
             return;
         }
         // Include eligible players who arrived during the countdown without clearing items early.
-        prepareCountdownParticipants(server,s);
+        try {
+            prepareCountdownParticipants(server,s);
+        } catch (RuntimeException e) {
+            restoreGameModes(server,s);
+            owner.sendSystemMessage(Component.literal("§c게임 시작 준비에 실패했습니다. 아이템은 제거하지 않았습니다."));
+            SESSIONS.remove(server);
+            return;
+        }
         --s.countdown;
         if (s.countdown <= 0) {
             // Settings were saved on each edit; only the run begins after the countdown.
@@ -164,9 +176,12 @@ public final class ChallengeSetupWizard {
             ChallengeOptionsData.get(server.overworld()).update(s.difficulty, s.resetTime, s.raidStride);
             // startNow commits challenge state first, then clears inventory and switches to
             // Survival before displaying the "시작!" title. Failed starts restore prior modes.
-            boolean started = ChallengeMenu.startNow(owner,server);
-            if(!started)restoreGameModes(server,s);
-            SESSIONS.remove(server);
+            try {
+                if(!ChallengeMenu.startNow(owner,server))restoreGameModes(server,s);
+            } finally {
+                if(!ChallengeData.get(server.overworld()).running())restoreGameModes(server,s);
+                SESSIONS.remove(server);
+            }
             return;
         }
         int second=(s.countdown + 19)/20;
