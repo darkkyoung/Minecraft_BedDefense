@@ -24,3 +24,8 @@ Manual acceptance: [R1_ACCEPTANCE.md](R1_ACCEPTANCE.md). Test success is not a c
 - Saved-data roundtrip checks one random wave count shared across multiplayer participant batches, non-reroll after duplicate launch and preservation of pending/index counts during spawn retries.
 - Minecraft/Fabric GameTest compares new easy, old alpha.7 hard and new alpha.8 hard block-mining times; existing tests preserve no-bed raid, spawn-bed HP, owner tokens, death/respawn and sunrise ledger.
 - Actual nighttime randomization and difficulty feel still require disposable-world PC play. See [hard mode acceptance](HARD_MODE_ACCEPTANCE.md).
+
+## Alpha.9 clean-start regression
+- Embedded-player Minecraft server GameTest verifies `[설정 완료 · 시작]` immediately enters Adventure, remains Adventure through countdown while inventory/offhand/cursor retain pre-start items, refuses reentrant setup, and finally enters Survival with all those items empty.
+- No game-mode or inventory-clear commands are issued: transitions use `ServerPlayer.setGameMode`, `Inventory.clearContent` and direct container cursor clearing, which do not emit vanilla command success feedback into chat.
+- Interrupted-countdown restoration, completed-run spectator restart and multiplayer conversions still require explicit human acceptance on a disposable save. CI is not a claim of full PC/gameplay acceptance.

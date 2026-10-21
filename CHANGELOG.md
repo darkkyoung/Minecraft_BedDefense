@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0-alpha.9+26.3 — Silent Adventure → clean Survival start
+- Clicking **[설정 완료 · 시작]** switches every eligible online participant to Adventure during the existing 60-tick/3-second countdown. Current spectators who previously participated in a completed run can be included in the restart, but unrelated spectator observers stay spectators.
+- **Do not clear items until the challenge start succeeds.** On success, the server clears the participant's main inventory, hotbar, armor, offhand and carried cursor, then switches them directly to Survival before the start title/sound. Ender Chest, XP, world builds and dropped items are untouched.
+- Uses server-side game mode and inventory APIs **without** `/gamemode` or `/clear` commands, so no vanilla game-mode change or clear-count system-chat feedback. The intentional challenge-start greeting remains.
+- Starting/cancelling the setup without confirming does not wipe items. A failed time reset, an owner disconnect, or an interrupted countdown restores the previous game modes and retains player items. A repeated setup command cannot reset an in-progress countdown.
+- **Confirmed same-world restarts now clear participant inventories** at the new start (unlike alpha.8), but preserve builds/world and reinitialize the challenge bed/raid records. Launcher install/update/backup behavior is unchanged.
+- Added actual Minecraft/Fabric GameTest assertions for Adventure during countdown, inventory/cursor retention before completion, and cleared Survival at successful start.
+
 ## 0.2.0-alpha.8+26.3 — Hard raids: nightly variable count and siege moderation
 - New **어려움** runs draw their mob count **once per nightly raid** uniformly between `ceil(0.7 × recommended reduced count)` and the **original alpha.7 maximum** (inclusive). The reduced baseline is initially 75% of the original, then interpolates through the previously agreed representative 10/20/30/50/75/90-day values; by day 90 its maximum is again the original hard roster.
 - Example ranges: day 1 **7–12**, day 2 **10–17**, day 10 **31–58**, day 30 **49–90**, day 50 **66–107**, day 75 **78–116**, day 90 **85–121**, day 100 **88–125**.
