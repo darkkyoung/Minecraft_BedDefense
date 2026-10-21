@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0-alpha.7+26.3 — Experimental hard-mode raid playtest
+- New challenges started with **어려움** receive a separate 100-day raid roster, climbing 12 (day 1) -> 58 (10) -> 107 (50) -> 125 (100) per participating player; 150-roster safety ceiling.
+- Baby zombies enter at roster day 10 as a fast, small-target elite type without an additional Speed III potion. Eligible regular raiders begin receiving Speed III at roster day 10.
+- Fire resistance, weapons, armor, strength/resistance, underwater movement efficiency and attempted Dolphin's Grace are stage-gated. Enemy gear drops are suppressed; underwater navigation still needs physical verification.
+- **쉬움** retains the existing mob composition but its obstruction-breaking time is halved. **어려움** receives much faster mining and 5-10 tick block placement; **보통** retains provisional previous behavior.
+- Hard-mode dawn settlement no longer penalizes unspawned queued Overworld raiders. Pre-update running worlds retain their legacy raid profile; profile choice is persisted at new-run start.
+- This is an alpha playtest, not a physical 100-day acceptance. The launcher installation engine and existing-profile preservation logic are unchanged.
+
 ## 0.2.0-alpha.6+26.3 — Glowing unique bed marker
 - The sole Spawn Bed receives a green vanilla Glowing outline, in addition to the existing green particles.
 - A tiny, non-colliding two-part BlockDisplay overlay exactly tracks the real bed orientation. It never acts as a bed item or changes the bed's block state.
