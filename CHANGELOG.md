@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0-alpha.8+26.3 — Hard raids: nightly variable count and siege moderation
+- New **어려움** runs draw their mob count **once per nightly raid** uniformly between `ceil(0.7 × recommended reduced count)` and the **original alpha.7 maximum** (inclusive). The reduced baseline is initially 75% of the original, then interpolates through the previously agreed representative 10/20/30/50/75/90-day values; by day 90 its maximum is again the original hard roster.
+- Example ranges: day 1 **7–12**, day 2 **10–17**, day 10 **31–58**, day 30 **49–90**, day 50 **66–107**, day 75 **78–116**, day 90 **85–121**, day 100 **88–125**.
+- The selected count is **stored in the server RaidStateData per wave** and shared across participants; world reload, spawn retries and /beddefense debug raid never roll again for the same day. Count-based role distribution scales, including the single tenth-day captain and baby zombies.
+- New hard-profile obstruction times are **1 s dirt / 2 s wood / 5 s cobble / 20 s obsidian** for the first band; bridge/tower cooldown is **15–20 ticks (0.75–1.0 s)** and the stuck-detection threshold is about **1 s**. Existing safety budgets are unchanged.
+- Easy, normal, and pre-update active hard (`PROFILE_HARD`) runs retain their previous roster/siege behavior. A new per-run `PROFILE_HARD_V2` activates this balance **only for newly started challenges**. Existing worlds, bed HP/owner, raids, saves and launcher install engine are not rewritten.
+- Speed III from roster day 10, baby zombie slots, fire resistance, gear progression, and hard-mode unspawned-queue sunrise exclusion are preserved unchanged.
+- This is a player-balance alpha, not completion of human Minecraft game acceptance.
+
 ## 0.2.0-alpha.7+26.3 — Experimental hard-mode raid playtest
 - New challenges started with **어려움** receive a separate 100-day raid roster, climbing 12 (day 1) -> 58 (10) -> 107 (50) -> 125 (100) per participating player; 150-roster safety ceiling.
 - Baby zombies enter at roster day 10 as a fast, small-target elite type without an additional Speed III potion. Eligible regular raiders begin receiving Speed III at roster day 10.
