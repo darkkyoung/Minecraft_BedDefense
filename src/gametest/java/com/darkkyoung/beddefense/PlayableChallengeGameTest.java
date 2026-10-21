@@ -52,10 +52,32 @@ public class PlayableChallengeGameTest {
         ChallengeSetupWizard.setDifficulty(server,p,"보통");ChallengeSetupWizard.setTime(server,p,true);ChallengeSetupWizard.setInterval(server,p,2);
         h.assertTrue(ChallengeOptionsData.get(world).raidStride()==2,"settings saved before countdown");
         ChallengeSetupWizard.cancel(server,p);ChallengeSetupWizard.begin(server,p);
-        ChallengeSetupWizard.confirm(server,p);
-        h.runAfterDelay(58,()->h.assertTrue(!ChallengeData.get(world).running(),"must not start before 60 ticks"));
+        // Inventory must survive the countdown and disappear only on successful challenge start.
+        p.getInventory().add(new ItemStack(net.minecraft.world.item.Items.STONE, 17));
+        p.setItemInHand(InteractionHand.OFF_HAND,new ItemStack(net.minecraft.world.item.Items.SHIELD));
+        p.containerMenu.setCarried(new ItemStack(net.minecraft.world.item.Items.DIAMOND,3));
+        h.assertTrue(ChallengeSetupWizard.confirm(server,p),"countdown confirmation starts");
+        h.assertTrue(p.gameMode.getGameModeForPlayer()==GameType.ADVENTURE,
+                "participant enters Adventure silently at countdown start");
+        h.assertTrue(!p.getInventory().isEmpty() && !p.containerMenu.getCarried().isEmpty(),
+                "inventory and cursor untouched before countdown completes");
+        h.assertTrue(!ChallengeSetupWizard.begin(server,p),"cannot bypass countdown with another setup");
+        h.runAfterDelay(58,()->{
+            h.assertTrue(!ChallengeData.get(world).running(),"must not start before 60 ticks");
+            h.assertTrue(p.gameMode.getGameModeForPlayer()==GameType.ADVENTURE,
+                    "adventure lock remains active during countdown");
+            h.assertTrue(!p.getInventory().isEmpty(),
+                    "a still-running countdown must not wipe items");
+        });
         h.runAfterDelay(62,()->{
             h.assertTrue(ChallengeData.get(world).running(),"countdown actually starts world challenge");
+            h.assertTrue(p.gameMode.getGameModeForPlayer()==GameType.SURVIVAL,
+                    "confirmed challenge begins in Survival");
+            h.assertTrue(p.getInventory().isEmpty() && p.getOffhandItem().isEmpty()
+                    && p.containerMenu.getCarried().isEmpty(),
+                    "completed start clears hotbar, armor, offhand, inventory and cursor");
+            // Preserve this test scenario's invulnerability fixture after mode transitions.
+            p.getAbilities().invulnerable=true;
             h.assertTrue(ChallengeData.get(world).raidProfile()==ChallengeData.PROFILE_LEGACY,
                     "existing acceptance scenario keeps original five-zombie first night");
             h.assertTrue(ChallengeOptionsData.get(world).raidStride()==2,"reopened settings retained multiplier");
