@@ -11,3 +11,10 @@ Java 25 / Gradle 9.7.1: `gradle build`.
 - Local sandbox can compile the official 26.3 API directly; its Unix-domain-socket restriction prevents unmodified Loom initialization. Full Gradle/game-server execution is performed on GitHub Actions. This environmental limit is not treated as a successful test.
 
 Manual acceptance: [R1_ACCEPTANCE.md](R1_ACCEPTANCE.md). Test success is not a claim of human physical acceptance.
+
+## Alpha.7 hard mode playtest
+
+- `ChallengeRulesTest` validates the 100-day hard roster, 150 cap, real allocated totals, day-10 baby/SPEED III eligibility, deterministic status rolls, profile persistence/migration and hard-mode sunrise non-spawn penalty exclusion.
+- `PlayableChallengeGameTest.hardRaidStage10BabySpeedAndMining` checks actual spawned baby zombie hitbox, ordinary zombie Speed III and different first-band mining durations for easy/hard.
+- Existing challenge GameTest uses the legacy normal profile; hard runs must not retroactively change earlier persistent challenges.
+- [Hard mode PC acceptance](HARD_MODE_ACCEPTANCE.md) describes the new-run and launcher-update acceptance procedure. Physical 100-day acceptance remains pending.
