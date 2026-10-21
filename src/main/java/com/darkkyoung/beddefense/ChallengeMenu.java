@@ -10,6 +10,8 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.GameType;
 
 /** The main entry point is always /beddefense; no separate /bdhud alias. */
 public final class ChallengeMenu {
@@ -53,7 +55,7 @@ public final class ChallengeMenu {
             player.sendSystemMessage(Component.literal(data.outcome()==ChallengeData.WON?"§a지난 챌린지 성공!":"§c지난 챌린지 실패: "+data.reason()));
             player.sendSystemMessage(button(" [다시 시작] ", ChatFormatting.GREEN,
                     "/beddefense setup","기존 월드를 보존하고 새 도전의 설정을 엽니다"));
-            player.sendSystemMessage(Component.literal("§7이전 침대 HP·레이드·도전 시간만 초기화하며, 월드·일반 아이템은 유지됩니다."));
+            player.sendSystemMessage(Component.literal("§7월드 건축물은 유지됩니다. 새 도전 시작 시 참가자 인벤토리는 초기화됩니다."));
         } else {
             player.sendSystemMessage(Component.literal("§a진행 중 §f"
                     + data.day(overworldClock(server)) + "일차"));
@@ -102,8 +104,16 @@ public final class ChallengeMenu {
             player.sendSystemMessage(Component.literal("§e이미 진행 중인 챌린지입니다."));
             return false;
         }
-        for(ServerPlayer participant:server.getPlayerList().getPlayers())
-            if(!participant.isSpectator())data.join(participant.getUUID());
+        for(ServerPlayer participant:server.getPlayerList().getPlayers()) {
+            if(participant.isSpectator())continue;
+            data.join(participant.getUUID());
+            // Committed start only: clear main/hotbar/armor/offhand plus carried cursor,
+            // then enter Survival. Direct API avoids /clear and /gamemode chat messages.
+            participant.getInventory().clearContent();
+            participant.containerMenu.setCarried(ItemStack.EMPTY);
+            participant.containerMenu.broadcastChanges();
+            participant.setGameMode(GameType.SURVIVAL);
+        }
         RaidManager.run(server,"title @a title {\"text\":\"시작!\",\"color\":\"green\"}");
         RaidManager.run(server,"execute as @a at @s run playsound minecraft:entity.player.levelup master @s ~ ~ ~ 1 1");
         server.getPlayerList().broadcastSystemMessage(
