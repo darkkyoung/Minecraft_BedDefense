@@ -82,3 +82,11 @@ CI executes compiler, unit tests and real server GameTests; the release pipeline
 3. Collect and reinstall the item: new outlined bed appears at the new location; old outline disappears.
 4. Break or permanently destroy the placed bed: no invisible glowing markers remain. Rejoin and revisit unloaded chunks after a new challenge to ensure stale markers are removed.
 5. Confirm transparent display entities have no collision or click interception and no obvious duplicate-texture flicker with shaders (Sodium/Iris).
+
+## Alpha.9 clean start + silent conversion acceptance
+
+1. In a disposable new survival world, hold items in hotbar/main inventory, armor/offhand and on the carried cursor. Choose settings, then click `[설정 완료 · 시작]`. Verify **Adventure mode** throughout `3→2→1`, with all items still present before the final tick.
+2. After `시작!`: verify **Survival**, completely empty main inventory, equipment/offhand and carried cursor. Ender Chest, XP, world construction and dropped items should remain.
+3. Watch chat through both transitions: there must be **no game-mode change notification and no item-cleared count**. The intended `챌린지 시작!` announcement is permitted.
+4. Start a completed world's **[다시 시작]** from a formerly eliminated spectator. At confirmed finish the participant must rejoin Survival with cleared inventory; unrelated deliberate spectator observers should remain unaffected.
+5. In a disposable world, disconnect the countdown owner before completion, or trigger a failed preflight. All still-online participants should have their former game modes restored and keep their items. Opening/cancelling settings alone must never clear inventory.
