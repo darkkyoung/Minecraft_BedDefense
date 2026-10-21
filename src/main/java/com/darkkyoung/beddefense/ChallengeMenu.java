@@ -20,7 +20,7 @@ public final class ChallengeMenu {
     public static void init() {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 server.execute(() -> {
-                    if (!handler.player.isRemoved()) {ChallengeLifecycle.join(handler.player,server);show(handler.player, server);}
+                    if (!handler.player.isRemoved()) {ChallengeLifecycle.join(handler.player,server);ChallengeSetupWizard.restoreAfterJoin(server,handler.player);show(handler.player, server);}
                 }));
     }
 
