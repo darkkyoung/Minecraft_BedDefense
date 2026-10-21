@@ -269,7 +269,18 @@ public class PlayableChallengeGameTest {
                 "hard dirt mining takes half a second");
         world.setBlock(target,Blocks.OBSIDIAN.defaultBlockState(),3);
         h.assertTrue(SiegeController.durationSeconds(world,target,1,ChallengeData.PROFILE_HARD)==10.0,
-                "hard first band obsidian mining is 10 seconds");
+                "existing alpha.7 hard-save obsidian still takes 10 seconds");
+        h.assertTrue(SiegeController.durationSeconds(world,target,1,ChallengeData.PROFILE_HARD_V2)==20.0,
+                "balanced hard obsidian takes 20 seconds");
+        world.setBlock(target,Blocks.DIRT.defaultBlockState(),3);
+        h.assertTrue(SiegeController.durationSeconds(world,target,1,ChallengeData.PROFILE_HARD_V2)==1.0,
+                "balanced hard dirt takes 1 second");
+        world.setBlock(target,Blocks.OAK_PLANKS.defaultBlockState(),3);
+        h.assertTrue(SiegeController.durationSeconds(world,target,1,ChallengeData.PROFILE_HARD_V2)==2.0,
+                "balanced hard planks take 2 seconds");
+        world.setBlock(target,Blocks.COBBLESTONE.defaultBlockState(),3);
+        h.assertTrue(SiegeController.durationSeconds(world,target,1,ChallengeData.PROFILE_HARD_V2)==5.0,
+                "balanced hard cobble takes 5 seconds");
         baby.discard();fast.discard();h.succeed();
     }
     @GameTest(maxTicks=180,dimension="minecraft:overworld")
