@@ -54,3 +54,13 @@ Fresh main: `9f3c24a1d901c0acd6a11a3d98783ad70e22cd62`.
 PR1: `823226ab146dbfd508fe9de26b1b117f9d1e95b3`; PR2 (stacked on PR1): `b45f61b8f4d6cb47c13b4bfa10efe3efd00c46ca`.
 AllBlocks `Minecraft_AllBlockMod_26.2` **master**: `18b0fc6e96a651c8be96485ffb22b61f31066741`.
 Reused setup flow/countdown pattern, PR1 counts/save identities and PR2 daily progression/HUD/siege tables. The experimental `mc/26.3-core-gameplay` branch stored duplicate settings inside `ChallengeData` and removed the raid/vitality work, so it was compared but not blindly merged. The already-established `ChallengeOptionsData` remains authoritative.
+
+## Alpha.8 hard-balance addendum (supersedes alpha.7 hard values)
+
+- The single authoritative selected difficulty is saved at **new challenge start** as `raid_balance_profile`: `PROFILE_HARD_V2=3` for this revision, `PROFILE_HARD=2` for existing alpha.7 hard runs. Existing in-progress worlds are never silently changed by a mod update.
+- New hard raids draw **one uniformly distributed integer per nightly wave**, persisted in the saved `RaidStateData` as `last_random_wave` and `last_random_roster`, shared across player batches. Within each player batch `next + count` preserves the selected total across spawn retries and save reload. The same day cannot be relaunched to reroll.
+- The upper bound remains alpha.7 hard's fixed `HardRaidBalance.totalForDay(effectiveRosterDay)`. A reduced baseline begins at 75% for roster days 1–10 and interpolates through agreed reference anchors (day 20=59, 30=70, 50=94, 75=111, 90=121); the lower bound is **ceil(70% × reduced baseline)**. By roster day 90 the baseline again equals the old maximum, though the random lower bound remains 70%.
+- Hard composition (including boss and baby zombies) scales to the selected total. Each tenth roster retains exactly one boss per player's wave. Speed III from roster day 10 and existing hard buffs, fire-resistance and weapons are otherwise unchanged.
+- New hard alpha.8 obstacle mining first-band durations: dirt 1s, wood 2s, cobble 5s, obsidian 20s; placement 15–20 ticks, stuck threshold 20 ticks; progress evaluated every 5 ticks. Old alpha.7 hard profile retains previous durations (0.5 / 1 / 2.5 / 10 s) and 5–10 tick placement. Easy and normal profiles unchanged.
+- Always respect dimension active-entity cap 128, 12 simultaneous miners and 16 placed blocks/second. Difficult-mode unspawned queued Overworld raiders remain exempt from dawn HP penalties.
+- This specification does not claim real-world pathfinding/balance or 100-day physical acceptance. 
