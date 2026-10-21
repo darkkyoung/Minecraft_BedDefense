@@ -1,5 +1,6 @@
 package com.darkkyoung.beddefense;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.WeakHashMap;
@@ -12,6 +13,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.GameType;
 
 /**
  * Recreates the AllBlocks master settings pattern without sharing code or state.
@@ -31,6 +33,7 @@ public final class ChallengeSetupWizard {
         boolean manual = false;
         int countdown = -1;
         int lastSecond = -1;
+        final Map<UUID, GameType> previousGameModes = new HashMap<>();
 
         Session(UUID owner) { this.owner = owner; }
     }
@@ -46,6 +49,8 @@ public final class ChallengeSetupWizard {
             player.sendSystemMessage(Component.literal("§c다른 플레이어가 설정 중입니다."));
             return false;
         }
+        // A replacement setup after its owner disconnected must not strand other players in Adventure.
+        if (previous != null) restoreGameModes(server,previous);
         Session session = new Session(player.getUUID());
         ChallengeOptionsData saved=ChallengeOptionsData.get(server.overworld());
         session.difficulty=saved.difficulty();session.resetTime=saved.resetWorldClock();session.raidStride=saved.raidStride();
@@ -106,6 +111,13 @@ public final class ChallengeSetupWizard {
         Session s = controlled(server,player);
         if(s == null)return false;
         if(s.countdown >= 0)return false;
+        try {
+            prepareCountdownParticipants(server,s);
+        } catch (RuntimeException e) {
+            restoreGameModes(server,s);
+            player.sendSystemMessage(Component.literal("§c게임 시작 준비에 실패했습니다. 아이템은 제거하지 않았습니다."));
+            return false;
+        }
         s.countdown = COUNTDOWN_TICKS;
         s.lastSecond = 3;
         // AllBlocks master: remove the chat overlay first, then show title 3/2/1.
@@ -117,8 +129,18 @@ public final class ChallengeSetupWizard {
         Session s = SESSIONS.get(server);
         if(s==null||s.countdown<0)return;
         ServerPlayer owner = server.getPlayerList().getPlayer(s.owner);
-        if(owner==null){SESSIONS.remove(server);return;}
-        if (ChallengeData.get(server.overworld()).running()){SESSIONS.remove(server);return;}
+        if(owner==null){
+            restoreGameModes(server,s);
+            SESSIONS.remove(server);
+            return;
+        }
+        if (ChallengeData.get(server.overworld()).running()){
+            restoreGameModes(server,s);
+            SESSIONS.remove(server);
+            return;
+        }
+        // Include eligible players who arrived during the countdown without clearing items early.
+        prepareCountdownParticipants(server,s);
         --s.countdown;
         if (s.countdown <= 0) {
             // Settings were saved on each edit; only the run begins after the countdown.
@@ -133,13 +155,17 @@ public final class ChallengeSetupWizard {
                         server.getCommands().performPrefixedCommand(
                                 server.createCommandSourceStack().withSuppressedOutput(), command);
                 } catch(Exception e) {
+                    restoreGameModes(server,s);
                     owner.sendSystemMessage(Component.literal("§c시간 초기화가 실패해 도전을 시작하지 않았습니다."));
                     SESSIONS.remove(server);
                     return;
                 }
             }
             ChallengeOptionsData.get(server.overworld()).update(s.difficulty, s.resetTime, s.raidStride);
-            ChallengeMenu.startNow(owner,server);
+            // startNow commits challenge state first, then clears inventory and switches to
+            // Survival before displaying the "시작!" title. Failed starts restore prior modes.
+            boolean started = ChallengeMenu.startNow(owner,server);
+            if(!started)restoreGameModes(server,s);
             SESSIONS.remove(server);
             return;
         }
@@ -148,6 +174,30 @@ public final class ChallengeSetupWizard {
             s.lastSecond=second;
             countdownTitle(server,second);
         }
+    }
+
+    private static void prepareCountdownParticipants(MinecraftServer server,Session s) {
+        ChallengeData run=ChallengeData.get(server.overworld());
+        for(ServerPlayer candidate:server.getPlayerList().getPlayers()) {
+            // Keep unrelated spectator observers untouched, but allow the setup owner and
+            // eliminated participants from the last completed run to restart in Survival.
+            if(!candidate.getUUID().equals(s.owner) && candidate.isSpectator()
+                    && !run.wasParticipant(candidate.getUUID()))continue;
+            s.previousGameModes.putIfAbsent(candidate.getUUID(),
+                    candidate.gameMode.getGameModeForPlayer());
+            // Direct server API: no vanilla /gamemode or /clear command feedback in chat.
+            if(candidate.gameMode.getGameModeForPlayer()!=GameType.ADVENTURE)
+                candidate.setGameMode(GameType.ADVENTURE);
+        }
+    }
+
+    private static void restoreGameModes(MinecraftServer server,Session s) {
+        for(var entry:s.previousGameModes.entrySet()) {
+            ServerPlayer candidate=server.getPlayerList().getPlayer(entry.getKey());
+            if(candidate!=null && candidate.gameMode.getGameModeForPlayer()!=entry.getValue())
+                candidate.setGameMode(entry.getValue());
+        }
+        s.previousGameModes.clear();
     }
 
     private static void countdownTitle(MinecraftServer server, int second) {
