@@ -66,6 +66,8 @@ public final class ChallengeData extends SavedData {
     public void debugDay(long day,long clock){startDayIndex=Math.floorDiv(clock,24000)-day+1;lastDay=day;setDirty();}
     public void join(UUID id){if(running()&&!players.containsKey(id.toString())){players.put(id.toString(),ALIVE);setDirty();}}
     public int playerState(UUID id){return players.getOrDefault(id.toString(),ALIVE);}
+    /** Includes eliminated players, so a completed world's former spectators can rejoin a new run. */
+    public boolean wasParticipant(UUID id){return players.containsKey(id.toString());}
     public boolean participating(UUID id){return players.containsKey(id.toString())&&playerState(id)!=ELIMINATED;}
     public void playerState(UUID id,int state){players.put(id.toString(),state);setDirty();}
     public boolean allEliminated(){return !players.isEmpty()&&players.values().stream().allMatch(v->v==ELIMINATED);}
