@@ -31,6 +31,71 @@ class ChallengeRulesTest {
         assertTrue(button.getString().contains("[설정 완료 · 시작]"));
     }
 
+    @Test void hardRandomBoundsHonorAgreedPlaytestExamples(){
+        int[][] expected={{1,7,9,12},{2,10,13,17},{5,17,24,32},{10,31,44,58},
+                {20,42,59,75},{30,49,70,90},{50,66,94,107},{75,78,111,116},
+                {90,85,121,121},{100,88,125,125}};
+        for(int[] row:expected){
+            assertEquals(row[1],HardRaidBalance.minForDay(row[0]),"min day "+row[0]);
+            assertEquals(row[2],HardRaidBalance.recommendedForDay(row[0]),"proposal day "+row[0]);
+            assertEquals(row[3],HardRaidBalance.maxForDay(row[0]),"max day "+row[0]);
+        }
+        var seeded=new java.util.Random(20261021);
+        for(int day=1;day<=100;day++){
+            final int d=day;
+            int min=HardRaidBalance.minForDay(day),max=HardRaidBalance.maxForDay(day);
+            assertTrue(min>0&&min<=max&&max<=HardRaidBalance.MAX_ROSTER);
+            for(int i=0;i<30;i++){
+                int draw=HardRaidBalance.rollForDay(day,seeded);
+                assertTrue(draw>=min&&draw<=max,"out-of-bounds hard draw on day "+day);
+            }
+            for(int selected:new int[]{min,(min+max)/2,max}){
+                int[] counts=HardRaidBalance.composition(day,selected);
+                assertEquals(selected,java.util.Arrays.stream(counts).sum()+(day%10==0?1:0));
+                int babies=0,captains=0;
+                for(int index=0;index<selected;index++){
+                    String mob=HardRaidBalance.mobForDay(day,index,selected);
+                    assertNotNull(mob);
+                    if(HardRaidBalance.BABY_ZOMBIE.equals(mob))babies++;
+                    if(day%10==0&&HardRaidBalance.captainType(day).equals(mob))captains++;
+                }
+                assertEquals(day%10==0?1:0,captains,"exact captain count day "+day);
+                assertEquals(HardRaidBalance.babyCount(day,selected),babies,"baby roster day "+day);
+            }
+        }
+    }
+
+    @Test void oneRandomDrawPersistsThroughRaidSaveAndCannotReroll(){
+        int day=10,selected=HardRaidBalance.minForDay(day);
+        var owner1=UUID.randomUUID().toString();
+        var owner2=UUID.randomUUID().toString();
+        var batches=List.of(new RaidStateData.Pending("minecraft:overworld",owner1,day,day,0,selected),
+                new RaidStateData.Pending("minecraft:overworld",owner2,day,day,0,selected));
+        RaidStateData state=new RaidStateData();
+        state.launch(day,batches,selected);
+        assertEquals(day,state.lastRandomWave());
+        assertEquals(selected,state.lastRandomRoster());
+        assertEquals(selected*2,state.remaining());
+        state=RaidStateData.CODEC.parse(JsonOps.INSTANCE,
+                RaidStateData.CODEC.encodeStart(JsonOps.INSTANCE,state).getOrThrow()).getOrThrow();
+        assertEquals(day,state.lastRandomWave());
+        assertEquals(selected,state.lastRandomRoster());
+        assertEquals(selected*2,state.remaining());
+        RaidStateData reloaded=state;
+        assertThrows(IllegalStateException.class,()->reloaded.launch(day,batches,selected));
+        RaidStateData.Pending first=reloaded.pending().getFirst();
+        UUID mob=UUID.randomUUID();
+        reloaded.spawned(first,mob);
+        assertEquals(selected*2,reloaded.remaining());
+        assertEquals(selected,reloaded.pending().stream().filter(p->p.owner().equals(owner1))
+                .mapToInt(p->p.next()+p.count()).findFirst().orElseThrow());
+        assertEquals(HardRaidBalance.captainType(day),
+                HardRaidBalance.mobForDay(day,selected-1,selected));
+        reloaded.resetForNewRun();
+        assertEquals(-1,reloaded.lastRandomRoster());
+        assertEquals(-1,reloaded.lastRandomWave());
+    }
+
     @Test void hardRosterAndBabyZombieSlots(){
         assertEquals(12,HardRaidBalance.totalForDay(1));
         assertEquals(58,HardRaidBalance.totalForDay(10));
@@ -72,9 +137,16 @@ class ChallengeRulesTest {
         hard=ChallengeData.CODEC.parse(JsonOps.INSTANCE,
                 ChallengeData.CODEC.encodeStart(JsonOps.INSTANCE,hard).getOrThrow()).getOrThrow();
         assertEquals(ChallengeData.PROFILE_HARD,hard.raidProfile());
+        assertTrue(hard.hardRaidProfile());
+        assertFalse(hard.randomizedHardRaidProfile(),"running alpha.7 hard must remain legacy hard");
         assertTrue(hard.finish(ChallengeData.WON,120,"test"));
         assertTrue(hard.resetFinishedRun());
         assertEquals(ChallengeData.PROFILE_LEGACY,hard.raidProfile());
+        assertTrue(hard.start(140,0,ChallengeData.PROFILE_HARD_V2));
+        hard=ChallengeData.CODEC.parse(JsonOps.INSTANCE,
+                ChallengeData.CODEC.encodeStart(JsonOps.INSTANCE,hard).getOrThrow()).getOrThrow();
+        assertTrue(hard.randomizedHardRaidProfile());
+        assertEquals(ChallengeData.PROFILE_HARD_V2,hard.raidProfile());
     }
     @Test void hardMorningSettlementDoesNotPenalizeUnspawnedQueue(){
         var state=new RaidStateData();
