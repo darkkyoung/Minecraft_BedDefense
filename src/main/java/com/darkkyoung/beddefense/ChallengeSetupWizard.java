@@ -22,6 +22,9 @@ import net.minecraft.world.level.GameType;
  */
 public final class ChallengeSetupWizard {
     private static final Map<MinecraftServer, Session> SESSIONS = new WeakHashMap<>();
+    // A disconnected player may have persisted their temporary Adventure mode.
+    // Restore it on their next join after an aborted countdown.
+    private static final Map<MinecraftServer, Map<UUID, GameType>> DEFERRED_RESTORE = new WeakHashMap<>();
     private static final int COUNTDOWN_TICKS = 60;
     private ChallengeSetupWizard() { }
 
@@ -209,10 +212,26 @@ public final class ChallengeSetupWizard {
     private static void restoreGameModes(MinecraftServer server,Session s) {
         for(var entry:s.previousGameModes.entrySet()) {
             ServerPlayer candidate=server.getPlayerList().getPlayer(entry.getKey());
-            if(candidate!=null && candidate.gameMode.getGameModeForPlayer()!=entry.getValue())
+            if(candidate==null){
+                DEFERRED_RESTORE.computeIfAbsent(server,ignored->new HashMap<>())
+                        .put(entry.getKey(),entry.getValue());
+            }else if(candidate.gameMode.getGameModeForPlayer()!=entry.getValue()) {
                 candidate.setGameMode(entry.getValue());
+            }
         }
         s.previousGameModes.clear();
+    }
+    /** Called on JOIN after lifecycle reconciliation; never touches another observer's inventory. */
+    static void restoreAfterJoin(MinecraftServer server,ServerPlayer player){
+        Map<UUID,GameType> pending=DEFERRED_RESTORE.get(server);
+        if(pending==null)return;
+        GameType original=pending.remove(player.getUUID());
+        if(pending.isEmpty())DEFERRED_RESTORE.remove(server);
+        if(original==null)return;
+        ChallengeData run=ChallengeData.get(server.overworld());
+        GameType target=run.running() && run.participating(player.getUUID())
+                ?GameType.SURVIVAL:original;
+        if(player.gameMode.getGameModeForPlayer()!=target)player.setGameMode(target);
     }
 
     private static void countdownTitle(MinecraftServer server, int second) {
