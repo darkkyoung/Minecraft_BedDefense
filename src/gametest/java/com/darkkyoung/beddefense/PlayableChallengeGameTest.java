@@ -238,6 +238,40 @@ public class PlayableChallengeGameTest {
         if(raid.raiders().size()==5||remainingTicks<=0){assertions.run();return;}
         h.runAfterDelay(10,()->waitForFirstRaid(h,world,assertions,remainingTicks-10));
     }
+    @GameTest(maxTicks=120,dimension="minecraft:overworld")
+    public void hardRaidStage10BabySpeedAndMining(GameTestHelper h){
+        ServerLevel world=h.getLevel();
+        BlockPos feet=h.absolutePos(new BlockPos(1,2,1));
+        world.setBlock(feet.below(),Blocks.STONE.defaultBlockState(),3);
+        Mob baby=mob(world,"zombie",feet);
+        RaidManager.configureRaider(baby,10,1,HardRaidBalance.BABY_ZOMBIE,true);
+        h.assertTrue(baby instanceof net.minecraft.world.entity.monster.Zombie zombie && zombie.isBaby(),
+                "hard day 10 baby zombie must have actual baby hitbox");
+        h.assertTrue(baby.getEffect(MobEffects.SPEED)==null,
+                "baby zombies must retain high natural speed without stacking Speed III");
+
+        int index=-1;
+        for(int i=0;i<58;i++){
+            if(HardRaidBalance.speedAmplifier("minecraft:zombie",10,i)==2){index=i;break;}
+        }
+        h.assertTrue(index>=0,"day 10 hard stage has Speed III eligible mobs");
+        Mob fast=mob(world,"zombie",feet.west(2));
+        RaidManager.configureRaider(fast,10,index,"minecraft:zombie",true);
+        h.assertTrue(fast.getEffect(MobEffects.SPEED)!=null &&
+                fast.getEffect(MobEffects.SPEED).getAmplifier()==2,
+                "hard day 10 Speed III is applied to actual raiders");
+
+        BlockPos target=feet.east(3);
+        world.setBlock(target,Blocks.DIRT.defaultBlockState(),3);
+        h.assertTrue(SiegeController.durationSeconds(world,target,1,ChallengeData.PROFILE_EASY)==2.0,
+                "easy mining is 50 percent faster than previous 4 second baseline");
+        h.assertTrue(SiegeController.durationSeconds(world,target,1,ChallengeData.PROFILE_HARD)==0.5,
+                "hard dirt mining takes half a second");
+        world.setBlock(target,Blocks.OBSIDIAN.defaultBlockState(),3);
+        h.assertTrue(SiegeController.durationSeconds(world,target,1,ChallengeData.PROFILE_HARD)==10.0,
+                "hard first band obsidian mining is 10 seconds");
+        baby.discard();fast.discard();h.succeed();
+    }
     @GameTest(maxTicks=180,dimension="minecraft:overworld")
     public void siegeMiningUsesRealBlocks(GameTestHelper h){
         ServerLevel world=h.getLevel();BlockPos feet=h.absolutePos(new BlockPos(1,2,1));
