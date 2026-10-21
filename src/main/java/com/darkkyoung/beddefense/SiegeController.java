@@ -35,6 +35,7 @@ public final class SiegeController {
     private static final class Job {
         BlockPos lastFeet;
         int stuckTicks;
+        int stuckAttempts;
         long lastAttemptTick;
         int raidDay;
         int profile;
@@ -88,10 +89,10 @@ public final class SiegeController {
         BlockPos feet=mob.blockPosition();
         long elapsed=Math.max(0,Math.min(20,level.getGameTime()-job.lastAttemptTick));
         job.lastAttemptTick=level.getGameTime();
-        if(job.lastFeet.distSqr(feet)<0.36)job.stuckTicks+=elapsed;
-        else {job.stuckTicks=0;clearBreaking(job);}
+        if(job.lastFeet.distSqr(feet)<0.36){job.stuckTicks+=elapsed;job.stuckAttempts++;}
+        else {job.stuckTicks=0;job.stuckAttempts=0;clearBreaking(job);}
         job.lastFeet=feet.immutable();
-        if(job.stuckTicks<(profile==ChallengeData.PROFILE_HARD?10:60))return;
+        if(profile==ChallengeData.PROFILE_HARD?job.stuckTicks<10:job.stuckAttempts<3)return;
 
         int dx=Integer.compare(target.getX(),feet.getX());
         int dz=Integer.compare(target.getZ(),feet.getZ());
@@ -200,7 +201,7 @@ public final class SiegeController {
         if(age>=duration){
             level.destroyBlockProgress(job.breakerId,pos,-1);
             if(canMine(level,pos))level.destroyBlock(pos,true);
-            job.breaking=null;job.stuckTicks=0;job.lastStage=-1;
+            job.breaking=null;job.stuckTicks=0;job.stuckAttempts=0;job.lastStage=-1;
         }
     }
 
