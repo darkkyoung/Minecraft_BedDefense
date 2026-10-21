@@ -21,6 +21,7 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public final class SiegeController {
     private static final int MAX_MINERS = 12;
+    private static final int HARD_PLACEMENT_MIN=5, HARD_PLACEMENT_SPAN=6;
     private static final int MAX_PLACED_BY_ONE_MOB = 24;
     private static long placementWindow=-1;
     private static int placementsInWindow;
@@ -33,7 +34,12 @@ public final class SiegeController {
 
     private static final class Job {
         BlockPos lastFeet;
-        int stuckSeconds;
+        int stuckTicks;
+        int stuckAttempts;
+        long lastAttemptTick;
+        int raidDay;
+        int profile;
+        Mob mob;
         int placedBlocks;
         long nextPlacementTick;
         BlockPos breaking;
@@ -46,28 +52,47 @@ public final class SiegeController {
         long lastSeen;
 
         Job(Mob mob,ServerLevel world){
+            this.mob=mob;
             lastFeet=mob.blockPosition();
             level=world;
             breakerId=-1000000-Math.floorMod(mob.getUUID().hashCode(),100000000);
             lastSeen=world.getGameTime();
+            lastAttemptTick=lastSeen;
         }
     }
-
+    /** Active hard-mode siege jobs progress every 5 ticks; path requests still use 1Hz. */
+    public static void tick(net.minecraft.server.MinecraftServer server){
+        if(server.overworld().getGameTime()%5!=0)return;
+        RaidStateData raid=RaidStateData.get(server.overworld());
+        for(Job job:new java.util.ArrayList<>(JOBS.values())){
+            if(job.profile!=ChallengeData.PROFILE_HARD)continue;
+            if(job.mob.isRemoved()||job.mob.isDeadOrDying()||!raid.isRaider(job.mob.getUUID())){
+                clear(job.mob.getUUID());continue;
+            }
+            if(job.target!=null)attempt(job.mob,job.level,job.target,job.raidDay,job.profile);
+        }
+    }
     public static void attempt(Mob mob,ServerLevel level,BlockPos target,int raidDay) {
+        attempt(mob,level,target,raidDay,ChallengeData.PROFILE_LEGACY);
+    }
+    public static void attempt(Mob mob,ServerLevel level,BlockPos target,int raidDay,int profile) {
         if(target==null || mob.isRemoved() || mob.isDeadOrDying()) {
             clear(mob.getUUID());
             return;
         }
         Job job=JOBS.computeIfAbsent(mob.getUUID(),id->new Job(mob,level));
         if(job.level!=level) {clearBreaking(job);job.level=level;}
+        job.mob=mob;job.profile=profile;job.raidDay=raidDay;
         if(job.target!=null&&job.target.distSqr(target)>4)clearBreaking(job);
         job.target=target.immutable();
         job.lastSeen=level.getGameTime();
         BlockPos feet=mob.blockPosition();
-        if(job.lastFeet.distSqr(feet)<0.36)job.stuckSeconds++;
-        else {job.stuckSeconds=0;clearBreaking(job);}
+        long elapsed=Math.max(0,Math.min(20,level.getGameTime()-job.lastAttemptTick));
+        job.lastAttemptTick=level.getGameTime();
+        if(job.lastFeet.distSqr(feet)<0.36){job.stuckTicks+=elapsed;job.stuckAttempts++;}
+        else {job.stuckTicks=0;job.stuckAttempts=0;clearBreaking(job);}
         job.lastFeet=feet.immutable();
-        if(job.stuckSeconds<3)return;
+        if(profile==ChallengeData.PROFILE_HARD?job.stuckTicks<10:job.stuckAttempts<3)return;
 
         int dx=Integer.compare(target.getX(),feet.getX());
         int dz=Integer.compare(target.getZ(),feet.getZ());
@@ -78,7 +103,7 @@ public final class SiegeController {
                     && level.isEmptyBlock(feet.above(2)) && level.isEmptyBlock(feet) && allowPlacement(level.getGameTime())) {
                 mob.setPos(mob.getX(),feet.getY()+1.05,mob.getZ());
                 level.setBlockAndUpdate(feet,Blocks.COBBLESTONE.defaultBlockState());
-                job.placedBlocks++;job.nextPlacementTick=level.getGameTime()+20+ThreadLocalRandom.current().nextInt(21);
+                job.placedBlocks++;job.nextPlacementTick=level.getGameTime()+placementCooldown(profile);
             }
             return;
         }
@@ -108,11 +133,16 @@ public final class SiegeController {
                 && level.isEmptyBlock(ahead) && level.isEmptyBlock(ahead.above()) && allowPlacement(level.getGameTime())) {
             level.setBlockAndUpdate(floor,Blocks.COBBLESTONE.defaultBlockState());
             job.placedBlocks++;
-            job.nextPlacementTick=level.getGameTime()+20+ThreadLocalRandom.current().nextInt(21);
+            job.nextPlacementTick=level.getGameTime()+placementCooldown(profile);
             mob.swing(net.minecraft.world.InteractionHand.MAIN_HAND,net.minecraft.world.item.component.SwingAnimation.DEFAULT);
         }
     }
 
+    private static int placementCooldown(int profile){
+        return profile==ChallengeData.PROFILE_HARD
+                ? HARD_PLACEMENT_MIN+ThreadLocalRandom.current().nextInt(HARD_PLACEMENT_SPAN)
+                : 20+ThreadLocalRandom.current().nextInt(21);
+    }
     private static boolean allowPlacement(long tick){
         long window=tick/20;if(window!=placementWindow){placementWindow=window;placementsInWindow=0;}
         if(placementsInWindow>=16)return false;placementsInWindow++;return true;
@@ -141,6 +171,12 @@ public final class SiegeController {
         // User's requested blanket 20% faster siege mining.
         return Math.max(0.5,sec*0.8);
     }
+    public static double durationSeconds(ServerLevel level,BlockPos pos,int day,int profile){
+        if(profile==ChallengeData.PROFILE_LEGACY)return durationSeconds(level,pos,day);
+        double original=durationSeconds(level,pos,day);
+        if(profile==ChallengeData.PROFILE_EASY)return Math.max(0.5,original*0.5);
+        return Math.max(0.5,Math.ceil(original*0.1*2.0)/2.0);
+    }
 
     private static void mine(Mob mob,Job job,ServerLevel level,BlockPos pos,int day) {
         if(job.breaking!=null && (!job.breaking.equals(pos)||!level.getBlockState(pos).equals(job.breakingState)))clearBreaking(job);
@@ -154,7 +190,7 @@ public final class SiegeController {
             job.breakStart=level.getGameTime();
             job.lastStage=-1;
         }
-        int duration=Math.max(10,(int)Math.ceil(durationSeconds(level,pos,day)*20));
+        int duration=Math.max(10,(int)Math.ceil(durationSeconds(level,pos,day,job.profile)*20));
         long age=level.getGameTime()-job.breakStart;
         int stage=Math.min(9,(int)(Math.max(0,age)*10/duration));
         if(stage!=job.lastStage){
@@ -165,7 +201,7 @@ public final class SiegeController {
         if(age>=duration){
             level.destroyBlockProgress(job.breakerId,pos,-1);
             if(canMine(level,pos))level.destroyBlock(pos,true);
-            job.breaking=null;job.stuckSeconds=0;job.lastStage=-1;
+            job.breaking=null;job.stuckTicks=0;job.stuckAttempts=0;job.lastStage=-1;
         }
     }
 

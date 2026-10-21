@@ -28,6 +28,11 @@ public final class RaidManager {
     }
     public static void reset(){LAST_BED_HIT.clear();BED_TARGETS.clear();GOALS.clear();pathCursor=0;SiegeController.reset();}
     public static int totalForDay(int day){return TOTALS[Math.max(1,Math.min(100,day))-1];}
+    public static int totalForDay(int day,boolean hard){return hard?HardRaidBalance.totalForDay(day):totalForDay(day);}
+    public static boolean hardMode(MinecraftServer server){
+        return ChallengeData.get(server.overworld()).hardRaidProfile();
+    }
+    public static int raidProfile(MinecraftServer server){return ChallengeData.get(server.overworld()).raidProfile();}
     /** START_SERVER_TICK settles before entity ticks/deaths can change the dawn snapshot. */
     public static void tick(MinecraftServer server){
         ChallengeData challenge=ChallengeData.get(server.overworld());
@@ -38,6 +43,7 @@ public final class RaidManager {
         if(state.active()&&(time>=SUNRISE_TICK||time<BEDTIME_TICK||day>state.activeDay()))finishAtMorning(server,state);
         if(day>100)return;
         if(time>=BEDTIME_TICK&&time<SUNRISE_TICK&&day>state.lastRaidDay())launch(server,day);
+        SiegeController.tick(server);
         if(server.overworld().getGameTime()%20!=0)return;
         if(state.active()&&time>=GLOW_START_TICK&&!state.glowStarted()){
             state.glowStarted(true);broadcast(server,"§e일출까지 5분! 남은 레이드 몬스터가 발광합니다.");
@@ -52,10 +58,11 @@ public final class RaidManager {
         RaidStateData state=RaidStateData.get(server.overworld());
         if(!challenge.running()||state.active()||day<=state.lastRaidDay()||day>100)return false;
         int roster=ChallengeBalance.rosterDay(day,ChallengeOptionsData.get(server.overworld()).raidStride());
+        boolean hard=hardMode(server);
         List<RaidStateData.Pending> batches=new ArrayList<>();
         for(ServerPlayer p:server.getPlayerList().getPlayers())
             if(p.isAlive()&&!p.isSpectator()&&challenge.participating(p.getUUID()))
-                batches.add(new RaidStateData.Pending(p.level().dimension().identifier().toString(),p.getUUID().toString(),roster,day,0,totalForDay(roster)));
+                batches.add(new RaidStateData.Pending(p.level().dimension().identifier().toString(),p.getUUID().toString(),roster,day,0,totalForDay(roster,hard)));
         if(batches.isEmpty())return false;
         state.launch(day,batches);
         broadcast(server,"§c§l"+day+"일차 레이드 시작! §f적용 편성 "+roster+"일차");
@@ -74,7 +81,8 @@ public final class RaidManager {
             RaidStateData.Pending current=batch;
             for(int n=0;n<batch.count()&&budget>0&&state.activeCount(batch.dimension())<ChallengeBalance.ACTIVE_RAIDERS_PER_DIMENSION;n++){
                 budget--;
-                UUID id=spawn(server,owner,mobForDay(batch.roster(),current.next(),totalForDay(batch.roster())),batch.roster(),current.next());
+                boolean hard=hardMode(server);
+                UUID id=spawn(server,owner,mobForDay(batch.roster(),current.next(),totalForDay(batch.roster(),hard),hard),batch.roster(),current.next(),hard);
                 if(id==null)break;
                 state.spawned(current,id);
                 current=new RaidStateData.Pending(batch.dimension(),batch.owner(),batch.roster(),batch.wave(),current.next()+1,current.count()-1);
@@ -89,7 +97,8 @@ public final class RaidManager {
         if(state.isRaider(entity.getUUID())&&state.glowStarted())entity.setGlowingTag(true);
     }
     public static void finishAtMorning(MinecraftServer server,RaidStateData state){
-        Map<String,Integer> penalties=state.settleMorning();
+        // In hard mode, monsters that never actually spawned cannot inflict HP damage.
+        Map<String,Integer> penalties=state.settleMorning(!hardMode(server));
         // Ledger is already settled. A later death or chunk load cannot reduce this immutable snapshot.
         penalties.forEach((owner,count)->{
             if(owner.isEmpty()){
@@ -162,10 +171,10 @@ public final class RaidManager {
                         ServerPlayer owner=server.getPlayerList().getPlayer(bedOwner);
                         if(owner!=null)owner.connection.send(new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(Component.literal("§c§l스폰 침대 공격 받는 중!")));
                     }
-                }else{if(canPath)mob.getNavigation().moveTo(bedPos.getX()+.5,bedPos.getY(),bedPos.getZ()+.5,1.15);SiegeController.attempt(mob,level,bedPos,roster);}
+                }else{if(canPath)mob.getNavigation().moveTo(bedPos.getX()+.5,bedPos.getY(),bedPos.getZ()+.5,1.15);SiegeController.attempt(mob,level,bedPos,roster,raidProfile(server));}
             }else if(closest!=null){
                 BED_TARGETS.remove(mob.getUUID());mob.setTarget(closest);
-                if(canPath)mob.getNavigation().moveTo(closest,1.2);SiegeController.attempt(mob,level,closest.blockPosition(),roster);
+                if(canPath)mob.getNavigation().moveTo(closest,1.2);SiegeController.attempt(mob,level,closest.blockPosition(),roster,raidProfile(server));
             }else{BED_TARGETS.remove(mob.getUUID());mob.setTarget(null);SiegeController.clear(mob.getUUID());}
         }
     }
@@ -174,6 +183,9 @@ public final class RaidManager {
     private static final int[] TOTALS={
 5, 6, 6, 7, 8, 8, 9, 10, 11, 12, 9, 10, 11, 12, 13, 12, 14, 14, 15, 18, 13, 14, 15, 16, 16, 17, 18, 18, 19, 22, 16, 18, 18, 20, 20, 21, 21, 22, 23, 26, 20, 22, 22, 24, 24, 25, 26, 27, 28, 32, 24, 26, 26, 28, 28, 30, 30, 32, 32, 38, 28, 30, 32, 32, 34, 34, 36, 36, 38, 44, 34, 36, 38, 38, 40, 40, 42, 44, 46, 52, 40, 42, 44, 46, 48, 48, 50, 52, 54, 62, 46, 48, 50, 52, 54, 56, 58, 62, 68, 80
     };
+    public static String mobForDay(int day,int index,int total,boolean hard) {
+        return hard?HardRaidBalance.mobForDay(day,index):mobForDay(day,index,total);
+    }
     public static String mobForDay(int day,int index,int total) {
         if(day%10==0 && index==total-1)return day>=60?"minecraft:ravager":day>=30?"minecraft:evoker":"minecraft:vindicator";
         // Day 1: exactly five zombies. Each tier gradually mixes in vanilla mobs.
@@ -200,7 +212,7 @@ public final class RaidManager {
     }
 
     private static UUID spawn(MinecraftServer server,ServerPlayer player,
-                              String type,int day,int index) {
+                              String type,int day,int index,boolean hard) {
         if(!(player.level() instanceof ServerLevel level))return null;
         BlockPos near=player.blockPosition();
         if(level.dimension().equals(Level.OVERWORLD)) {
@@ -209,11 +221,12 @@ public final class RaidManager {
         }
         BlockPos pos=findSpawn(level,near);
         if(pos==null)return null;
-        var entityType=net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.parse(type));
+        String vanillaType=HardRaidBalance.BABY_ZOMBIE.equals(type)?"minecraft:zombie":type;
+        var entityType=net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.parse(vanillaType));
         if(entityType==null)return null;
         Entity spawned=entityType.spawn(level,pos,net.minecraft.world.entity.EntitySpawnReason.EVENT);
         if(!(spawned instanceof Mob raidMob)){if(spawned!=null)spawned.discard();return null;}
-        configureRaider(raidMob,day,index,type);attachGoal(raidMob);
+        configureRaider(raidMob,day,index,type,hard);attachGoal(raidMob);
         return spawned.getUUID();
     }
     public static int speedAmplifier(String type,int day,int index){
@@ -230,11 +243,17 @@ public final class RaidManager {
         if(range!=null){range.removeModifier(id);range.addTransientModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(id,mob.level().dimension().equals(Level.OVERWORLD)?1:4,net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_BASE));}
     }
     public static void configureRaider(Mob mob,int day,int index,String type){
+        configureRaider(mob,day,index,type,false);
+    }
+    public static void configureRaider(Mob mob,int day,int index,String type,boolean hard){
         mob.setPersistenceRequired();
         applyAwareness(mob);
-        int speed=speedAmplifier(type,day,index);
-        if(speed>=0)mob.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.SPEED,-1,speed,false,false));
-        if(day%10==0&&index==totalForDay(day)-1){
+        if(hard) HardRaidBalance.configure(mob,day,index,type);
+        else {
+            int speed=speedAmplifier(type,day,index);
+            if(speed>=0)mob.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.SPEED,-1,speed,false,false));
+        }
+        if(day%10==0&&index==totalForDay(day,hard)-1){
             mob.setCustomName(Component.literal("§c"+day+"일차 대장"));mob.setCustomNameVisible(true);
             mob.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.STRENGTH,-1,1,false,false));
             mob.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.RESISTANCE,-1,0,false,false));
