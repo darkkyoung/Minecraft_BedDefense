@@ -245,7 +245,7 @@ public class PlayableChallengeGameTest {
         world.setBlock(feet.below(),Blocks.STONE.defaultBlockState(),3);
         Mob baby=mob(world,"zombie",feet);
         RaidManager.configureRaider(baby,10,1,HardRaidBalance.BABY_ZOMBIE,true);
-        h.assertTrue(baby instanceof net.minecraft.world.entity.monster.Zombie zombie && zombie.isBaby(),
+        h.assertTrue(baby instanceof net.minecraft.world.entity.monster.zombie.Zombie zombie && zombie.isBaby(),
                 "hard day 10 baby zombie must have actual baby hitbox");
         h.assertTrue(baby.getEffect(MobEffects.SPEED)==null,
                 "baby zombies must retain high natural speed without stacking Speed III");
