@@ -30,7 +30,7 @@ public final class RaidManager {
     public static int totalForDay(int day){return TOTALS[Math.max(1,Math.min(100,day))-1];}
     public static int totalForDay(int day,boolean hard){return hard?HardRaidBalance.totalForDay(day):totalForDay(day);}
     public static boolean hardMode(MinecraftServer server){
-        return HardRaidBalance.enabled(ChallengeOptionsData.get(server.overworld()).difficulty());
+        return ChallengeData.get(server.overworld()).hardRaidProfile();
     }
     /** START_SERVER_TICK settles before entity ticks/deaths can change the dawn snapshot. */
     public static void tick(MinecraftServer server){
