@@ -96,7 +96,7 @@ public final class ChallengeMenu {
             return false;
         }
         String difficulty = ChallengeOptionsData.get(server.overworld()).difficulty();
-        int profile = HardRaidBalance.enabled(difficulty) ? ChallengeData.PROFILE_HARD
+        int profile = HardRaidBalance.enabled(difficulty) ? ChallengeData.PROFILE_HARD_V2
                 : "쉬움".equals(difficulty) ? ChallengeData.PROFILE_EASY : ChallengeData.PROFILE_LEGACY;
         if (!data.start(server.overworld().getGameTime(), overworldClock(server), profile)) {
             player.sendSystemMessage(Component.literal("§e이미 진행 중인 챌린지입니다."));
