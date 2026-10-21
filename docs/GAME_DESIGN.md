@@ -64,3 +64,11 @@ Reused setup flow/countdown pattern, PR1 counts/save identities and PR2 daily pr
 - New hard alpha.8 obstacle mining first-band durations: dirt 1s, wood 2s, cobble 5s, obsidian 20s; placement 15–20 ticks, stuck threshold 20 ticks; progress evaluated every 5 ticks. Old alpha.7 hard profile retains previous durations (0.5 / 1 / 2.5 / 10 s) and 5–10 tick placement. Easy and normal profiles unchanged.
 - Always respect dimension active-entity cap 128, 12 simultaneous miners and 16 placed blocks/second. Difficult-mode unspawned queued Overworld raiders remain exempt from dawn HP penalties.
 - This specification does not claim real-world pathfinding/balance or 100-day physical acceptance. 
+
+## Alpha.9 start/countdown reset contract (supersedes earlier inventory-retention notes)
+
+- After clicking **[설정 완료 · 시작]**, selected online participants move to **Adventure mode for the 3-second (60-tick) countdown**. All conversions use server-side Java APIs, NOT `/gamemode` or `/clear`, and must not generate system-chat feedback for switching modes or clearing items.
+- Participants include non-spectators, the setup owner, and eliminated spectators who participated in the completed previous run. Unrelated intentional spectator observers are unaffected. Late eligible joiners are caught by the active countdown.
+- Inventory and cursor must **remain intact while the countdown runs**. Only after the world state successfully commits a new challenge does the server empty main inventory, hotbar, armor, offhand, carried cursor and convert participants to **Survival mode**, before `시작!` title/sound. The normal challenge-start announcement may still appear in chat.
+- Disconnect of countdown owner, failure to reset world time, or any aborted start restores each online participant's prior gamemode; NO item clearing occurs on failure. Re-entering settings during an active countdown cannot bypass the lock.
+- Confirmed **same-world restart** clears regular player inventories, despite preserving world constructions and Ender Chests. XP and dropped world entities are not cleared. Older documents saying ordinary inventory is preserved apply only until the new start is confirmed.
