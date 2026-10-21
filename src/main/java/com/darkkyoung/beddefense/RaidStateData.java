@@ -83,13 +83,15 @@ public final class RaidStateData extends SavedData {
     public void track(UUID id,Raider raider){raiders.put(id.toString(),raider);setDirty();}
     public void remove(UUID id){if(raiders.remove(id.toString())!=null)setDirty();}
     /** Atomically removes Overworld ledger entries BEFORE entity removal/any later death callback. */
-    public Map<String,Integer> settleMorning(){
+    public Map<String,Integer> settleMorning(){return settleMorning(true);}
+    /** Hard difficulty: queued mobs never spawned and cannot incur a dawn HP penalty. */
+    public Map<String,Integer> settleMorning(boolean chargePending){
         Map<String,Integer> penalties=new HashMap<>();
         raiders.entrySet().removeIf(e->{
             Raider r=e.getValue();if(!r.dimension.equals(OVERWORLD))return false;
             penalties.merge(r.owner,1,Integer::sum);cleanup.add(e.getKey());return true;
         });
-        pending.removeIf(p->{if(!p.dimension.equals(OVERWORLD))return false;penalties.merge(p.owner,p.count,Integer::sum);return true;});
+        pending.removeIf(p->{if(!p.dimension.equals(OVERWORLD))return false;if(chargePending)penalties.merge(p.owner,p.count,Integer::sum);return true;});
         activeDay=-1;glowStarted=false;totalSpawned=remaining();setDirty();return penalties;
     }
     public void finish(){activeDay=-1;glowStarted=false;totalSpawned=remaining();setDirty();}
