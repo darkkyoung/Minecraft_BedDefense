@@ -18,3 +18,9 @@ Manual acceptance: [R1_ACCEPTANCE.md](R1_ACCEPTANCE.md). Test success is not a c
 - `PlayableChallengeGameTest.hardRaidStage10BabySpeedAndMining` checks actual spawned baby zombie hitbox, ordinary zombie Speed III and different first-band mining durations for easy/hard.
 - Existing challenge GameTest uses the legacy normal profile; hard runs must not retroactively change earlier persistent challenges.
 - [Hard mode PC acceptance](HARD_MODE_ACCEPTANCE.md) describes the new-run and launcher-update acceptance procedure. Physical 100-day acceptance remains pending.
+
+## Alpha.8 variable hard-raid balance
+- JUnit checks every day 1–100: random range bounds, representative user-requested 7–12 / 10–17 / 31–58 / 49–90 / 88–125 limits, deterministic composition at min/middle/max, exactly one tenth-day boss, correctly scaled baby zombies, and no accidental retroactive alpha.8 migration of alpha.7 hard saves.
+- Saved-data roundtrip checks one random wave count shared across multiplayer participant batches, non-reroll after duplicate launch and preservation of pending/index counts during spawn retries.
+- Minecraft/Fabric GameTest compares new easy, old alpha.7 hard and new alpha.8 hard block-mining times; existing tests preserve no-bed raid, spawn-bed HP, owner tokens, death/respawn and sunrise ledger.
+- Actual nighttime randomization and difficulty feel still require disposable-world PC play. See [hard mode acceptance](HARD_MODE_ACCEPTANCE.md).
