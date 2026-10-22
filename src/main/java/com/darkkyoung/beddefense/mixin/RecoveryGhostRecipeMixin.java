@@ -29,14 +29,15 @@ abstract class RecoveryGhostRecipeMixin {
         if(!title.contains("[BedDefense 복구]"))return;
         boolean second=title.contains("2차");
         AbstractContainerScreen<?> container=screen;
-        int left=container.getLeftPos(),top=container.getTopPos();
+        int left=(graphics.guiWidth()-176)/2,top=(graphics.guiHeight()-166)/2;
         DispenserMenu menu=screen.getMenu();
         for(int i=0;i<9;i++){
             int x=left+62+(i%3)*18;
             int y=top+17+(i/3)*18;
             ItemStack actual=menu.getSlot(i).getItem();
             if(actual.isEmpty()){
-                graphics.item(new ItemStack(i==4?Items.RED_BED:second?Items.EMERALD_BLOCK:Items.EMERALD),x,y);
+                graphics.item(new ItemStack(i==4?net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(
+                        net.minecraft.resources.Identifier.parse("minecraft:red_bed")):second?Items.EMERALD_BLOCK:Items.EMERALD),x,y);
                 // ~50% faded preview, drawn *under* real item slots.
                 graphics.fill(x,y,x+16,y+16,0x88000000);
             }else{
