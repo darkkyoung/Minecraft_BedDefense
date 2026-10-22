@@ -378,7 +378,7 @@ public class PlayableChallengeGameTest {
                 SpawnBedPrototype.damage(world.getServer(),player.getUUID(),50,"raid");
                 h.assertTrue(!RecoveryBeaconRegistry.isRecoveryBlock(world,foot),
                         "third permanent destruction never creates a recovery beacon");
-                h.assertTrue(!RecoveryStateData.get(world).canRecover(player.getUUID()));
+                h.assertTrue(!RecoveryStateData.get(world).canRecover(player.getUUID()),"recovery count must be exhausted after two repairs");
                 player.closeContainer();
                 world.getServer().getPlayerList().remove(player);
                 h.succeed();
