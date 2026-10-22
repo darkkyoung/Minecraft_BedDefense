@@ -29,7 +29,7 @@ import net.minecraft.world.phys.Vec3;
 
 /** Runs against actual Minecraft/Fabric objects and injected events, exclusively in generated test worlds. */
 public class PlayableChallengeGameTest {
-    @GameTest(maxTicks=600,dimension="minecraft:overworld")
+    @GameTest(maxTicks=800,dimension="minecraft:overworld")
     public void startBedsRaidDeathAndDragon(GameTestHelper h){
         var server=h.getLevel().getServer();ServerLevel world=server.overworld();
         world.getDataStorage().set(ChallengeData.TYPE,new ChallengeData());
@@ -84,9 +84,10 @@ public class PlayableChallengeGameTest {
             h.assertTrue(ChallengeMenu.overworldClock(server)<100,"reset selected: day one morning");
             h.assertTrue(BedVitalData.get(world).state(p.getUUID())==0,"no bed before first interaction");
             RaidManager.run(server,"time of minecraft:overworld set 12542");
-            waitForFirstRaid(h,world,()->{
+            waitForFirstRaid(h,world,p.getUUID(),()->{
                 RaidStateData raid=RaidStateData.get(world);
-                h.assertTrue(raid.active()&&raid.raiders().size()==5,"daily first-night raid: active="+raid.active()+" spawned="+raid.raiders().size()+" queued="+raid.pending()+" player="+p.position()+" arena="+foot+" difficulty="+world.getDifficulty());
+                long spawned=raid.raiders().values().stream().filter(r->r.owner().equals(p.getUUID().toString())&&r.wave()==1).count();
+                h.assertTrue(raid.active()&&spawned==5,"daily first-night raid: active="+raid.active()+" playerWaveSpawned="+spawned+" queued="+raid.pending()+" player="+p.position()+" arena="+foot+" difficulty="+world.getDifficulty());
                 bed(world,foot);use(p,world,foot);
                 h.assertTrue(BedVitalData.get(world).state(p.getUUID())==1,"day/night right-click registers bed");
                 h.assertTrue(p.getRespawnConfig()!=null,"real respawn config established");
@@ -226,7 +227,9 @@ public class PlayableChallengeGameTest {
                         "new run begins again at day 1");
                     h.assertTrue(ChallengeData.get(world).day(ChallengeMenu.overworldClock(server))==1,
                         "new challenge starts at first day");
-                    h.succeed();
+                    // Serialize this test after sunrise/raid state checks because the
+                    // generated GameTests share authoritative Overworld saved data.
+                    raidZombiesAndHusksStayTrackedUnderWater(h);
                 });
                 });
             },200);
@@ -254,12 +257,93 @@ public class PlayableChallengeGameTest {
         return single;
     }
 
-    private static void waitForFirstRaid(GameTestHelper h,ServerLevel world,Runnable assertions,int remainingTicks){
-        // Chunk promotion is asynchronous; assert the actual five spawns, not a runner-speed-dependent delay.
+    private static void waitForFirstRaid(GameTestHelper h,ServerLevel world,UUID owner,Runnable assertions,int remainingTicks){
+        // Count only this test player's first-night raiders: independent GameTests
+        // may intentionally add other tracked mobs to the same world ledger.
         var raid=RaidStateData.get(world);
-        if(raid.raiders().size()==5||remainingTicks<=0){assertions.run();return;}
-        h.runAfterDelay(10,()->waitForFirstRaid(h,world,assertions,remainingTicks-10));
+        long playerWave=raid.raiders().values().stream()
+                .filter(r->r.owner().equals(owner.toString())&&r.wave()==1).count();
+        if(playerWave==5||remainingTicks<=0){assertions.run();return;}
+        h.runAfterDelay(10,()->waitForFirstRaid(h,world,owner,assertions,remainingTicks-10));
     }
+    private void raidZombiesAndHusksStayTrackedUnderWater(GameTestHelper h){
+        ServerLevel world=h.getLevel();
+        RaidStateData raid=RaidStateData.get(world.getServer().overworld());
+        BlockPos raidZombieSpot=h.absolutePos(new BlockPos(1,2,1));
+        BlockPos raidHuskSpot=h.absolutePos(new BlockPos(5,2,1));
+        BlockPos wildZombieSpot=h.absolutePos(new BlockPos(9,2,1));
+        waterCell(world,raidZombieSpot);
+        waterCell(world,raidHuskSpot);
+        waterCell(world,wildZombieSpot);
+
+        var raidZombie=(net.minecraft.world.entity.monster.zombie.Zombie)
+                mob(world,"zombie",raidZombieSpot);
+        var raidHusk=(net.minecraft.world.entity.monster.zombie.Zombie)
+                mob(world,"husk",raidHuskSpot);
+        var wildZombie=(net.minecraft.world.entity.monster.zombie.Zombie)
+                mob(world,"zombie",wildZombieSpot);
+        for(var z:java.util.List.of(raidZombie,raidHusk,wildZombie)){
+            z.setNoGravity(true);
+        }
+        String owner=UUID.randomUUID().toString();
+        raid.track(raidZombie.getUUID(),new RaidStateData.Raider("minecraft:overworld",owner,1,1));
+        raid.track(raidHusk.getUUID(),new RaidStateData.Raider("minecraft:overworld",owner,1,1));
+        h.assertTrue(RaidManager.isTrackedRaider(raidZombie) &&
+                RaidManager.isTrackedRaider(raidHusk) && !RaidManager.isTrackedRaider(wildZombie),
+                "only actual raid UUIDs are protected from water conversion");
+        h.assertTrue(!convertsInWater(raidZombie) && !convertsInWater(raidHusk),
+                "tracked Zombie and overridden Husk vanilla conversion predicates are disabled");
+        h.assertTrue(convertsInWater(wildZombie),
+                "vanilla untracked Zombie is still allowed to convert in water");
+
+        // Advance the conversion conditions while the entities remain submerged.
+        // The wild control uses an actual reflected vanilla predicate; a forced
+        // conversion-time setter alone does not guarantee transformation in a
+        // truncated GameTest window (the ConversionTracker manages both stages).
+        raidZombie.setInWaterTime(599);
+        raidHusk.setInWaterTime(599);
+        UUID zombieId=raidZombie.getUUID(),huskId=raidHusk.getUUID();
+        h.runAfterDelay(120,()->{
+            h.assertTrue(world.getEntity(zombieId)==raidZombie && !raidZombie.isRemoved()
+                            && raid.isRaider(zombieId),
+                    "underwater raid zombie must keep its original entity and UUID");
+            h.assertTrue(world.getEntity(huskId)==raidHusk && !raidHusk.isRemoved()
+                            && raid.isRaider(huskId),
+                    "underwater raid husk must keep its original entity and UUID");
+            h.assertTrue(!raidZombie.isUnderWaterConverting() &&
+                            !raidHusk.isUnderWaterConverting(),
+                    "raid undead must never enter vanilla water-conversion countdown");
+            h.assertTrue(convertsInWater(wildZombie) && !RaidManager.isTrackedRaider(wildZombie),
+                    "untracked vanilla zombie retains its normal conversion eligibility");
+            raid.remove(zombieId);raid.remove(huskId);
+            raidZombie.discard();raidHusk.discard();wildZombie.discard();h.succeed();
+        });
+    }
+
+    private static boolean convertsInWater(net.minecraft.world.entity.monster.zombie.Zombie entity){
+        try {
+            Class<?> owner=entity instanceof net.minecraft.world.entity.monster.zombie.Husk
+                    ?net.minecraft.world.entity.monster.zombie.Husk.class
+                    :net.minecraft.world.entity.monster.zombie.Zombie.class;
+            var method=owner.getDeclaredMethod("convertsInWater");
+            method.setAccessible(true);
+            return (boolean)method.invoke(entity);
+        } catch(ReflectiveOperationException exception) {
+            throw new AssertionError("Could not inspect the actual Minecraft 26.3 zombie conversion",exception);
+        }
+    }
+
+    private static void waterCell(ServerLevel world,BlockPos center){
+        world.setBlock(center.below(),Blocks.GLASS.defaultBlockState(),3);
+        for(int dy=0;dy<3;dy++){
+            for(Direction facing:Direction.Plane.HORIZONTAL)
+                world.setBlock(center.above(dy).relative(facing),
+                        Blocks.GLASS.defaultBlockState(),3);
+            world.setBlock(center.above(dy),Blocks.WATER.defaultBlockState(),3);
+        }
+        world.setBlock(center.above(3),Blocks.GLASS.defaultBlockState(),3);
+    }
+
     @GameTest(maxTicks=120,dimension="minecraft:overworld")
     public void hardRaidStage10BabySpeedAndMining(GameTestHelper h){
         ServerLevel world=h.getLevel();

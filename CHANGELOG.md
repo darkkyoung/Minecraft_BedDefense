@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0-alpha.11+26.3 — Fix raid zombies disappearing on water conversion
+- **Tracked raid zombies no longer transform into Drowned** after prolonged submersion. The entity retains its UUID, so the authoritative raid ledger, remaining-mob count, raid target AI and morning penalty remain correct; the raid cannot be cleared by water conversion.
+- Raid **husks** are protected too. Husk overrides vanilla water conversion and would otherwise transform first into a new Zombie (and eventually into a Drowned), also dropping its raid tracking.
+- Only mobs whose UUID is present in Bed Defense's server-side `RaidStateData` are affected. **Ordinary wild zombies and husks still convert normally**. Raids that spawn Drowned directly are unchanged.
+- Already-registered zombies loaded while a conversion timer is active have their timer reset on server entity load. No new mob tags or saved-data schema changes are needed.
+- Added actual Minecraft server GameTest that submerges tracked zombie/husk plus an untracked control zombie, advances underwater timers, confirms raiders retain original entities/UUIDs without converting, and directly verifies the wild control retains vanilla conversion eligibility. The full 45-second wild conversion remains manual acceptance.
+- No changes to raid difficulty, spawn counts, buff/equipment balance, Spawn Bed HP, installer, or world-save compatibility. Full physical underwater/pathfinding acceptance still pending.
+
 ## 0.2.0-alpha.10+26.3 — Full first-join introduction chat
 - The first **베드 디펜스** greeting/introduction/goal/rules/**[게임 시작]** chat temporarily expands its visible height so the earliest lines are not cut off by the vanilla unfocused chat limit.
 - The larger chat height is **client-only and temporary**. The setting's vanilla unfocused/focused height is never changed or saved to `options.txt`; selecting **[게임 시작]** opens the normal-height setup menu immediately.

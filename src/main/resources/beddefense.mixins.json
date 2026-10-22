@@ -8,7 +8,9 @@
     "DragonFightMixin",
     "RaidMobMixin",
     "MobGoalAccessor",
-    "DragonEntityMixin"
+    "DragonEntityMixin",
+    "RaidZombieWaterMixin",
+    "RaidHuskWaterMixin"
   ],
   "client": [
     "HardcoreHeartsMixin",
