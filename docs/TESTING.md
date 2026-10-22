@@ -34,3 +34,8 @@ Manual acceptance: [R1_ACCEPTANCE.md](R1_ACCEPTANCE.md). Test success is not a c
 - JUnit: first welcome packet's explicit `welcome` flag, fallback constructors, viewport chat-height math and vanilla-height restoration without persistent option changes.
 - Fabric client GameTest: send first welcome, assert it temporarily exposes >=18 lines at GUI scale 2 and take `r1-welcome-chat-full-height` screenshot; then send `/beddefense setup` and confirm client presentation flag restores normal before continuing existing HUD acceptance. Mixin target `ChatComponent.getHeight()I` must pass client initialization.
 - Physical testing: confirm all Korean introduction lines and clickable **[게임 시작]** on desktop and smaller GUI scale/monitor configurations. CI does not prove all visual layout variants.
+
+## Alpha.11 raid water-conversion identity regression
+- Actual Minecraft server GameTest constructs three closed water cells, tracks a real Zombie and Husk in `RaidStateData`, leaves another Zombie untracked, and accelerates the vanilla underwater counters. After the normal conversion window, **both raiders retain original UUID/entity and do not enter a conversion countdown**, while the wild control can become Drowned.
+- Confirm no lost raid ledger records, no false `레이드 클리어!`, no change to actual Drowned mobs in the hard roster, and no special chat output. Vanilla unrelated zombies must remain convertible.
+- On PC, leave the tagged raid Zombie/Husk underwater at least 45 seconds, or until sunrise, and verify the remaining count tracks them; stop the raid only on real kills or sunrise settlement. Keep test worlds disposable. Code CI is not full water AI/pathfinding acceptance.
