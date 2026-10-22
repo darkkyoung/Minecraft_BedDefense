@@ -23,6 +23,7 @@ public final class SiegeController {
     private static final int MAX_MINERS = 12;
     private static final int HARD_PLACEMENT_MIN=5, HARD_PLACEMENT_SPAN=6;
     private static final int BALANCED_HARD_PLACEMENT_MIN=15, BALANCED_HARD_PLACEMENT_SPAN=6;
+    private static final int NORMAL_PLACEMENT_MIN=18, NORMAL_PLACEMENT_SPAN=13; // 0.9–1.5s
     private static final int MAX_PLACED_BY_ONE_MOB = 24;
     private static long placementWindow=-1;
     private static int placementsInWindow;
@@ -66,7 +67,8 @@ public final class SiegeController {
         if(server.overworld().getGameTime()%5!=0)return;
         RaidStateData raid=RaidStateData.get(server.overworld());
         for(Job job:new java.util.ArrayList<>(JOBS.values())){
-            if(job.profile!=ChallengeData.PROFILE_HARD && job.profile!=ChallengeData.PROFILE_HARD_V2)continue;
+            if(job.profile!=ChallengeData.PROFILE_HARD && job.profile!=ChallengeData.PROFILE_HARD_V2
+                    && job.profile!=ChallengeData.PROFILE_NORMAL_V2)continue;
             if(job.mob.isRemoved()||job.mob.isDeadOrDying()||!raid.isRaider(job.mob.getUUID())){
                 clear(job.mob.getUUID());continue;
             }
@@ -94,6 +96,7 @@ public final class SiegeController {
         else {job.stuckTicks=0;job.stuckAttempts=0;clearBreaking(job);}
         job.lastFeet=feet.immutable();
         if(profile==ChallengeData.PROFILE_HARD_V2?job.stuckTicks<20
+                :profile==ChallengeData.PROFILE_NORMAL_V2?job.stuckTicks<30
                 :profile==ChallengeData.PROFILE_HARD?job.stuckTicks<10:job.stuckAttempts<3)return;
 
         int dx=Integer.compare(target.getX(),feet.getX());
@@ -141,6 +144,8 @@ public final class SiegeController {
     }
 
     private static int placementCooldown(int profile){
+        if(profile==ChallengeData.PROFILE_NORMAL_V2)
+            return NORMAL_PLACEMENT_MIN+ThreadLocalRandom.current().nextInt(NORMAL_PLACEMENT_SPAN);
         if(profile==ChallengeData.PROFILE_HARD_V2)
             return BALANCED_HARD_PLACEMENT_MIN+ThreadLocalRandom.current().nextInt(BALANCED_HARD_PLACEMENT_SPAN);
         return profile==ChallengeData.PROFILE_HARD
@@ -178,10 +183,16 @@ public final class SiegeController {
     public static double durationSeconds(ServerLevel level,BlockPos pos,int day,int profile){
         if(profile==ChallengeData.PROFILE_LEGACY)return durationSeconds(level,pos,day);
         double original=durationSeconds(level,pos,day);
-        if(profile==ChallengeData.PROFILE_EASY)return Math.max(0.5,original*0.5);
-        // Original alpha.7 hard remains unchanged for in-progress legacy-hard runs.
+        double easy=Math.max(0.5,original*0.5);
+        if(profile==ChallengeData.PROFILE_EASY)return easy;
+        // Existing alpha.7 hard and legacy Normal remain untouched on active saves.
         double previousHard=Math.max(0.5,Math.ceil(original*0.1*2.0)/2.0);
-        return profile==ChallengeData.PROFILE_HARD_V2?previousHard*2.0:previousHard;
+        double balancedHard=previousHard*2.0;
+        if(profile==ChallengeData.PROFILE_HARD_V2)return balancedHard;
+        if(profile==ChallengeData.PROFILE_NORMAL_V2)
+            // e.g., first band dirt 1.5, wood 3.4, cobble 8.5, obsidian 34 s.
+            return Math.round((easy+balancedHard)*5.0)/10.0;
+        return previousHard;
     }
 
     private static void mine(Mob mob,Job job,ServerLevel level,BlockPos pos,int day) {
