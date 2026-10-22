@@ -1,6 +1,5 @@
 package com.darkkyoung.beddefense;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -18,9 +17,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
  * checks, powers, inventory/upgrade UI, item drops or normal beacon gameplay.
  */
 public final class RecoveryBeaconBlock extends BaseEntityBlock {
-    public static final MapCodec<RecoveryBeaconBlock> CODEC=simpleCodec(RecoveryBeaconBlock::new);
     public RecoveryBeaconBlock(BlockBehaviour.Properties properties){super(properties);}
-    @Override protected MapCodec<? extends BaseEntityBlock> codec(){return CODEC;}
     @Override protected RenderShape getRenderShape(BlockState state){return RenderShape.MODEL;}
     @Override public BlockEntity newBlockEntity(BlockPos pos,BlockState state){
         return new RecoveryBeaconBlockEntity(pos,state);
