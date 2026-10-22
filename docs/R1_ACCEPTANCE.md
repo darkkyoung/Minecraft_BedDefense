@@ -90,3 +90,10 @@ CI executes compiler, unit tests and real server GameTests; the release pipeline
 3. Watch chat through both transitions: there must be **no game-mode change notification and no item-cleared count**. The intended `챌린지 시작!` announcement is permitted.
 4. Start a completed world's **[다시 시작]** from a formerly eliminated spectator. At confirmed finish the participant must rejoin Survival with cleared inventory; unrelated deliberate spectator observers should remain unaffected.
 5. In a disposable world, disconnect the countdown owner before completion, or trigger a failed preflight. All still-online participants should have their former game modes restored and keep their items. Opening/cancelling settings alone must never clear inventory.
+
+## Alpha.10 first welcome never clipped
+
+1. Join a fresh disposable world at 1080p and 1440p, GUI scales 2/3/4. Without pressing T, confirm the initial **top border, 베드 디펜스, greeting, explanation, 100-day rules, [게임 시작], and bottom footer** are simultaneously visible instead of clipping the earliest messages.
+2. Press T if required to click **[게임 시작]**. The normal settings menu should replace the intro and chat should return to the **user's ordinary chat-height setting immediately**, without overlapping the world HUD.
+3. Use `/beddefense` before starting to re-display the full introduction. Reopen normal settings and confirm no duplicate chats, altered permanent chat options or chat-height change in `options.txt`. Disconnect/rejoin and start countdown; normal chat height must be restored.
+4. Extremely small game windows still have viewport-constrained chat; the client should not render text above the screen. Test at a readable resolution if necessary.

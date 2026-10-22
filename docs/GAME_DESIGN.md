@@ -72,3 +72,11 @@ Reused setup flow/countdown pattern, PR1 counts/save identities and PR2 daily pr
 - Inventory and cursor must **remain intact while the countdown runs**. Only after the world state successfully commits a new challenge does the server empty main inventory, hotbar, armor, offhand, carried cursor and convert participants to **Survival mode**, before `시작!` title/sound. The normal challenge-start announcement may still appear in chat.
 - Disconnect of countdown owner, failure to reset world time, or any aborted start restores each online participant's prior gamemode; NO item clearing occurs on failure. Re-entering settings during an active countdown cannot bypass the lock.
 - Confirmed **same-world restart** clears regular player inventories, despite preserving world constructions and Ender Chests. XP and dropped world entities are not cleared. Older documents saying ordinary inventory is preserved apply only until the new start is confirmed.
+
+## Alpha.10 first-welcome chat viewport
+
+- Before starting a challenge, `ChallengeMenu.show` sends `MenuUiPayload(closeScreen=false,welcome=true)` immediately before the greeting/goal/rules/clickable start messages. The extra flag is decoded by the client and controls only an in-memory welcome presentation bit.
+- The client chat component increases its **visible height only during this introductory state** to fit wrapped text. It is dynamically capped by GUI screen height and chat scale and leaves a fixed top margin. No global/focused/unfocused chat settings or `options.txt` are written.
+- The normal `MenuUiPayload(false)` sent by the setup/options screens disables expanded chat before rendering settings, as does the countdown's `MenuUiPayload(true)`. Client disconnect also disables expansion. The initial introduction can be reopened by `/beddefense` before challenge start.
+- Chat formatting, `[게임 시작]` clickable command, clear-previous-menu behavior and Bed Defense HUD remain unchanged. On exceptionally small GUI viewports, the chat remains constrained by screen space; game chat is still scrollable when focused.
+- Server and launcher acceptability are separate from screenshots. CI client game test captures `r1-welcome-chat-full-height` and verifies a larger visible-line count; actual Korean font/shader/GUI scales require user validation.

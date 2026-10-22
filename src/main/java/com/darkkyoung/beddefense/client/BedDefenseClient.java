@@ -34,13 +34,19 @@ public final class BedDefenseClient implements ClientModInitializer {
         // before subsequent menu/title messages, preventing duplicated menu blocks.
         ClientPlayNetworking.registerGlobalReceiver(MenuUiPayload.TYPE,
                 (payload, context) -> context.client().execute(() -> {
+                    // Packet reaches the client before the server sends introduction lines.
+                    // All non-welcome packets immediately restore the user's native chat height.
+                    WelcomeChatDisplay.show(payload.welcome());
                     context.client().gui.hud.getChat().clearMessages(false);
                     if (payload.closeScreen()) context.client().gui.setScreen(null);
                 }));
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("beddefense", "hud"),
                 BedDefenseHud::render);
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.level == null || client.player == null) BedDefenseHud.onDisconnected();
+            if (client.level == null || client.player == null) {
+                BedDefenseHud.onDisconnected();
+                WelcomeChatDisplay.show(false);
+            }
         });
     }
 }

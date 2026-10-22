@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0-alpha.10+26.3 — Full first-join introduction chat
+- The first **베드 디펜스** greeting/introduction/goal/rules/**[게임 시작]** chat temporarily expands its visible height so the earliest lines are not cut off by the vanilla unfocused chat limit.
+- The larger chat height is **client-only and temporary**. The setting's vanilla unfocused/focused height is never changed or saved to `options.txt`; selecting **[게임 시작]** opens the normal-height setup menu immediately.
+- Reopening `/beddefense` before starting shows the complete introduction again; setup, cancellation, countdown, other chat and post-start gameplay use the player's own native chat-height settings.
+- The adaptive expanded height respects the GUI-scaled viewport, keeping a margin for the rest of the HUD even on smaller windows.
+- Added a client screenshot assertion that the first welcome exposes at least 18 rows with GUI scale 2, plus unit tests for normal/menu and viewport behavior. Manual screen-scale/shader/modpack verification remains pending.
+- No changes to bed HP, raids/difficulty, inventory reset sequence, Windows installer or profiles.
+
 ## 0.2.0-alpha.9+26.3 — Silent Adventure → clean Survival start
 - Clicking **[설정 완료 · 시작]** switches every eligible online participant to Adventure during the existing 60-tick/3-second countdown. Current spectators who previously participated in a completed run can be included in the restart, but unrelated spectator observers stay spectators.
 - **Do not clear items until the challenge start succeeds.** On success, the server clears the participant's main inventory, hotbar, armor, offhand and carried cursor, then switches them directly to Survival before the start title/sound. Ender Chest, XP, world builds and dropped items are untouched.

@@ -22,7 +22,18 @@ public class ClientHudGameTest implements FabricClientGameTest {
             world.getConnection().waitForChunksRender();
             context.runOnClient(mc->mc.options.guiScale().set(2));
             world.getServer().runOnServer(server->server.getPlayerList().getPlayers().getFirst().setGameMode(GameType.SURVIVAL));
-            context.runOnClient(mc->mc.player.connection.sendCommand("beddefense setup"));context.waitTicks(3);
+            // Welcome is the only chat state that may temporarily increase vanilla chat height.
+            world.getServer().runOnServer(server ->
+                    ChallengeMenu.show(server.getPlayerList().getPlayers().getFirst(),server));
+            context.waitFor(mc->com.darkkyoung.beddefense.client.WelcomeChatDisplay.showing());
+            context.runOnClient(mc->{
+                if(mc.gui.hud.getChat().getLinesPerPage()<18)
+                    throw new AssertionError("First welcome chat is still clipped to the ordinary number of rows");
+            });
+            context.takeScreenshot("r1-welcome-chat-full-height");
+            context.runOnClient(mc->mc.player.connection.sendCommand("beddefense setup"));
+            context.waitFor(mc->!com.darkkyoung.beddefense.client.WelcomeChatDisplay.showing());
+            context.waitTicks(3);
             context.runOnClient(mc->mc.player.connection.sendCommand("beddefense setup time reset"));
             context.runOnClient(mc->mc.player.connection.sendCommand("beddefense setup stride 2"));
             // Exercise actual client-side chat closing on the setup confirmation.
