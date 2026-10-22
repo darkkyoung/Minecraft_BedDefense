@@ -58,7 +58,10 @@ public final class RecoveryDispenserMenu extends DispenserMenu {
         for(int i=0;i<9;i++){
             ItemStack stack=deposits.removeItemNoUpdate(i);
             if(stack.isEmpty())continue;
-            if(!player.getInventory().add(stack.copy()))player.drop(stack,false);
+            // add() may partially insert and mutate its argument; drop only remainder.
+            ItemStack remaining=stack.copy();
+            player.getInventory().add(remaining);
+            if(!remaining.isEmpty())player.drop(remaining,false);
         }
         deposits.setChanged();
     }
