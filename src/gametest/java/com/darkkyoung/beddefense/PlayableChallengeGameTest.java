@@ -316,8 +316,80 @@ public class PlayableChallengeGameTest {
             h.assertTrue(convertsInWater(wildZombie) && !RaidManager.isTrackedRaider(wildZombie),
                     "untracked vanilla zombie retains its normal conversion eligibility");
             raid.remove(zombieId);raid.remove(huskId);
-            raidZombie.discard();raidHusk.discard();wildZombie.discard();h.succeed();
+            raidZombie.discard();raidHusk.discard();wildZombie.discard();
+            testRecoveryBeaconLifecycle(h);
         });
+    }
+
+    /** Serialized after real raid/dawn tests to avoid overwriting shared saved data. */
+    private void testRecoveryBeaconLifecycle(GameTestHelper h){
+        ServerLevel world=h.getLevel(),overworld=world.getServer().overworld();
+        ServerPlayer player=survivalPlayer(world);
+        player.setGameMode(GameType.SURVIVAL);
+        ChallengeData.get(overworld).join(player.getUUID());
+        BlockPos foot=h.absolutePos(new BlockPos(270,2,270));
+        world.setChunkForced(foot.getX()>>4,foot.getZ()>>4,true);
+        world.setBlock(foot.below(),Blocks.STONE.defaultBlockState(),3);
+        world.setBlock(foot.south().below(),Blocks.STONE.defaultBlockState(),3);
+        world.setBlock(foot,Blocks.AIR.defaultBlockState(),3);
+        world.setBlock(foot.south(),Blocks.AIR.defaultBlockState(),3);
+        bed(world,foot);
+        use(player,world,foot);
+        h.assertTrue(BedVitalData.get(world).hp(player.getUUID())==100,"initial bed HP100");
+        SpawnBedPrototype.damage(world.getServer(),player.getUUID(),100,"raid");
+        h.assertTrue(RecoveryBeaconRegistry.isRecoveryBlock(world,foot),
+                "one custom recovery beacon replaces the destroyed bed FOOT");
+        h.assertTrue(world.getBlockState(foot.south()).isAir(),
+                "beacon is a single block without extra visible supports");
+        h.assertTrue(world.getBlockEntity(foot) instanceof RecoveryBeaconBlockEntity be
+                        && !be.getBeamSections().isEmpty(),
+                "real beacon beam renderer has a section despite NO pyramid");
+        h.assertTrue(RecoveryStateData.get(world).used(player.getUUID())==0,"zero recoveries consumed before payment");
+        h.assertTrue(RecoveryBeaconManager.open(player,world,foot),"owner can use recovery signal");
+        h.assertTrue(player.containerMenu instanceof RecoveryDispenserMenu,"actual 3x3 deposit menu opens");
+        RecoveryDispenserMenu temporary=(RecoveryDispenserMenu)player.containerMenu;
+        temporary.getSlot(0).set(new ItemStack(net.minecraft.world.item.Items.EMERALD));
+        player.closeContainer();
+        h.assertTrue(player.getInventory().countItem(net.minecraft.world.item.Items.EMERALD)>=1,
+                "closing incomplete recovery returns deposited items instead of consuming them");
+        h.assertTrue(BedVitalData.get(world).state(player.getUUID())==2,"closing incomplete recipe does not revive bed");
+
+        h.assertTrue(RecoveryBeaconManager.open(player,world,foot),"first recovery menu reopens");
+        RecoveryDispenserMenu first=(RecoveryDispenserMenu)player.containerMenu;
+        deposit(first,false);
+        h.runAfterDelay(15,()->{
+            h.assertTrue(BedVitalData.get(world).hp(player.getUUID())==25,
+                    "first recovery returns HP25, not free HP100");
+            h.assertTrue(RecoveryStateData.get(world).used(player.getUUID())==1,
+                    "first recovery consumed exactly one durable allowance");
+            h.assertTrue(!RecoveryBeaconRegistry.isRecoveryBlock(world,foot)
+                            &&world.getBlockState(foot).getBlock() instanceof BedBlock,
+                    "beacon disappears and bed is built in its old location");
+            h.assertTrue(player.getRespawnConfig()!=null,"restoration writes actual Overworld respawn");
+            SpawnBedPrototype.damage(world.getServer(),player.getUUID(),25,"raid");
+            h.assertTrue(RecoveryBeaconRegistry.isRecoveryBlock(world,foot),
+                    "beacon returns after second destruction");
+            h.assertTrue(RecoveryBeaconManager.open(player,world,foot),"second recovery opens");
+            RecoveryDispenserMenu second=(RecoveryDispenserMenu)player.containerMenu;
+            deposit(second,true);
+            h.runAfterDelay(15,()->{
+                h.assertTrue(BedVitalData.get(world).hp(player.getUUID())==50,"second recovery HP50");
+                h.assertTrue(RecoveryStateData.get(world).used(player.getUUID())==2,"exactly two regenerations consumed");
+                SpawnBedPrototype.damage(world.getServer(),player.getUUID(),50,"raid");
+                h.assertTrue(!RecoveryBeaconRegistry.isRecoveryBlock(world,foot),
+                        "third permanent destruction never creates a recovery beacon");
+                h.assertTrue(!RecoveryStateData.get(world).canRecover(player.getUUID()));
+                player.closeContainer();
+                world.getServer().getPlayerList().remove(player);
+                h.succeed();
+            });
+        });
+    }
+    private static void deposit(RecoveryDispenserMenu menu,boolean block){
+        for(int i=0;i<9;i++)
+            menu.getSlot(i).set(new ItemStack(i==4?net.minecraft.world.item.Items.RED_BED:
+                    block?net.minecraft.world.item.Items.EMERALD_BLOCK:
+                          net.minecraft.world.item.Items.EMERALD));
     }
 
     private static boolean convertsInWater(net.minecraft.world.entity.monster.zombie.Zombie entity){
