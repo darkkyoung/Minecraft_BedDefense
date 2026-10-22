@@ -24,7 +24,7 @@ public final class RecoveryBeaconRegistry {
         BLOCK=Registry.register(BuiltInRegistries.BLOCK,BLOCK_ID,new RecoveryBeaconBlock(
                 BlockBehaviour.Properties.ofFullCopy(Blocks.BEACON)
                         .setId(ResourceKey.create(Registries.BLOCK,BLOCK_ID))
-                        .strength(-1.0F,3600000F).pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK).noLootTable()));
+                        .strength(-1.0F,3600000F).pushReaction(net.minecraft.world.level.material.PushReaction.IMMOVEABLE).noLootTable()));
         ENTITY_TYPE=Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,ENTITY_ID,
                 FabricBlockEntityTypeBuilder.create(RecoveryBeaconBlockEntity::new,BLOCK).build());
     }
