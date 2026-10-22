@@ -5,7 +5,7 @@
 - Raid **husks** are protected too. Husk overrides vanilla water conversion and would otherwise transform first into a new Zombie (and eventually into a Drowned), also dropping its raid tracking.
 - Only mobs whose UUID is present in Bed Defense's server-side `RaidStateData` are affected. **Ordinary wild zombies and husks still convert normally**. Raids that spawn Drowned directly are unchanged.
 - Already-registered zombies loaded while a conversion timer is active have their timer reset on server entity load. No new mob tags or saved-data schema changes are needed.
-- Added actual Minecraft server GameTest that submerges tracked zombie/husk plus an untracked control zombie, advances their vanilla underwater timers, and checks the raiders keep original entities/UUIDs while the control can convert.
+- Added actual Minecraft server GameTest that submerges tracked zombie/husk plus an untracked control zombie, advances underwater timers, confirms raiders retain original entities/UUIDs without converting, and directly verifies the wild control retains vanilla conversion eligibility. The full 45-second wild conversion remains manual acceptance.
 - No changes to raid difficulty, spawn counts, buff/equipment balance, Spawn Bed HP, installer, or world-save compatibility. Full physical underwater/pathfinding acceptance still pending.
 
 ## 0.2.0-alpha.10+26.3 — Full first-join introduction chat
