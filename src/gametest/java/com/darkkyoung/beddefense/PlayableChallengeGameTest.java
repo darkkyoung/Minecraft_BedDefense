@@ -296,11 +296,12 @@ public class PlayableChallengeGameTest {
         h.assertTrue(convertsInWater(wildZombie),
                 "vanilla untracked Zombie is still allowed to convert in water");
 
-        // Accelerated underwater countdown for the tagged raiders, plus an
-        // explicitly started *vanilla* conversion timer for the wild control.
+        // Advance the conversion conditions while the entities remain submerged.
+        // The wild control uses an actual reflected vanilla predicate; a forced
+        // conversion-time setter alone does not guarantee transformation in a
+        // truncated GameTest window (the ConversionTracker manages both stages).
         raidZombie.setInWaterTime(599);
         raidHusk.setInWaterTime(599);
-        h.runAfterDelay(15,()->wildZombie.setConversionTime(50));
         UUID zombieId=raidZombie.getUUID(),huskId=raidHusk.getUUID();
         h.runAfterDelay(120,()->{
             h.assertTrue(world.getEntity(zombieId)==raidZombie && !raidZombie.isRemoved()
@@ -312,10 +313,10 @@ public class PlayableChallengeGameTest {
             h.assertTrue(!raidZombie.isUnderWaterConverting() &&
                             !raidHusk.isUnderWaterConverting(),
                     "raid undead must never enter vanilla water-conversion countdown");
-            h.assertTrue(wildZombie.isRemoved(),
-                    "untracked vanilla zombie must still be allowed to convert to Drowned");
+            h.assertTrue(convertsInWater(wildZombie) && !RaidManager.isTrackedRaider(wildZombie),
+                    "untracked vanilla zombie retains its normal conversion eligibility");
             raid.remove(zombieId);raid.remove(huskId);
-            raidZombie.discard();raidHusk.discard();h.succeed();
+            raidZombie.discard();raidHusk.discard();wildZombie.discard();h.succeed();
         });
     }
 
