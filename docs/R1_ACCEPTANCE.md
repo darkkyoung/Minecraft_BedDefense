@@ -97,3 +97,10 @@ CI executes compiler, unit tests and real server GameTests; the release pipeline
 2. Press T if required to click **[게임 시작]**. The normal settings menu should replace the intro and chat should return to the **user's ordinary chat-height setting immediately**, without overlapping the world HUD.
 3. Use `/beddefense` before starting to re-display the full introduction. Reopen normal settings and confirm no duplicate chats, altered permanent chat options or chat-height change in `options.txt`. Disconnect/rejoin and start countdown; normal chat height must be restored.
 4. Extremely small game windows still have viewport-constrained chat; the client should not render text above the screen. Test at a readable resolution if necessary.
+
+## Alpha.11: raid zombie must not convert in water
+
+1. Use a disposable world; choose any difficulty and start at night with a zombie raid. Lead/hold a tagged raid Zombie underwater for at least **45 seconds**. Check that it remains a Zombie with its original raid identity and does not trigger a premature `레이드 클리어!` or reduce the remaining-mob counter.
+2. Repeat with a tagged **Husk** in difficult mode; it must not convert to a normal Zombie or Drowned. Other native hard-roster Drowned are unaffected.
+3. Spawn a **wild, untracked Zombie** underwater as a control: it must still convert naturally to Drowned. Kill a tracked Zombie normally: the raid count should decrease exactly once. At sunrise, surviving tracked Overworld mobs should be accounted for and discarded exactly once.
+4. Rejoin after a tracked Zombie had begun shaking before updating the mod; if it survives in the saved world, conversion must be stopped on load. Check server logs and the actual in-game countdown/raid-complete message for duplicates.
