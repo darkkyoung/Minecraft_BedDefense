@@ -15,7 +15,8 @@
   "client": [
     "HardcoreHeartsMixin",
     "BossBarLayoutMixin",
-    "WelcomeChatHeightMixin"
+    "WelcomeChatHeightMixin",
+    "RecoveryGhostRecipeMixin"
   ],
   "injectors": {
     "defaultRequire": 1
