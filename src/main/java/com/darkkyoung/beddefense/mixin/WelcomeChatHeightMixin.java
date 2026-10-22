@@ -21,6 +21,6 @@ abstract class WelcomeChatHeightMixin {
         Minecraft minecraft=Minecraft.getInstance();
         callback.setReturnValue(WelcomeChatDisplay.height(callback.getReturnValue(),
                 minecraft.getWindow().getGuiScaledHeight(),
-                ((ChatComponent)(Object)this).getScale()));
+                minecraft.options.chatScale().get()));
     }
 }
