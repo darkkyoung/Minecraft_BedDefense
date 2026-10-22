@@ -26,8 +26,11 @@ public final class ChallengeMenu {
 
     /** Mirrors AllBlocks master: remove the last menu before printing its updated state. */
     public static void clearMenuChat(ServerPlayer player) {
+        clearMenuChat(player,false);
+    }
+    private static void clearMenuChat(ServerPlayer player,boolean firstWelcome) {
         if (ServerPlayNetworking.canSend(player, MenuUiPayload.TYPE))
-            ServerPlayNetworking.send(player, new MenuUiPayload(false));
+            ServerPlayNetworking.send(player, new MenuUiPayload(false,firstWelcome));
     }
 
     /** Send once before the first countdown title; avoid leaving chat over the 3-2-1. */
@@ -45,8 +48,10 @@ public final class ChallengeMenu {
     }
 
     public static void show(ServerPlayer player, MinecraftServer server) {
-        clearMenuChat(player);
         ChallengeData data = ChallengeData.get(server.overworld());
+        // The initial introduction alone expands the chat for all lines.
+        // Selecting [게임 시작] sends the regular setup packet and restores vanilla height.
+        clearMenuChat(player,!data.isStarted());
         if (!data.isStarted()) {
             // AllBlocks master welcome sequence: greeting, introduction, then action.
             for (Component line : welcomeMessages()) player.sendSystemMessage(line);
