@@ -64,5 +64,6 @@
   "beddefense.biome.minecraft.end_midlands": "엔드 중지",
   "beddefense.biome.minecraft.small_end_islands": "작은 엔드 섬",
   "beddefense.biome.minecraft.end_barrens": "엔드 황무지",
-  "beddefense.biome.minecraft.the_void": "공허"
+  "beddefense.biome.minecraft.the_void": "공허",
+  "block.beddefense.recovery_beacon": "스폰 침대 복구 신호기"
 }
