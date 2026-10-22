@@ -59,5 +59,15 @@ public final class BedVitalData extends SavedData {
     public void debugHealth(UUID owner,int value){if(state(owner)!=1)return;if(value<=0)destroy(owner,"debug");else{hp.put(owner.toString(),Math.min(100,value));setDirty();}}
     /** Discard only special bed ownership/HP from a completed run, not normal world blocks. */
     public void resetForNewRun(){hp.clear();states.clear();tokens.clear();causes.clear();setDirty();}
+    /** Server-only restoration after the physical one-block beacon recipe has been paid. */
+    public boolean revive(UUID owner,int health){
+        if(state(owner)!=2||health<=0||health>MAX_HEALTH)return false;
+        states.put(owner.toString(),1);
+        hp.put(owner.toString(),health);
+        tokens.remove(owner.toString());
+        causes.remove(owner.toString());
+        setDirty();
+        return true;
+    }
     public boolean permanentlyDestroyed(UUID owner){return state(owner)==2;}
 }

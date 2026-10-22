@@ -34,6 +34,9 @@ public final class SpawnBedPrototype {
         UseBlockCallback.EVENT.register(SpawnBedPrototype::onUse);
         PlayerBlockBreakEvents.BEFORE.register((world,player,pos,state,entity)->{
             if(!(world instanceof ServerLevel level)||!(player instanceof ServerPlayer sp)||!level.dimension().equals(Level.OVERWORLD))return true;
+            // The server-created beacon cannot be mined even by a creative player;
+            // it is not the ordinary vanilla beacon and never drops an item.
+            if(state.is(RecoveryBeaconRegistry.BLOCK))return false;
             UUID owner=ownerAt(level,pos,state);
             if(owner==null||BedVitalData.get(level).state(owner)!=1)return true;
             if(!owner.equals(sp.getUUID())){sp.sendSystemMessage(Component.literal("§c다른 플레이어의 스폰 침대는 회수할 수 없습니다."));return false;}
@@ -98,11 +101,12 @@ public final class SpawnBedPrototype {
         }else{
             positions.registerFirst(sp.getUUID(),foot);health.register(sp.getUUID());
             setRespawn(sp,overworld,foot);particles(overworld,foot,true);
+            RecoveryStateData.get(overworld).rememberFacing(sp.getUUID(),world.getBlockState(foot).getValue(BedBlock.FACING));
             SpawnBedGlow.ensure(overworld,foot);
-            sp.sendSystemMessage(Component.literal("§a스폰 침대가 지정되었습니다. HP 100 · 에메랄드/다이아몬드 1개로 HP 1 회복"));
+            sp.sendSystemMessage(Component.literal("§a스폰 침대가 지정되었습니다. HP 100 · 에메랄드 1개로 HP 1 회복"));
         }
         setRespawn(sp,overworld,foot); // Daytime registration does not depend on vanilla sleep success.
-        if((held.is(Items.EMERALD)||held.is(Items.DIAMOND))
+        if(held.is(Items.EMERALD)
                 &&health.repair(sp.getUUID(),ChallengeBalance.REPAIR_HP_PER_GEM)>0){
             held.shrink(1);particles(overworld,foot,true);return InteractionResult.SUCCESS;
         }
@@ -140,13 +144,67 @@ public final class SpawnBedPrototype {
                 world.setBlock(foot,originalFoot,3);world.setBlock(head,originalHead,3);return false;
             }
             if(!health.place(owner,token)){world.setBlock(foot,originalFoot,3);world.setBlock(head,originalHead,3);return false;}
-            SpawnBedData.get(overworld).relocate(owner,foot);item.shrink(1);
+            SpawnBedData.get(overworld).relocate(owner,foot);
+            RecoveryStateData.get(overworld).rememberFacing(owner,facing);
+            item.shrink(1);
             world.updateNeighborsAt(foot,block);world.updateNeighborsAt(head,block);
         }finally{changingBed=false;}
         setRespawn(player,overworld,foot);particles(world,foot,true);
         SpawnBedGlow.ensure(world,foot);
         player.sendSystemMessage(Component.literal("§a스폰 침대 재설치 · HP "+health.hp(owner)));return true;
     }
+    /**
+     * Restores the actual unique bed at the beacon's exact original position.
+     * World writes are guarded from the normal bed-destruction observer;
+     * no regeneration item can be moved elsewhere or cloned.
+     */
+    public static boolean reviveFromBeacon(ServerPlayer player,ServerLevel world,BlockPos foot,int healthPoints){
+        UUID owner=player.getUUID();
+        RecoveryStateData recoveries=RecoveryStateData.get(world);
+        BedVitalData health=BedVitalData.get(world);
+        if(!RecoveryBeaconManager.canInteract(world,foot,owner) || !recoveries.canRecover(owner)
+                || health.state(owner)!=2 || (healthPoints!=25&&healthPoints!=50))return false;
+        Direction facing=recoveries.facing(owner);
+        BlockPos head=foot.relative(facing);
+        if(!world.isInWorldBounds(foot)||!world.isInWorldBounds(head)
+                ||!world.getWorldBorder().isWithinBounds(foot)||!world.getWorldBorder().isWithinBounds(head)
+                ||!world.isLoaded(head)
+                ||!world.getBlockState(head).canBeReplaced()
+                ||!world.getBlockState(foot.below()).isSolid()
+                ||!world.getBlockState(head.below()).isSolid())return false;
+
+        BlockState formerBeacon=world.getBlockState(foot),formerHead=world.getBlockState(head);
+        BlockState redBed=net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
+                net.minecraft.resources.Identifier.parse("minecraft:red_bed")).defaultBlockState().setValue(BedBlock.FACING,facing)
+                .setValue(BedBlock.PART,BedPart.FOOT);
+        changingBed=true;
+        try {
+            if(!world.setBlock(foot,redBed,2)
+                    ||!world.setBlock(head,redBed.setValue(BedBlock.PART,BedPart.HEAD),2)){
+                world.setBlock(foot,formerBeacon,2);
+                world.setBlock(head,formerHead,2);
+                return false;
+            }
+            if(!health.revive(owner,healthPoints)){
+                world.setBlock(foot,formerBeacon,2);
+                world.setBlock(head,formerHead,2);
+                return false;
+            }
+            if(!recoveries.consumeRecovery(owner))
+                throw new IllegalStateException("Recovery count changed after owner/state checks");
+            world.updateNeighborsAt(foot,net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
+                net.minecraft.resources.Identifier.parse("minecraft:red_bed")));
+            world.updateNeighborsAt(head,net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
+                net.minecraft.resources.Identifier.parse("minecraft:red_bed")));
+        }finally{changingBed=false;}
+        setRespawn(player,world,foot);
+        particles(world,foot,true);
+        SpawnBedGlow.ensure(world,foot);
+        player.sendSystemMessage(Component.literal("§a스폰 침대 복구 완료! · HP "+healthPoints
+                +" · 이번 도전 남은 복구 "+(RecoveryStateData.MAX_RECOVERIES-recoveries.used(owner))+"회"));
+        return true;
+    }
+
     public static void setRespawn(ServerPlayer player,ServerLevel level,BlockPos foot){
         // Force is false: regular deaths still use the actual registered bed's safe spawn rules.
         player.setRespawnPosition(new ServerPlayer.RespawnConfig(new net.minecraft.world.level.storage.LevelData.RespawnData(
@@ -167,17 +225,25 @@ public final class SpawnBedPrototype {
         if(changingBed||!world.dimension().equals(Level.OVERWORLD)||old==null||!(old.getBlock() instanceof BedBlock))return;
         if(old.getBlock()==next.getBlock()&&old.getValue(BedBlock.FACING)==next.getValue(BedBlock.FACING)&&old.getValue(BedBlock.PART)==next.getValue(BedBlock.PART))return;
         UUID owner=ownerAt(world,pos,old);if(owner==null)return;
+        RecoveryStateData.get(world).rememberFacing(owner,old.getValue(BedBlock.FACING));
         BedVitalData.get(world).destroy(owner,"external_block_removal");
         SpawnBedGlow.clear(world,footPosition(pos,old));
         // Explosions, commands and external block changes do not use the raid-kill title.
         removeBlocks(world,footPosition(pos,old));
+        RecoveryBeaconManager.ensure(world,owner);
     }
     public static int damage(MinecraftServer server,UUID owner,int amount,String cause){
         BedVitalData health=BedVitalData.get(server.overworld());int before=health.hp(owner);
         int remaining=health.damage(owner,amount,cause);
         if(before>0&&remaining==0){
-            SpawnBedGlow.clear(server.overworld(),SpawnBedData.get(server.overworld()).getPosition(owner));
-            removeBlocks(server.overworld(),SpawnBedData.get(server.overworld()).getPosition(owner));
+            BlockPos foot=SpawnBedData.get(server.overworld()).getPosition(owner);
+            if(foot!=null && server.overworld().getBlockState(foot).getBlock() instanceof BedBlock bed){
+                RecoveryStateData.get(server.overworld()).rememberFacing(owner,
+                        server.overworld().getBlockState(foot).getValue(BedBlock.FACING));
+            }
+            SpawnBedGlow.clear(server.overworld(),foot);
+            removeBlocks(server.overworld(),foot);
+            RecoveryBeaconManager.ensure(server.overworld(),owner);
             if(isRaiderBedKill(cause))warnOwner(server,owner);
         }
         return remaining;

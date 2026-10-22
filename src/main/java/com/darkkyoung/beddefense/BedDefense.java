@@ -32,6 +32,8 @@ public final class BedDefense implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        // Register the custom one-block recovery beacon before any world loads.
+        RecoveryBeaconRegistry.init();
         PayloadTypeRegistry.clientboundPlay().register(ClockSyncPayload.TYPE, ClockSyncPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BedStatusPayload.TYPE, BedStatusPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(HudControlPayload.TYPE, HudControlPayload.CODEC);
@@ -146,6 +148,7 @@ public final class BedDefense implements ModInitializer {
             BlockCrackDemo.tick(server);
             ChallengeSetupWizard.tick(server);
             SpawnBedPrototype.tick(server);
+            RecoveryBeaconManager.tick(server);
             SpawnBedGlow.finishTick(server);
             if (++hudClockSyncCounter < 4) {
                 return;

@@ -86,6 +86,8 @@ public final class ChallengeLifecycle {
         RaidManager.stop(server);
         RaidStateData.get(world).resetForNewRun();
         SpawnBedGlow.clearAll(world);
+        RecoveryBeaconManager.clearAll(world);
+        RecoveryStateData.get(world).resetForNewRun();
         BedVitalData.get(world).resetForNewRun();
         SpawnBedData.get(world).resetForNewRun();
         if(!run.resetFinishedRun())return false;
@@ -113,6 +115,8 @@ public final class ChallengeLifecycle {
         ChallengeData data=ChallengeData.get(server.overworld());
         if(!data.finish(won?ChallengeData.WON:ChallengeData.LOST,server.overworld().getGameTime(),reason))return;
         RaidManager.stop(server);
+        // Terminal challenges cannot recover; remove signal blocks immediately.
+        RecoveryBeaconManager.clearAll(server.overworld());
         server.getPlayerList().broadcastSystemMessage(Component.literal((won?"§a§l챌린지 성공! ":"§c§l챌린지 실패 · ")+reason),false);
         RaidManager.run(server,"title @a times 10 120 20");
         RaidManager.run(server,"title @a title {\"text\":\""+(won?"챌린지 성공!":"챌린지 실패")+"\",\"color\":\""+(won?"green":"red")+"\",\"bold\":true}");
