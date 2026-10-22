@@ -389,6 +389,45 @@ public class PlayableChallengeGameTest {
                 "balanced hard cobble takes 5 seconds");
         baby.discard();fast.discard();h.succeed();
     }
+    @GameTest(maxTicks=120,dimension="minecraft:overworld")
+    public void normalV1RealBabySpeedAndIntermediateMining(GameTestHelper h){
+        ServerLevel world=h.getLevel();
+        BlockPos feet=h.absolutePos(new BlockPos(1,2,1));
+        world.setBlock(feet.below(),Blocks.STONE.defaultBlockState(),3);
+        Mob baby=mob(world,"zombie",feet);
+        RaidManager.configureRaider(baby,20,1,HardRaidBalance.BABY_ZOMBIE,false,
+                NormalRaidBalance.maxForDay(20),true);
+        h.assertTrue(baby instanceof net.minecraft.world.entity.monster.zombie.Zombie zombie&&zombie.isBaby(),
+                "Normal day-20 baby zombie must have actual smaller hitbox");
+        h.assertTrue(baby.getEffect(MobEffects.SPEED)==null,
+                "Normal baby zombie never gets a stacking Speed-III potion");
+        int index=-1;
+        for(int i=0;i<NormalRaidBalance.maxForDay(25);i++)
+            if(NormalRaidBalance.speedAmplifier("minecraft:zombie",25,i)==2){index=i;break;}
+        h.assertTrue(index>=0,"Normal begins eligible Speed III at effective roster day 25");
+        Mob fast=mob(world,"zombie",feet.west(2));
+        RaidManager.configureRaider(fast,25,index,"minecraft:zombie",false,
+                NormalRaidBalance.maxForDay(25),true);
+        h.assertTrue(fast.getEffect(MobEffects.SPEED)!=null
+                &&fast.getEffect(MobEffects.SPEED).getAmplifier()==2,
+                "Normal Speed III is an actual server-side mob effect");
+        BlockPos target=feet.east(3);
+        world.setBlock(target,Blocks.DIRT.defaultBlockState(),3);
+        h.assertTrue(SiegeController.durationSeconds(world,target,1,ChallengeData.PROFILE_NORMAL_V2)==1.5,
+                "Normal first-band dirt takes 1.5s");
+        world.setBlock(target,Blocks.OAK_PLANKS.defaultBlockState(),3);
+        h.assertTrue(Math.abs(SiegeController.durationSeconds(world,target,1,ChallengeData.PROFILE_NORMAL_V2)-3.4)<.0001,
+                "Normal first-band planks take 3.4s");
+        world.setBlock(target,Blocks.COBBLESTONE.defaultBlockState(),3);
+        h.assertTrue(SiegeController.durationSeconds(world,target,1,ChallengeData.PROFILE_NORMAL_V2)==8.5,
+                "Normal first-band cobble takes 8.5s");
+        world.setBlock(target,Blocks.OBSIDIAN.defaultBlockState(),3);
+        h.assertTrue(SiegeController.durationSeconds(world,target,1,ChallengeData.PROFILE_NORMAL_V2)==34.0,
+                "Normal first-band obsidian takes 34s");
+        h.assertTrue(SiegeController.durationSeconds(world,target,1,ChallengeData.PROFILE_LEGACY)==96.0,
+                "Existing active pre-update Normal retains original 96s mining");
+        baby.discard();fast.discard();h.succeed();
+    }
     @GameTest(maxTicks=180,dimension="minecraft:overworld")
     public void siegeMiningUsesRealBlocks(GameTestHelper h){
         ServerLevel world=h.getLevel();BlockPos feet=h.absolutePos(new BlockPos(1,2,1));
