@@ -34,6 +34,9 @@ public final class SpawnBedPrototype {
         UseBlockCallback.EVENT.register(SpawnBedPrototype::onUse);
         PlayerBlockBreakEvents.BEFORE.register((world,player,pos,state,entity)->{
             if(!(world instanceof ServerLevel level)||!(player instanceof ServerPlayer sp)||!level.dimension().equals(Level.OVERWORLD))return true;
+            // The server-created beacon cannot be mined even by a creative player;
+            // it is not the ordinary vanilla beacon and never drops an item.
+            if(state.is(RecoveryBeaconRegistry.BLOCK))return false;
             UUID owner=ownerAt(level,pos,state);
             if(owner==null||BedVitalData.get(level).state(owner)!=1)return true;
             if(!owner.equals(sp.getUUID())){sp.sendSystemMessage(Component.literal("§c다른 플레이어의 스폰 침대는 회수할 수 없습니다."));return false;}
