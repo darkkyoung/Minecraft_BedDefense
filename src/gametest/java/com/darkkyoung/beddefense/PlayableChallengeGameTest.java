@@ -260,6 +260,68 @@ public class PlayableChallengeGameTest {
         if(raid.raiders().size()==5||remainingTicks<=0){assertions.run();return;}
         h.runAfterDelay(10,()->waitForFirstRaid(h,world,assertions,remainingTicks-10));
     }
+    @GameTest(maxTicks=540,dimension="minecraft:overworld")
+    public void raidZombiesAndHusksStayTrackedUnderWater(GameTestHelper h){
+        ServerLevel world=h.getLevel();
+        RaidStateData raid=RaidStateData.get(world.getServer().overworld());
+        BlockPos raidZombieSpot=h.absolutePos(new BlockPos(1,2,1));
+        BlockPos raidHuskSpot=h.absolutePos(new BlockPos(5,2,1));
+        BlockPos wildZombieSpot=h.absolutePos(new BlockPos(9,2,1));
+        waterCell(world,raidZombieSpot);
+        waterCell(world,raidHuskSpot);
+        waterCell(world,wildZombieSpot);
+
+        var raidZombie=(net.minecraft.world.entity.monster.zombie.Zombie)
+                mob(world,"zombie",raidZombieSpot);
+        var raidHusk=(net.minecraft.world.entity.monster.zombie.Zombie)
+                mob(world,"husk",raidHuskSpot);
+        var wildZombie=(net.minecraft.world.entity.monster.zombie.Zombie)
+                mob(world,"zombie",wildZombieSpot);
+        for(var z:java.util.List.of(raidZombie,raidHusk,wildZombie)){
+            z.setNoGravity(true);z.setNoAi(true);
+        }
+        String owner=UUID.randomUUID().toString();
+        raid.track(raidZombie.getUUID(),new RaidStateData.Raider("minecraft:overworld",owner,1,1));
+        raid.track(raidHusk.getUUID(),new RaidStateData.Raider("minecraft:overworld",owner,1,1));
+        h.assertTrue(RaidManager.isTrackedRaider(raidZombie) &&
+                RaidManager.isTrackedRaider(raidHusk) && !RaidManager.isTrackedRaider(wildZombie),
+                "only actual raid UUIDs are protected from water conversion");
+
+        // Vanilla starts conversion after 600 underwater ticks, then takes another
+        // 300 ticks. Seed the underwater timer to exercise real conversion within
+        // an isolated, bounded server GameTest rather than sleeping 45 seconds.
+        raidZombie.setInWaterTime(599);
+        raidHusk.setInWaterTime(599);
+        wildZombie.setInWaterTime(599);
+        UUID zombieId=raidZombie.getUUID(),huskId=raidHusk.getUUID();
+        h.runAfterDelay(420,()->{
+            h.assertTrue(world.getEntity(zombieId)==raidZombie && !raidZombie.isRemoved()
+                            && raid.isRaider(zombieId),
+                    "underwater raid zombie must keep its original entity and UUID");
+            h.assertTrue(world.getEntity(huskId)==raidHusk && !raidHusk.isRemoved()
+                            && raid.isRaider(huskId),
+                    "underwater raid husk must keep its original entity and UUID");
+            h.assertTrue(!raidZombie.isUnderWaterConverting() &&
+                            !raidHusk.isUnderWaterConverting(),
+                    "raid undead must never enter vanilla water-conversion countdown");
+            h.assertTrue(wildZombie.isRemoved(),
+                    "untracked vanilla zombie must still be allowed to convert to Drowned");
+            raid.remove(zombieId);raid.remove(huskId);
+            raidZombie.discard();raidHusk.discard();h.succeed();
+        });
+    }
+
+    private static void waterCell(ServerLevel world,BlockPos center){
+        world.setBlock(center.below(),Blocks.GLASS.defaultBlockState(),3);
+        for(int dy=0;dy<3;dy++){
+            for(Direction facing:Direction.Plane.HORIZONTAL)
+                world.setBlock(center.above(dy).relative(facing),
+                        Blocks.GLASS.defaultBlockState(),3);
+            world.setBlock(center.above(dy),Blocks.WATER.defaultBlockState(),3);
+        }
+        world.setBlock(center.above(3),Blocks.GLASS.defaultBlockState(),3);
+    }
+
     @GameTest(maxTicks=120,dimension="minecraft:overworld")
     public void hardRaidStage10BabySpeedAndMining(GameTestHelper h){
         ServerLevel world=h.getLevel();
