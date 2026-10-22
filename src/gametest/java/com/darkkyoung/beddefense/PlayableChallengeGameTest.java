@@ -346,6 +346,14 @@ public class PlayableChallengeGameTest {
                 "one custom recovery beacon replaces the destroyed bed FOOT");
         h.assertTrue(world.getBlockState(foot.south()).isAir(),
                 "beacon is a single block without extra visible supports");
+        h.assertTrue(world.getBlockState(foot).getPistonPushReaction()
+                        ==net.minecraft.world.level.material.PushReaction.IMMOVEABLE,
+                "recovery beacon must not be movable by pistons");
+        h.assertTrue(!PlayerBlockBreakEvents.BEFORE.invoker().beforeBlockBreak(
+                        world,player,foot,world.getBlockState(foot),null),
+                "recovery beacon must reject normal and creative block breaking");
+        h.assertTrue(!RecoveryBeaconManager.canInteract(world,foot,UUID.randomUUID()),
+                "only the registered owner may open the recovery beacon");
         h.assertTrue(world.getBlockEntity(foot) instanceof RecoveryBeaconBlockEntity be
                         && !be.getBeamSections().isEmpty(),
                 "real beacon beam renderer has a section despite NO pyramid");
@@ -355,8 +363,8 @@ public class PlayableChallengeGameTest {
         RecoveryDispenserMenu temporary=(RecoveryDispenserMenu)player.containerMenu;
         temporary.getSlot(0).set(new ItemStack(net.minecraft.world.item.Items.EMERALD));
         player.closeContainer();
-        h.assertTrue(player.getInventory().countItem(net.minecraft.world.item.Items.EMERALD)>=1,
-                "closing incomplete recovery returns deposited items instead of consuming them");
+        h.assertTrue(player.getInventory().countItem(net.minecraft.world.item.Items.EMERALD)==1,
+                "closing incomplete recovery returns exactly the deposited emerald, without duplication");
         h.assertTrue(BedVitalData.get(world).state(player.getUUID())==2,"closing incomplete recipe does not revive bed");
 
         h.assertTrue(RecoveryBeaconManager.open(player,world,foot),"first recovery menu reopens");
