@@ -6,7 +6,7 @@ Target: Minecraft Java 26.3 / Fabric / Java 25. Run in a **new disposable world*
 
 1. Close Minecraft. In your existing Bed Defense Launcher select the existing Fabric 26.3 profile, check updates, then install the mod update. The R1 change does not require downloading another EXE.
 2. Open the same profile and create a new survival world. Enable cheats only for the debug checks below.
-3. On entry, `[게임 시작]` is above plain rules. Select normal, reset morning, ×2, confirm. Observe 3/2/1 and sound, then day 1 and running stopwatch. Close/reopen before confirming once to check retained choices.
+3. On entry, `[게임 시작]` is above plain rules. Select **easy** for the unchanged five-zombie first-night regression, reset morning, ×2, confirm. Observe 3/2/1 and sound, then day 1 and running stopwatch. Close/reopen before confirming once to check retained choices.
 4. Exit/rejoin after start: day, stopwatch, settings, HP and ownership must persist. `/beddefense` reopens the menu. No `/bdhud` command should exist.
 
 ## Bed and survival
@@ -104,3 +104,11 @@ CI executes compiler, unit tests and real server GameTests; the release pipeline
 2. Repeat with a tagged **Husk** in difficult mode; it must not convert to a normal Zombie or Drowned. Other native hard-roster Drowned are unaffected.
 3. Spawn a **wild, untracked Zombie** underwater as a control: it must still convert naturally to Drowned. Kill a tracked Zombie normally: the raid count should decrease exactly once. At sunrise, surviving tracked Overworld mobs should be accounted for and discarded exactly once.
 4. Rejoin after a tracked Zombie had begun shaking before updating the mod; if it survives in the saved world, conversion must be stopped on load. Check server logs and the actual in-game countdown/raid-complete message for duplicates.
+
+## Alpha.12 Normal V1 medium difficulty acceptance
+1. Update via existing Launcher and create a **new disposable** world. Select **[보통]**, first-day morning, roster stride ×1, confirm 3-second countdown. Expect random mob totals 6–8 on day1, 9–11 day2, 11–13 day3, and 25–31 at effective roster day10; no change to other difficulty options or spawn bed HP/respawns.
+2. Make a wall of dirt/planks/cobble/obsidian and measure Normal initial-band 1.5/3.4/8.5/34s mining after the mob has detected a blockage; verify block placement roughly 0.9–1.5s when it actually attempts a tower/bridge. Obstacle AI/pathfinding means exact observed wall-entry time can include extra navigation delay.
+3. At day 10 check a single vindicator captain **inside the selected total**. At day20 expect up to three baby zombies, beginning day25 expect some eligible ordinary zombies with Speed III, and from day51 Speed III on every eligible normal raider. Baby zombies and excluded creepers/witches/ravagers remain excluded from general Speed III.
+4. Confirm fire resistance, armor/weapons and late monster types increase without jumping to Hard levels; test dawn penalty for **spawned** survivors but not unspawned queued Normal V1 mobs.
+5. Exit/rejoin during a Normal night, verify its count does not reroll. In an **existing in-progress pre-alpha.12 Normal save**, verify its old, fixed mob count/mining and options remain unchanged; new Normal V1 requires a fresh run after a prior completed challenge.
+6. Try changing the difficulty with `/beddefense` during an active run: the menu shows status but no active difficulty-change controls; difficulty is fixed until the run is won/lost and a new challenge is confirmed. On restart, the old world/builds remain but player inventory resets by the alpha.9 start rule.

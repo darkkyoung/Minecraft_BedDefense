@@ -40,6 +40,9 @@ public final class RaidManager {
     public static boolean randomizedHardMode(MinecraftServer server){
         return ChallengeData.get(server.overworld()).randomizedHardRaidProfile();
     }
+    public static boolean normalV2Mode(MinecraftServer server){
+        return ChallengeData.get(server.overworld()).normalV2Profile();
+    }
     public static int raidProfile(MinecraftServer server){return ChallengeData.get(server.overworld()).raidProfile();}
     /** START_SERVER_TICK settles before entity ticks/deaths can change the dawn snapshot. */
     public static void tick(MinecraftServer server){
@@ -66,9 +69,12 @@ public final class RaidManager {
         RaidStateData state=RaidStateData.get(server.overworld());
         if(!challenge.running()||state.active()||day<=state.lastRaidDay()||day>100)return false;
         int roster=ChallengeBalance.rosterDay(day,ChallengeOptionsData.get(server.overworld()).raidStride());
-        boolean hard=hardMode(server), randomized=randomizedHardMode(server);
-        int selectedTotal=randomized
-                ?HardRaidBalance.rollForDay(roster,ThreadLocalRandom.current())
+        boolean hard=hardMode(server), normal=normalV2Mode(server);
+        boolean randomHard=randomizedHardMode(server), randomized=randomHard||normal;
+        // Exactly one server-owned roll per night across every participating player.
+        int selectedTotal=normal
+                ?NormalRaidBalance.rollForDay(roster,ThreadLocalRandom.current())
+                :randomHard ?HardRaidBalance.rollForDay(roster,ThreadLocalRandom.current())
                 :totalForDay(roster,hard);
         List<RaidStateData.Pending> batches=new ArrayList<>();
         for(ServerPlayer p:server.getPlayerList().getPlayers())
@@ -77,9 +83,11 @@ public final class RaidManager {
         if(batches.isEmpty())return false;
         // The one nightly draw is committed atomically with the pending roster.
         state.launch(day,batches,randomized?selectedTotal:-1);
+        int lower=normal?NormalRaidBalance.minForDay(roster):HardRaidBalance.minForDay(roster);
+        int upper=normal?NormalRaidBalance.maxForDay(roster):HardRaidBalance.maxForDay(roster);
         broadcast(server,"§c§l"+day+"일차 레이드 시작! §f적용 편성 "+roster+"일차"
                 +(randomized?" · §e추첨 "+selectedTotal+"마리"
-                    +" §7("+HardRaidBalance.minForDay(roster)+"~"+HardRaidBalance.maxForDay(roster)+")":""));
+                    +" §7("+lower+"~"+upper+")":""));
         run(server,"execute as @a at @s run playsound minecraft:event.raid.horn master @s ~ ~ ~ 1 1");
         return true;
     }
@@ -95,13 +103,14 @@ public final class RaidManager {
             RaidStateData.Pending current=batch;
             for(int n=0;n<batch.count()&&budget>0&&state.activeCount(batch.dimension())<ChallengeBalance.ACTIVE_RAIDERS_PER_DIMENSION;n++){
                 budget--;
-                boolean hard=hardMode(server);
+                boolean hard=hardMode(server), normal=normalV2Mode(server);
                 // Pending.next + Pending.count is constant throughout each owner/wave.
                 // It survives world reload and keeps captain/baby slots correct for a random total.
                 int selectedTotal=current.next()+current.count();
-                UUID id=spawn(server,owner,
-                        mobForDay(batch.roster(),current.next(),selectedTotal,hard),
-                        batch.roster(),current.next(),hard,selectedTotal);
+                String type=normal
+                        ?NormalRaidBalance.mobForDay(batch.roster(),current.next(),selectedTotal)
+                        :mobForDay(batch.roster(),current.next(),selectedTotal,hard);
+                UUID id=spawn(server,owner,type,batch.roster(),current.next(),hard,selectedTotal,normal);
                 if(id==null)break;
                 state.spawned(current,id);
                 current=new RaidStateData.Pending(batch.dimension(),batch.owner(),batch.roster(),batch.wave(),current.next()+1,current.count()-1);
@@ -124,8 +133,9 @@ public final class RaidManager {
         if(state.isRaider(entity.getUUID())&&state.glowStarted())entity.setGlowingTag(true);
     }
     public static void finishAtMorning(MinecraftServer server,RaidStateData state){
-        // In hard mode, monsters that never actually spawned cannot inflict HP damage.
-        Map<String,Integer> penalties=state.settleMorning(!hardMode(server));
+        // Randomized Hard and Normal both exclude mobs still queued and never spawned.
+        // Keep the legacy Easy / old-Normal sunrise behavior for old active saves.
+        Map<String,Integer> penalties=state.settleMorning(!hardMode(server)&&!normalV2Mode(server));
         // Ledger is already settled. A later death or chunk load cannot reduce this immutable snapshot.
         penalties.forEach((owner,count)->{
             if(owner.isEmpty()){
@@ -239,7 +249,7 @@ public final class RaidManager {
     }
 
     private static UUID spawn(MinecraftServer server,ServerPlayer player,
-                              String type,int day,int index,boolean hard,int selectedTotal) {
+                              String type,int day,int index,boolean hard,int selectedTotal,boolean normal) {
         if(!(player.level() instanceof ServerLevel level))return null;
         BlockPos near=player.blockPosition();
         if(level.dimension().equals(Level.OVERWORLD)) {
@@ -253,7 +263,7 @@ public final class RaidManager {
         if(entityType==null)return null;
         Entity spawned=entityType.spawn(level,pos,net.minecraft.world.entity.EntitySpawnReason.EVENT);
         if(!(spawned instanceof Mob raidMob)){if(spawned!=null)spawned.discard();return null;}
-        configureRaider(raidMob,day,index,type,hard,selectedTotal);attachGoal(raidMob);
+        configureRaider(raidMob,day,index,type,hard,selectedTotal,normal);attachGoal(raidMob);
         return spawned.getUUID();
     }
     public static int speedAmplifier(String type,int day,int index){
@@ -276,9 +286,13 @@ public final class RaidManager {
         configureRaider(mob,day,index,type,hard,totalForDay(day,hard));
     }
     public static void configureRaider(Mob mob,int day,int index,String type,boolean hard,int selectedTotal){
+        configureRaider(mob,day,index,type,hard,selectedTotal,false);
+    }
+    public static void configureRaider(Mob mob,int day,int index,String type,boolean hard,int selectedTotal,boolean normal){
         mob.setPersistenceRequired();
         applyAwareness(mob);
         if(hard) HardRaidBalance.configure(mob,day,index,type);
+        else if(normal)NormalRaidBalance.configure(mob,day,index,type);
         else {
             int speed=speedAmplifier(type,day,index);
             if(speed>=0)mob.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.SPEED,-1,speed,false,false));

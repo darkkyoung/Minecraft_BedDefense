@@ -277,7 +277,7 @@ public final class ChallengeSetupWizard {
     public static void show(ServerPlayer player, Session s) {
         ChallengeMenu.clearMenuChat(player);
         player.sendSystemMessage(Component.literal("§6§l──── 베드 디펜스 · 게임 설정 ────"));
-        player.sendSystemMessage(Component.literal("§f난이도: §e"+s.difficulty+" §7(어려움: 새 레이드 테스트)"));
+        player.sendSystemMessage(Component.literal("§f난이도: §e"+s.difficulty+" §7(쉬움·보통·어려움 전용 레이드)"));
         player.sendSystemMessage(choice(" [쉬움] ","/beddefense setup difficulty easy",s.difficulty.equals("쉬움"))
                 .append(choice("[보통] ","/beddefense setup difficulty normal",s.difficulty.equals("보통")))
                 .append(choice("[어려움]","/beddefense setup difficulty hard",s.difficulty.equals("어려움"))));

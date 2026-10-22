@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0-alpha.12+26.3 — Normal V1 intermediate raid difficulty
+- **Newly started 보통 challenges** receive a separately persisted `PROFILE_NORMAL_V2=4` profile. Previous ongoing `PROFILE_LEGACY=0` Normal challenges retain their historical fixed enemy composition, count, speed and slower mining. **No difficulty changes during an active run**; restarting after a finished challenge enables the chosen new mode.
+- A **single saved random wave size** is drawn each night per participant at the effective roster day, using agreed 100-day interpolated bounds: day 1 **6–8**, 2 **9–11**, 3 **11–13**, 5 **14–18**, 10 **25–31**, 20 **34–42**, 30 **41–51**, 50 **53–65**, 75 **62–76**, 90 **75–91**, 100 **84–102**. The same draw is shared across participating players and persists through reload/retry. One captain is included every tenth effective roster day.
+- New staged composition gradually adds husks/spiders/skeletons, drowned/pillagers at day 10, **up to three baby zombies from day 20**, cave spiders/strays/creepers, then witches/blazes and higher-tier raiders. Normal Speed III starts at day 25 for a subset; it becomes guaranteed on all eligible mobs by day 51 so it does not regress below Easy's guaranteed day-51 rule. Babies are never double-buffed with Speed III.
+- Normal Fire Resistance starts at 10% (day 1), ~35% day 10, 75% by day 50 and 95% late; Normal-specific weapons/armor, water movement and limited strength/resistance advance below Hard stages. Actual water pathfinding remains a separate physical acceptance item.
+- Intermediate first-band siege: **dirt 1.5s, planks 3.4s, cobble 8.5s, obsidian 34s**, movement stall threshold about 1.5s and placement cooldown **18–30 ticks (0.9–1.5s)**. Existing Easy/Historical Normal/Hard speeds are unchanged.
+- **Unspawned queued** Overworld Normal V1 raiders do not inflict sunrise bed HP penalties; spawned survivors still cost 1 HP each. Existing caps of 128 per dimension, 12 simultaneous miners and 16 blocks placed/sec remain.
+- Bed rules, HP 100, gem repair HP 1, dimension death -20, 100-day deadline, difficulty's in-run persistence and Launcher updater/rollback are unaffected.
+- 100-day profile range/composition/saved-roll JUnit coverage and real Minecraft Normal baby, day-25 Speed III and siege-time GameTests are included; complete real 100-day PC acceptance is still pending.
+
 ## 0.2.0-alpha.11+26.3 — Fix raid zombies disappearing on water conversion
 - **Tracked raid zombies no longer transform into Drowned** after prolonged submersion. The entity retains its UUID, so the authoritative raid ledger, remaining-mob count, raid target AI and morning penalty remain correct; the raid cannot be cleared by water conversion.
 - Raid **husks** are protected too. Husk overrides vanilla water conversion and would otherwise transform first into a new Zombie (and eventually into a Drowned), also dropping its raid tracking.
