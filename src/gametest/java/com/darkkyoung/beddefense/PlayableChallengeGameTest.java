@@ -387,7 +387,8 @@ public class PlayableChallengeGameTest {
     }
     private static void deposit(RecoveryDispenserMenu menu,boolean block){
         for(int i=0;i<9;i++)
-            menu.getSlot(i).set(new ItemStack(i==4?net.minecraft.world.item.Items.RED_BED:
+            menu.getSlot(i).set(new ItemStack(i==4?net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(
+                    Identifier.parse("minecraft:red_bed")):
                     block?net.minecraft.world.item.Items.EMERALD_BLOCK:
                           net.minecraft.world.item.Items.EMERALD));
     }
