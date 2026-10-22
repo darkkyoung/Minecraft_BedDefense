@@ -61,7 +61,12 @@ public final class RecoveryDispenserMenu extends DispenserMenu {
             // add() may partially insert and mutate its argument; drop only remainder.
             ItemStack remaining=stack.copy();
             player.getInventory().add(remaining);
-            if(!remaining.isEmpty())player.drop(remaining,false);
+            if(!remaining.isEmpty()){
+                net.minecraft.world.entity.item.ItemEntity drop=new net.minecraft.world.entity.item.ItemEntity(
+                        level,player.getX(),player.getY()+0.5,player.getZ(),remaining);
+                drop.setDefaultPickUpDelay();
+                level.addFreshEntity(drop);
+            }
         }
         deposits.setChanged();
     }
