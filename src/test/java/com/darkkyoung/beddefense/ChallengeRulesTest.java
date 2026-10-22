@@ -7,6 +7,22 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ChallengeRulesTest {
+    @Test void onlyFirstWelcomeGetsTemporaryFullChatHeight(){
+        try {
+            com.darkkyoung.beddefense.client.WelcomeChatDisplay.show(false);
+            assertEquals(90,com.darkkyoung.beddefense.client.WelcomeChatDisplay.height(90,540,1.0));
+            com.darkkyoung.beddefense.client.WelcomeChatDisplay.show(true);
+            assertEquals(240,com.darkkyoung.beddefense.client.WelcomeChatDisplay.height(90,540,1.0));
+            assertEquals(240,com.darkkyoung.beddefense.client.WelcomeChatDisplay.height(90,540,0.75));
+            assertEquals(120,com.darkkyoung.beddefense.client.WelcomeChatDisplay.height(90,190,1.0));
+            assertEquals(90,com.darkkyoung.beddefense.client.WelcomeChatDisplay.height(90,190,Double.NaN));
+            assertTrue(new com.darkkyoung.beddefense.network.MenuUiPayload(false,true).welcome());
+            assertFalse(new com.darkkyoung.beddefense.network.MenuUiPayload(false).welcome(),
+                    "All setup and countdown packets must restore vanilla chat height");
+        } finally {
+            com.darkkyoung.beddefense.client.WelcomeChatDisplay.show(false);
+        }
+    }
     @Test void welcomeIntroducesChallengeBeforeStartButton(){
         var lines=ChallengeMenu.welcomeMessages();
         var visible=lines.stream().map(net.minecraft.network.chat.Component::getString)
