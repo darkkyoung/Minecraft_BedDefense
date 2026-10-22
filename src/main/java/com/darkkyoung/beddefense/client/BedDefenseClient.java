@@ -14,6 +14,10 @@ import net.minecraft.resources.Identifier;
 public final class BedDefenseClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        // Reuse vanilla beam renderer, but our block entity has no pyramid/effect ticker.
+        net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(
+                com.darkkyoung.beddefense.RecoveryBeaconRegistry.ENTITY_TYPE,
+                context -> new net.minecraft.client.renderer.blockentity.BeaconRenderer<>());
         ClientPlayNetworking.registerGlobalReceiver(ClockSyncPayload.TYPE,
                 (payload, context) -> context.client().execute(
                         () -> BedDefenseHud.acceptServerTime(
