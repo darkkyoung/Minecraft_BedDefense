@@ -7,21 +7,27 @@ import net.minecraft.resources.Identifier;
 
 /**
  * Server-authorized AllBlocks-style chat transitions.
- * false = clear earlier chat before rendering the new menu;
- * true  = clear chat and close the chat/setup screen before countdown.
+ * closeScreen: remove earlier chat and close the current chat/setup screen for the countdown.
+ * welcome: expand only the initial [게임 시작] introduction in the client chat HUD.
+ * All other menu transitions clear the temporary welcome layout.
  */
-public record MenuUiPayload(boolean closeScreen) implements CustomPacketPayload {
+public record MenuUiPayload(boolean closeScreen, boolean welcome) implements CustomPacketPayload {
     public static final Type<MenuUiPayload> TYPE =
             new Type<>(Identifier.fromNamespaceAndPath("beddefense", "menu_ui"));
     public static final StreamCodec<RegistryFriendlyByteBuf, MenuUiPayload> CODEC =
             StreamCodec.ofMember(MenuUiPayload::write, MenuUiPayload::read);
 
+    public MenuUiPayload(boolean closeScreen) {
+        this(closeScreen, false);
+    }
+
     private void write(RegistryFriendlyByteBuf buf) {
         buf.writeBoolean(closeScreen);
+        buf.writeBoolean(welcome);
     }
 
     private static MenuUiPayload read(RegistryFriendlyByteBuf buf) {
-        return new MenuUiPayload(buf.readBoolean());
+        return new MenuUiPayload(buf.readBoolean(), buf.readBoolean());
     }
 
     @Override
