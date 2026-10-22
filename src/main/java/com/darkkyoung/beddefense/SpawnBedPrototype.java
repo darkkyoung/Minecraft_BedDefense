@@ -171,7 +171,8 @@ public final class SpawnBedPrototype {
                 ||!world.getBlockState(head.below()).isSolid())return false;
 
         BlockState formerBeacon=world.getBlockState(foot),formerHead=world.getBlockState(head);
-        BlockState redBed=Blocks.RED_BED.defaultBlockState().setValue(BedBlock.FACING,facing)
+        BlockState redBed=net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
+                net.minecraft.resources.Identifier.parse("minecraft:red_bed")).defaultBlockState().setValue(BedBlock.FACING,facing)
                 .setValue(BedBlock.PART,BedPart.FOOT);
         changingBed=true;
         try {
@@ -188,8 +189,10 @@ public final class SpawnBedPrototype {
             }
             if(!recoveries.consumeRecovery(owner))
                 throw new IllegalStateException("Recovery count changed after owner/state checks");
-            world.updateNeighborsAt(foot,Blocks.RED_BED);
-            world.updateNeighborsAt(head,Blocks.RED_BED);
+            world.updateNeighborsAt(foot,net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
+                net.minecraft.resources.Identifier.parse("minecraft:red_bed")));
+            world.updateNeighborsAt(head,net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
+                net.minecraft.resources.Identifier.parse("minecraft:red_bed")));
         }finally{changingBed=false;}
         setRespawn(player,world,foot);
         particles(world,foot,true);
