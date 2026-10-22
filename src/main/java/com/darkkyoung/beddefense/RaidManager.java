@@ -23,6 +23,11 @@ public final class RaidManager {
     private static void attachGoal(Mob mob){if(GOALS.add(mob))((com.darkkyoung.beddefense.mixin.MobGoalAccessor)(Object)mob).beddefense$goals().addGoal(0,new RaidBedGoal(mob));}
     private RaidManager(){}
     public static boolean isActive(MinecraftServer server){return RaidStateData.get(server.overworld()).active();}
+    /** Server-authoritative UUID membership; persists through chunk unload/reload. */
+    public static boolean isTrackedRaider(Entity entity){
+        return entity.level() instanceof ServerLevel level
+                && RaidStateData.get(level.getServer().overworld()).isRaider(entity.getUUID());
+    }
     public static void onMobDeath(Entity mob,MinecraftServer server){
         RaidStateData.get(server.overworld()).remove(mob.getUUID());LAST_BED_HIT.remove(mob.getUUID());BED_TARGETS.remove(mob.getUUID());SiegeController.clear(mob.getUUID());
     }
@@ -108,6 +113,14 @@ public final class RaidManager {
         if(state.pendingCleanup(entity.getUUID())){entity.discard();state.completedCleanup(entity.getUUID());return;}
         state.loaded(entity.getUUID(),level.dimension().identifier().toString());
         if(entity instanceof Mob mob&&state.isRaider(entity.getUUID())){attachGoal(mob);applyAwareness(mob);}
+        // Saved pre-fix raiders may have already begun a vanilla drowned/husk
+        // conversion. Stop that countdown on load so their original UUID survives.
+        if(state.isRaider(entity.getUUID())
+                && entity instanceof net.minecraft.world.entity.monster.zombie.Zombie zombie
+                && !(zombie instanceof net.minecraft.world.entity.monster.zombie.Drowned)){
+            if(zombie.isUnderWaterConverting())zombie.setConversionTime(-1);
+            zombie.setInWaterTime(-1);
+        }
         if(state.isRaider(entity.getUUID())&&state.glowStarted())entity.setGlowingTag(true);
     }
     public static void finishAtMorning(MinecraftServer server,RaidStateData state){
