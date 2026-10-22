@@ -84,6 +84,17 @@ public class ClientHudGameTest implements FabricClientGameTest {
             });
             context.takeScreenshot("r1-recovery-beacon-single-block-beam");
             context.takeScreenshot("r1-destroyed-red");
+            world.getServer().runOnServer(server->{
+                var p=server.getPlayerList().getPlayers().getFirst();
+                BlockPos foot=SpawnBedData.get(server.overworld()).getPosition(p.getUUID());
+                if(!RecoveryBeaconManager.open(p,server.overworld(),foot))
+                    throw new AssertionError("Owner must be able to open the recovery 3x3 UI");
+            });
+            context.waitFor(mc->mc.gui.screen() instanceof
+                    net.minecraft.client.gui.screens.inventory.DispenserScreen);
+            context.takeScreenshot("r1-recovery-3x3-ghost-recipe");
+            context.runOnClient(mc->mc.player.closeContainer());
+            context.waitTicks(4);
             world.getServer().runOnServer(ChallengeLifecycle::dragonKilled);
             context.waitFor(mc->!BedDefenseHud.hardcoreRisk());context.waitTicks(5);context.takeScreenshot("r1-victory-frozen-timer");
             // Separate new run: only a direct raid HP-zero hit is allowed to play the title.
