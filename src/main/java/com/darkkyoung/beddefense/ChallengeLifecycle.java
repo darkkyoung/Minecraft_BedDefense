@@ -86,6 +86,8 @@ public final class ChallengeLifecycle {
         RaidManager.stop(server);
         RaidStateData.get(world).resetForNewRun();
         SpawnBedGlow.clearAll(world);
+        RecoveryBeaconManager.clearAll(world);
+        RecoveryStateData.get(world).resetForNewRun();
         BedVitalData.get(world).resetForNewRun();
         SpawnBedData.get(world).resetForNewRun();
         if(!run.resetFinishedRun())return false;
