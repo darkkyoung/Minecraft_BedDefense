@@ -144,6 +144,48 @@ class ChallengeRulesTest {
         assertEquals(-1,reload.lastRandomRoster());
     }
 
+    @Test void recoveriesHaveExactlyTwoDurableOwnerSpecificStages(){
+        UUID a=UUID.randomUUID(),b=UUID.randomUUID();
+        RecoveryStateData data=new RecoveryStateData();
+        assertEquals(0,data.used(a));
+        assertEquals(1,data.nextCostStage(a));
+        assertTrue(data.canRecover(a));
+        data.rememberFacing(a,net.minecraft.core.Direction.WEST);
+        assertTrue(data.consumeRecovery(a));
+        assertEquals(1,data.used(a));
+        assertEquals(2,data.nextCostStage(a));
+        data=RecoveryStateData.CODEC.parse(JsonOps.INSTANCE,
+                RecoveryStateData.CODEC.encodeStart(JsonOps.INSTANCE,data).getOrThrow()).getOrThrow();
+        assertEquals(net.minecraft.core.Direction.WEST,data.facing(a));
+        assertTrue(data.canRecover(a));
+        assertTrue(data.consumeRecovery(a));
+        assertEquals(2,data.used(a));
+        assertFalse(data.canRecover(a));
+        assertFalse(data.consumeRecovery(a),"third recovery is forbidden even after reload");
+        assertEquals(0,data.used(b),"another player has an independent allowance");
+        assertTrue(data.canRecover(b));
+        data.resetForNewRun();
+        assertEquals(0,data.used(a));
+        assertEquals(net.minecraft.core.Direction.NORTH,data.facing(a));
+    }
+    @Test void destroyedBedMayReviveOnlyFromValidServerHealth(){
+        UUID owner=UUID.randomUUID();
+        BedVitalData d=new BedVitalData();
+        assertFalse(d.revive(owner,25),"never allow creating an unregistered bed");
+        d.register(owner);
+        assertFalse(d.revive(owner,25),"cannot clone a still-placed bed");
+        d.destroy(owner,"raid");
+        assertFalse(d.revive(owner,0));
+        assertFalse(d.revive(owner,101));
+        assertTrue(d.revive(owner,25));
+        assertEquals(1,d.state(owner));
+        assertEquals(25,d.hp(owner));
+        assertFalse(d.revive(owner,50));
+        d.destroy(owner,"raid");
+        assertTrue(d.revive(owner,50));
+        assertEquals(50,d.hp(owner));
+    }
+
     @Test void hardRandomBoundsHonorAgreedPlaytestExamples(){
         int[][] expected={{1,7,9,12},{2,10,13,17},{5,17,24,32},{10,31,44,58},
                 {20,42,59,75},{30,49,70,90},{50,66,94,107},{75,78,111,116},
