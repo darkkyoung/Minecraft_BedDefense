@@ -6,7 +6,7 @@ Target: Minecraft Java 26.3 / Fabric / Java 25. Run in a **new disposable world*
 
 1. Close Minecraft. In your existing Bed Defense Launcher select the existing Fabric 26.3 profile, check updates, then install the mod update. The R1 change does not require downloading another EXE.
 2. Open the same profile and create a new survival world. Enable cheats only for the debug checks below.
-3. On entry, `[게임 시작]` is above plain rules. Select normal, reset morning, ×2, confirm. Observe 3/2/1 and sound, then day 1 and running stopwatch. Close/reopen before confirming once to check retained choices.
+3. On entry, `[게임 시작]` is above plain rules. Select **easy** for the unchanged five-zombie first-night regression, reset morning, ×2, confirm. Observe 3/2/1 and sound, then day 1 and running stopwatch. Close/reopen before confirming once to check retained choices.
 4. Exit/rejoin after start: day, stopwatch, settings, HP and ownership must persist. `/beddefense` reopens the menu. No `/bdhud` command should exist.
 
 ## Bed and survival
