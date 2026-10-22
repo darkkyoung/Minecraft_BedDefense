@@ -95,7 +95,7 @@ public class PlayableChallengeGameTest {
                 h.assertTrue(use(p,world,other)==InteractionResult.FAIL,"ordinary replacement bed blocked");
                 h.assertTrue(!p.startSleeping(other),"direct ordinary sleep also blocked by server mixin");
                 h.assertTrue(!p.startSleeping(foot),"raid blocks registered bed sleeping");
-                // Both precious materials restore exactly ONE HP each; iron no longer repairs.
+                // Only emerald restores HP; iron and diamond no longer repair.
                 p.setItemInHand(InteractionHand.MAIN_HAND,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_INGOT));
                 SpawnBedPrototype.damage(server,p.getUUID(),1,"test");
                 use(p,world,foot);
@@ -107,8 +107,13 @@ public class PlayableChallengeGameTest {
                 SpawnBedPrototype.damage(server,p.getUUID(),1,"test");
                 p.setItemInHand(InteractionHand.MAIN_HAND,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND));
                 use(p,world,foot);
+                h.assertTrue(BedVitalData.get(world).hp(p.getUUID())==99 &&
+                        p.getMainHandItem().is(net.minecraft.world.item.Items.DIAMOND),
+                        "diamond must not repair or be consumed");
+                p.setItemInHand(InteractionHand.MAIN_HAND,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.EMERALD));
+                use(p,world,foot);
                 h.assertTrue(BedVitalData.get(world).hp(p.getUUID())==100 &&
-                        p.getMainHandItem().isEmpty(),"diamond consumed for exactly 1 HP");
+                        p.getMainHandItem().isEmpty(),"emerald is the only allowed repair");
                 SpawnBedPrototype.damage(server,p.getUUID(),37,"test");
                 // Exercise the REAL Fabric before-block-break callback, not only
                 // direct pickup(); both halves must disappear and spawn ONE special bed.
