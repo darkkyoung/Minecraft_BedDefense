@@ -12,7 +12,8 @@
   ],
   "client": [
     "HardcoreHeartsMixin",
-    "BossBarLayoutMixin"
+    "BossBarLayoutMixin",
+    "WelcomeChatHeightMixin"
   ],
   "injectors": {
     "defaultRequire": 1
