@@ -43,4 +43,4 @@ Minecraft Java **26.3 / Fabric / Java 25** — Phase R1 + Easy / Normal V1 / Har
 - 테스트 전용 소스는 배포 JAR에 포함하지 않습니다. 기존 런처 Windows 안전성·WPF·배포 검증은 유지합니다.
 - 관리자 테스트 명령은 `/beddefense debug` 아래에만 있습니다. 별도 `/bdhud` 별칭은 없습니다.
 
-[게임 규칙과 저장·통합 내역](docs/GAME_DESIGN.md) · [R1 PC 테스트 절차](docs/R1_ACCEPTANCE.md) · [어려움 레이드 테스트 절차](docs/HARD_MODE_ACCEPTANCE.md) · [테스트 구성](docs/TESTING.md)
+[게임 규칙과 저장·통합 내역](docs/GAME_DESIGN.md) · [R1 PC 테스트 절차](docs/R1_ACCEPTANCE.md) · [보통 v1 테스트 절차](docs/NORMAL_MODE_ACCEPTANCE.md) · [어려움 레이드 테스트 절차](docs/HARD_MODE_ACCEPTANCE.md) · [테스트 구성](docs/TESTING.md)
