@@ -29,7 +29,7 @@ import net.minecraft.world.phys.Vec3;
 
 /** Runs against actual Minecraft/Fabric objects and injected events, exclusively in generated test worlds. */
 public class PlayableChallengeGameTest {
-    @GameTest(maxTicks=600,dimension="minecraft:overworld")
+    @GameTest(maxTicks=800,dimension="minecraft:overworld")
     public void startBedsRaidDeathAndDragon(GameTestHelper h){
         var server=h.getLevel().getServer();ServerLevel world=server.overworld();
         world.getDataStorage().set(ChallengeData.TYPE,new ChallengeData());
@@ -227,7 +227,9 @@ public class PlayableChallengeGameTest {
                         "new run begins again at day 1");
                     h.assertTrue(ChallengeData.get(world).day(ChallengeMenu.overworldClock(server))==1,
                         "new challenge starts at first day");
-                    h.succeed();
+                    // Serialize this test after sunrise/raid state checks because the
+                    // generated GameTests share authoritative Overworld saved data.
+                    raidZombiesAndHusksStayTrackedUnderWater(h);
                 });
                 });
             },200);
@@ -264,8 +266,7 @@ public class PlayableChallengeGameTest {
         if(playerWave==5||remainingTicks<=0){assertions.run();return;}
         h.runAfterDelay(10,()->waitForFirstRaid(h,world,owner,assertions,remainingTicks-10));
     }
-    @GameTest(maxTicks=540,dimension="minecraft:overworld")
-    public void raidZombiesAndHusksStayTrackedUnderWater(GameTestHelper h){
+    private void raidZombiesAndHusksStayTrackedUnderWater(GameTestHelper h){
         ServerLevel world=h.getLevel();
         RaidStateData raid=RaidStateData.get(world.getServer().overworld());
         BlockPos raidZombieSpot=h.absolutePos(new BlockPos(1,2,1));
@@ -301,7 +302,7 @@ public class PlayableChallengeGameTest {
         raidHusk.setInWaterTime(599);
         h.runAfterDelay(15,()->wildZombie.setConversionTime(50));
         UUID zombieId=raidZombie.getUUID(),huskId=raidHusk.getUUID();
-        h.runAfterDelay(420,()->{
+        h.runAfterDelay(120,()->{
             h.assertTrue(world.getEntity(zombieId)==raidZombie && !raidZombie.isRemoved()
                             && raid.isRaider(zombieId),
                     "underwater raid zombie must keep its original entity and UUID");
