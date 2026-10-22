@@ -29,3 +29,8 @@ Manual acceptance: [R1_ACCEPTANCE.md](R1_ACCEPTANCE.md). Test success is not a c
 - Embedded-player Minecraft server GameTest verifies `[설정 완료 · 시작]` immediately enters Adventure, remains Adventure through countdown while inventory/offhand/cursor retain pre-start items, refuses reentrant setup, and finally enters Survival with all those items empty.
 - No game-mode or inventory-clear commands are issued: transitions use `ServerPlayer.setGameMode`, `Inventory.clearContent` and direct container cursor clearing, which do not emit vanilla command success feedback into chat.
 - Interrupted-countdown restoration, completed-run spectator restart and multiplayer conversions still require explicit human acceptance on a disposable save. CI is not a claim of full PC/gameplay acceptance.
+
+## Alpha.10 full-height first welcome
+- JUnit: first welcome packet's explicit `welcome` flag, fallback constructors, viewport chat-height math and vanilla-height restoration without persistent option changes.
+- Fabric client GameTest: send first welcome, assert it temporarily exposes >=18 lines at GUI scale 2 and take `r1-welcome-chat-full-height` screenshot; then send `/beddefense setup` and confirm client presentation flag restores normal before continuing existing HUD acceptance. Mixin target `ChatComponent.getHeight()I` must pass client initialization.
+- Physical testing: confirm all Korean introduction lines and clickable **[게임 시작]** on desktop and smaller GUI scale/monitor configurations. CI does not prove all visual layout variants.
