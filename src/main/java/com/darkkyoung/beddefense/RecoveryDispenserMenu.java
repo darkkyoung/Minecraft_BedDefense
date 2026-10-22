@@ -62,10 +62,11 @@ public final class RecoveryDispenserMenu extends DispenserMenu {
             ItemStack remaining=stack.copy();
             player.getInventory().add(remaining);
             if(!remaining.isEmpty()){
+                ServerLevel current=(ServerLevel)player.level();
                 net.minecraft.world.entity.item.ItemEntity drop=new net.minecraft.world.entity.item.ItemEntity(
-                        level,player.getX(),player.getY()+0.5,player.getZ(),remaining);
+                        current,player.getX(),player.getY()+0.5,player.getZ(),remaining);
                 drop.setDefaultPickUpDelay();
-                level.addFreshEntity(drop);
+                current.addFreshEntity(drop);
             }
         }
         deposits.setChanged();
