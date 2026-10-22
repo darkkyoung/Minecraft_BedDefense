@@ -49,7 +49,7 @@ public class PlayableChallengeGameTest {
         p.teleportTo(world,foot.getX()+.5,foot.getY(),foot.getZ()+.5,Set.of(),0,0,false);
         ChallengeMenu.show(p,server);
         h.assertTrue(ChallengeSetupWizard.begin(server,p),"setup opens");
-        ChallengeSetupWizard.setDifficulty(server,p,"보통");ChallengeSetupWizard.setTime(server,p,true);ChallengeSetupWizard.setInterval(server,p,2);
+        ChallengeSetupWizard.setDifficulty(server,p,"쉬움");ChallengeSetupWizard.setTime(server,p,true);ChallengeSetupWizard.setInterval(server,p,2);
         h.assertTrue(ChallengeOptionsData.get(world).raidStride()==2,"settings saved before countdown");
         ChallengeSetupWizard.cancel(server,p);ChallengeSetupWizard.begin(server,p);
         // Inventory must survive the countdown and disappear only on successful challenge start.
@@ -78,8 +78,8 @@ public class PlayableChallengeGameTest {
                     "completed start clears hotbar, armor, offhand, inventory and cursor");
             // Preserve this test scenario's invulnerability fixture after mode transitions.
             p.getAbilities().invulnerable=true;
-            h.assertTrue(ChallengeData.get(world).raidProfile()==ChallengeData.PROFILE_LEGACY,
-                    "existing acceptance scenario keeps original five-zombie first night");
+            h.assertTrue(ChallengeData.get(world).raidProfile()==ChallengeData.PROFILE_EASY,
+                    "Easy acceptance scenario preserves the original five-zombie first night");
             h.assertTrue(ChallengeOptionsData.get(world).raidStride()==2,"reopened settings retained multiplier");
             h.assertTrue(ChallengeMenu.overworldClock(server)<100,"reset selected: day one morning");
             h.assertTrue(BedVitalData.get(world).state(p.getUUID())==0,"no bed before first interaction");
