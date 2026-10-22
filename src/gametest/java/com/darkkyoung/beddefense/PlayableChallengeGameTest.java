@@ -84,9 +84,10 @@ public class PlayableChallengeGameTest {
             h.assertTrue(ChallengeMenu.overworldClock(server)<100,"reset selected: day one morning");
             h.assertTrue(BedVitalData.get(world).state(p.getUUID())==0,"no bed before first interaction");
             RaidManager.run(server,"time of minecraft:overworld set 12542");
-            waitForFirstRaid(h,world,()->{
+            waitForFirstRaid(h,world,p.getUUID(),()->{
                 RaidStateData raid=RaidStateData.get(world);
-                h.assertTrue(raid.active()&&raid.raiders().size()==5,"daily first-night raid: active="+raid.active()+" spawned="+raid.raiders().size()+" queued="+raid.pending()+" player="+p.position()+" arena="+foot+" difficulty="+world.getDifficulty());
+                long spawned=raid.raiders().values().stream().filter(r->r.owner().equals(p.getUUID().toString())&&r.wave()==1).count();
+                h.assertTrue(raid.active()&&spawned==5,"daily first-night raid: active="+raid.active()+" playerWaveSpawned="+spawned+" queued="+raid.pending()+" player="+p.position()+" arena="+foot+" difficulty="+world.getDifficulty());
                 bed(world,foot);use(p,world,foot);
                 h.assertTrue(BedVitalData.get(world).state(p.getUUID())==1,"day/night right-click registers bed");
                 h.assertTrue(p.getRespawnConfig()!=null,"real respawn config established");
@@ -254,11 +255,14 @@ public class PlayableChallengeGameTest {
         return single;
     }
 
-    private static void waitForFirstRaid(GameTestHelper h,ServerLevel world,Runnable assertions,int remainingTicks){
-        // Chunk promotion is asynchronous; assert the actual five spawns, not a runner-speed-dependent delay.
+    private static void waitForFirstRaid(GameTestHelper h,ServerLevel world,UUID owner,Runnable assertions,int remainingTicks){
+        // Count only this test player's first-night raiders: independent GameTests
+        // may intentionally add other tracked mobs to the same world ledger.
         var raid=RaidStateData.get(world);
-        if(raid.raiders().size()==5||remainingTicks<=0){assertions.run();return;}
-        h.runAfterDelay(10,()->waitForFirstRaid(h,world,assertions,remainingTicks-10));
+        long playerWave=raid.raiders().values().stream()
+                .filter(r->r.owner().equals(owner.toString())&&r.wave()==1).count();
+        if(playerWave==5||remainingTicks<=0){assertions.run();return;}
+        h.runAfterDelay(10,()->waitForFirstRaid(h,world,owner,assertions,remainingTicks-10));
     }
     @GameTest(maxTicks=540,dimension="minecraft:overworld")
     public void raidZombiesAndHusksStayTrackedUnderWater(GameTestHelper h){
@@ -278,7 +282,7 @@ public class PlayableChallengeGameTest {
         var wildZombie=(net.minecraft.world.entity.monster.zombie.Zombie)
                 mob(world,"zombie",wildZombieSpot);
         for(var z:java.util.List.of(raidZombie,raidHusk,wildZombie)){
-            z.setNoGravity(true);z.setNoAi(true);
+            z.setNoGravity(true);
         }
         String owner=UUID.randomUUID().toString();
         raid.track(raidZombie.getUUID(),new RaidStateData.Raider("minecraft:overworld",owner,1,1));
@@ -286,13 +290,16 @@ public class PlayableChallengeGameTest {
         h.assertTrue(RaidManager.isTrackedRaider(raidZombie) &&
                 RaidManager.isTrackedRaider(raidHusk) && !RaidManager.isTrackedRaider(wildZombie),
                 "only actual raid UUIDs are protected from water conversion");
+        h.assertTrue(!convertsInWater(raidZombie) && !convertsInWater(raidHusk),
+                "tracked Zombie and overridden Husk vanilla conversion predicates are disabled");
+        h.assertTrue(convertsInWater(wildZombie),
+                "vanilla untracked Zombie is still allowed to convert in water");
 
-        // Vanilla starts conversion after 600 underwater ticks, then takes another
-        // 300 ticks. Seed the underwater timer to exercise real conversion within
-        // an isolated, bounded server GameTest rather than sleeping 45 seconds.
+        // Accelerated underwater countdown for the tagged raiders, plus an
+        // explicitly started *vanilla* conversion timer for the wild control.
         raidZombie.setInWaterTime(599);
         raidHusk.setInWaterTime(599);
-        wildZombie.setInWaterTime(599);
+        h.runAfterDelay(15,()->wildZombie.setConversionTime(50));
         UUID zombieId=raidZombie.getUUID(),huskId=raidHusk.getUUID();
         h.runAfterDelay(420,()->{
             h.assertTrue(world.getEntity(zombieId)==raidZombie && !raidZombie.isRemoved()
@@ -309,6 +316,19 @@ public class PlayableChallengeGameTest {
             raid.remove(zombieId);raid.remove(huskId);
             raidZombie.discard();raidHusk.discard();h.succeed();
         });
+    }
+
+    private static boolean convertsInWater(net.minecraft.world.entity.monster.zombie.Zombie entity){
+        try {
+            Class<?> owner=entity instanceof net.minecraft.world.entity.monster.zombie.Husk
+                    ?net.minecraft.world.entity.monster.zombie.Husk.class
+                    :net.minecraft.world.entity.monster.zombie.Zombie.class;
+            var method=owner.getDeclaredMethod("convertsInWater");
+            method.setAccessible(true);
+            return (boolean)method.invoke(entity);
+        } catch(ReflectiveOperationException exception) {
+            throw new AssertionError("Could not inspect the actual Minecraft 26.3 zombie conversion",exception);
+        }
     }
 
     private static void waterCell(ServerLevel world,BlockPos center){
