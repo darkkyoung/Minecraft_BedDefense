@@ -107,7 +107,7 @@ public final class NormalRaidBalance {
     public static int babyCount(int day,int total){
         if(day<20)return 0;
         int zombies=composition(day,total)[0];
-        return Math.min(3,Math.min(zombies,Math.max(1,Math.round(zombies*0.07f))));
+        return Math.min(3,Math.min(zombies,Math.max(1,Math.round(zombies*(day>=60?0.20f:0.12f)))));
     }
     public static String mobForDay(int day,int index,int total){
         if(index<0||index>=total)throw new IllegalArgumentException("Invalid Normal roster index");
