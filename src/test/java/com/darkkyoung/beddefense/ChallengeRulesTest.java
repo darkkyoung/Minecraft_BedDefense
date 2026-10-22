@@ -47,6 +47,103 @@ class ChallengeRulesTest {
         assertTrue(button.getString().contains("[설정 완료 · 시작]"));
     }
 
+    @Test void normalV1RangeAnchorsAndEveryDayComposition(){
+        // Signed-off representative user-approved 100-day bands (min/max).
+        int[][] expected={{1,6,8},{2,9,11},{3,11,13},{5,14,18},
+                {10,25,31},{20,34,42},{30,41,51},{50,53,65},
+                {75,62,76},{90,75,91},{100,84,102}};
+        for(int[] row:expected){
+            assertEquals(row[1],NormalRaidBalance.minForDay(row[0]),"min day "+row[0]);
+            assertEquals(row[2],NormalRaidBalance.maxForDay(row[0]),"max day "+row[0]);
+        }
+        var random=new java.util.Random(20261022L);
+        for(int day=1;day<=100;day++){
+            int min=NormalRaidBalance.minForDay(day);
+            int max=NormalRaidBalance.maxForDay(day);
+            int easy=RaidManager.totalForDay(day);
+            assertTrue(min>=easy,"Normal must not fall below Easy on day "+day);
+            assertTrue(max<=HardRaidBalance.maxForDay(day),"Normal should stay inside Hard max day "+day);
+            assertTrue(min>0&&min<=max&&max<=NormalRaidBalance.MAX_ROSTER);
+            for(int i=0;i<30;i++){
+                int rolled=NormalRaidBalance.rollForDay(day,random);
+                assertTrue(rolled>=min&&rolled<=max);
+            }
+            for(int total:new int[]{min,(min+max)/2,max}){
+                int[] roleCounts=NormalRaidBalance.composition(day,total);
+                assertEquals(total,java.util.Arrays.stream(roleCounts).sum()+(day%10==0?1:0),
+                        "Normal exact allocation day "+day);
+                int babies=0,captains=0;
+                for(int index=0;index<total;index++){
+                    String mob=NormalRaidBalance.mobForDay(day,index,total);
+                    assertNotNull(mob);
+                    if(HardRaidBalance.BABY_ZOMBIE.equals(mob))babies++;
+                    if(day%10==0&&HardRaidBalance.captainType(day).equals(mob))captains++;
+                }
+                assertEquals(day<20?0:NormalRaidBalance.babyCount(day,total),babies);
+                assertEquals(day%10==0?1:0,captains,"single captain day "+day);
+            }
+        }
+        assertEquals("minecraft:vindicator",NormalRaidBalance.mobForDay(10,30,31));
+        assertEquals("minecraft:ravager",NormalRaidBalance.mobForDay(100,101,102));
+        assertEquals(0,NormalRaidBalance.babyCount(19,NormalRaidBalance.maxForDay(19)));
+        assertTrue(NormalRaidBalance.babyCount(20,NormalRaidBalance.minForDay(20))>=1);
+        assertTrue(NormalRaidBalance.babyCount(100,NormalRaidBalance.maxForDay(100))<=3);
+    }
+    @Test void normalV1SpeedMilestonesAndLegacySaveArePreserved(){
+        for(int day=1;day<25;day++)
+            for(int index=0;index<100;index++)
+                assertNotEquals(2,NormalRaidBalance.speedAmplifier("minecraft:zombie",day,index));
+        assertTrue(java.util.stream.IntStream.range(0,NormalRaidBalance.maxForDay(25))
+                .anyMatch(index->NormalRaidBalance.speedAmplifier("minecraft:zombie",25,index)==2));
+        for(int day=51;day<=100;day++)
+            for(int index=0;index<10;index++)
+                assertEquals(2,NormalRaidBalance.speedAmplifier("minecraft:zombie",day,index),
+                        "Normal cannot become slower than Easy after day 51");
+        for(int day:new int[]{20,25,51,100})
+            for(int index=0;index<10;index++){
+                assertEquals(-1,NormalRaidBalance.speedAmplifier(HardRaidBalance.BABY_ZOMBIE,day,index));
+                assertEquals(-1,NormalRaidBalance.speedAmplifier("minecraft:creeper",day,index));
+            }
+
+        var oldNormal=new ChallengeData();
+        assertTrue(oldNormal.start(100,0,ChallengeData.PROFILE_LEGACY));
+        oldNormal=ChallengeData.CODEC.parse(JsonOps.INSTANCE,
+                ChallengeData.CODEC.encodeStart(JsonOps.INSTANCE,oldNormal).getOrThrow()).getOrThrow();
+        assertEquals(ChallengeData.PROFILE_LEGACY,oldNormal.raidProfile());
+        assertFalse(oldNormal.normalV2Profile(),"active old Normal must keep old profile");
+        assertTrue(oldNormal.finish(ChallengeData.LOST,200,"test"));
+        assertTrue(oldNormal.resetFinishedRun());
+        assertTrue(oldNormal.start(250,0,ChallengeData.PROFILE_NORMAL_V2));
+        oldNormal=ChallengeData.CODEC.parse(JsonOps.INSTANCE,
+                ChallengeData.CODEC.encodeStart(JsonOps.INSTANCE,oldNormal).getOrThrow()).getOrThrow();
+        assertEquals(ChallengeData.PROFILE_NORMAL_V2,oldNormal.raidProfile());
+        assertTrue(oldNormal.normalV2Profile());
+        assertFalse(oldNormal.hardRaidProfile());
+        assertFalse(oldNormal.randomizedHardRaidProfile());
+    }
+    @Test void normalNightlyDrawPersistsAcrossSaveAndRejectsRerolls(){
+        int day=20,total=NormalRaidBalance.minForDay(day);
+        String a=UUID.randomUUID().toString(),b=UUID.randomUUID().toString();
+        var p=List.of(new RaidStateData.Pending("minecraft:overworld",a,day,day,0,total),
+                new RaidStateData.Pending("minecraft:overworld",b,day,day,0,total));
+        var state=new RaidStateData();
+        state.launch(day,p,total);
+        state=RaidStateData.CODEC.parse(JsonOps.INSTANCE,
+                RaidStateData.CODEC.encodeStart(JsonOps.INSTANCE,state).getOrThrow()).getOrThrow();
+        assertEquals(day,state.lastRandomWave());
+        assertEquals(total,state.lastRandomRoster());
+        assertEquals(2*total,state.remaining());
+        RaidStateData reload=state;
+        assertThrows(IllegalStateException.class,()->reload.launch(day,p,total));
+        UUID tracked=UUID.randomUUID();
+        reload.spawned(reload.pending().getFirst(),tracked);
+        assertEquals(2*total,reload.remaining());
+        assertEquals(total,reload.pending().stream().filter(bat->bat.owner().equals(a))
+                .mapToInt(bat->bat.count()+bat.next()).findFirst().orElseThrow());
+        reload.resetForNewRun();
+        assertEquals(-1,reload.lastRandomRoster());
+    }
+
     @Test void hardRandomBoundsHonorAgreedPlaytestExamples(){
         int[][] expected={{1,7,9,12},{2,10,13,17},{5,17,24,32},{10,31,44,58},
                 {20,42,59,75},{30,49,70,90},{50,66,94,107},{75,78,111,116},
