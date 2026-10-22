@@ -71,7 +71,19 @@ public class ClientHudGameTest implements FabricClientGameTest {
             world.getServer().runOnServer(server->{
                 var p=server.getPlayerList().getPlayers().getFirst();var health=BedVitalData.get(server.overworld());health.destroy(p.getUUID(),"client_test");
             });
-            context.waitTicks(20);context.takeScreenshot("r1-destroyed-red");
+            context.waitTicks(20);
+            world.getServer().runOnServer(server->{
+                var level=server.overworld();
+                var p=server.getPlayerList().getPlayers().getFirst();
+                BlockPos oldBed=SpawnBedData.get(level).getPosition(p.getUUID());
+                if(oldBed==null || !RecoveryBeaconRegistry.isRecoveryBlock(level,oldBed))
+                    throw new AssertionError("Recovery beacon should occupy the original bed foot");
+                if(!(level.getBlockEntity(oldBed) instanceof RecoveryBeaconBlockEntity beam)
+                        ||beam.getBeamSections().isEmpty())
+                    throw new AssertionError("Recovery beacon must provide a visible beam without a pyramid");
+            });
+            context.takeScreenshot("r1-recovery-beacon-single-block-beam");
+            context.takeScreenshot("r1-destroyed-red");
             world.getServer().runOnServer(ChallengeLifecycle::dragonKilled);
             context.waitFor(mc->!BedDefenseHud.hardcoreRisk());context.waitTicks(5);context.takeScreenshot("r1-victory-frozen-timer");
             // Separate new run: only a direct raid HP-zero hit is allowed to play the title.
