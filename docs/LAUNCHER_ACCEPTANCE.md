@@ -13,12 +13,12 @@ Both official profile formats, absent/relative/external gameDir, existing compat
 ## Physical Acceptance Pending — Windows 11 x64
 
 1. Keep a backup of important worlds. Close the game and official Launcher after running the desired **Fabric 26.3** profile once.
-2. Download the new `BedDefense-Setup.exe` (launcher 0.2.0). Confirm **기존 Fabric에 설치 (기본)** and select your profile. Check the displayed actual gameDir. Note the names/hashes of Sodium, Iris, API, other mods, config and saves before install.
+2. Download the new `BedDefense-Setup.exe` (launcher 0.2.0). Confirm **기존 Fabric에 설치** (initial default) and select your profile. Check the displayed actual gameDir. Note the names/hashes of Sodium, Iris, API, other mods, config and saves before install.
 3. Press **설치**. Confirm one Bed Defense JAR, unchanged API/other mods, and unchanged profile name/ID/gameDir/lastVersionId. No new profile should appear.
 4. Open official Launcher and run the **same existing profile**. Confirm the current Bed Defense prototype HUD loads. Real mod interactions, graphics mods and Java runtime boot remain physical acceptance.
 5. After the next successful dev release, use the same EXE's update buttons. Confirm new build, exactly one Bed Defense JAR and preserved other files/worlds. Test running-game refusal and offline error preservation.
 6. On a backed-up test environment, select an incompatible/missing API or 26.2-mod configuration. Expect installation disabled with a specific reason and no dependency changes.
 7. If previously independently installed, use **이전 독립 설치에서 기존 Fabric으로 전환**, select the target and install. Verify the old instance/profile/worlds remain. No automatic world transfer is expected.
-8. If desired, select **독립 환경에 설치** to check the retained original L1 flow. Repeat with a nondefault root and external gameDir if used.
+8. If desired, select **처음 사용자 권장** to check the retained independent-install L1 flow. Repeat with a nondefault root and external gameDir if used.
 
 Pending user evidence: Store/Win32 Launcher discovery on the user's PC, profile display and real authenticated game boot, Java 25 runtime, actual modpack interactions, subsequent dev update on that PC, custom roots and unsigned EXE SmartScreen behavior. CI fixtures and WPF execution are not physical game acceptance.
