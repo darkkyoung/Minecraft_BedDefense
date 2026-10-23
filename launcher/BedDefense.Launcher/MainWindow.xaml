@@ -34,7 +34,7 @@
                 <TextBlock Text="MINECRAFT 26.3" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="10" Foreground="{DynamicResource Muted}"/>
               </Grid>
               <ComboBox x:Name="ModeBox" SelectedIndex="0" SelectionChanged="Selection_Changed" AutomationProperties.Name="설치 방식" MinHeight="40">
-                <ComboBoxItem Content="기존 Fabric에 설치 (권장)"/><ComboBoxItem Content="독립 환경에 설치"/>
+                <ComboBoxItem Content="기존 Fabric에 설치"/><ComboBoxItem Content="처음 사용자 권장"/>
               </ComboBox>
               <TextBlock Text="Fabric 프로필" Style="{StaticResource Label}" Margin="0,12,0,6"/>
               <ComboBox x:Name="ProfileBox" SelectionChanged="Selection_Changed" AutomationProperties.Name="Fabric 프로필">

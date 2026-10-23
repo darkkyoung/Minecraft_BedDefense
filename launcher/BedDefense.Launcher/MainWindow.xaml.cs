@@ -264,7 +264,7 @@ public partial class MainWindow : Window
         CurrentText.Text = "미설치"; InstalledText.Text = "CI: 사용자 환경 변경 없음";
         FabricText.Text = "Loader 0.19.5 · API 0.163.0+26.3 · Java 25 (공식 런처 관리)";
         InstanceText.Text = "기존 Fabric 프로필의 실제 gameDir에 Bed Defense만 설치";
-        ProfileHint.Text = "기존 Fabric에 설치 (기본) · 독립 환경은 선택 옵션";
+        ProfileHint.Text = "기존 Fabric에 설치 (기본 선택) · 처음 사용자 권장: 별도 Fabric 환경";
         StatusText.Text = "UI 초기화 및 배포 정보 조회 성공"; ProgressBar.Value = 100;
     }
 }
