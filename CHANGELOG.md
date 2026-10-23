@@ -1,5 +1,10 @@
 # Changelog
 
+## Launcher labels — 2026-10-23 (no gameplay/version change)
+- WPF installation-mode choices now read **기존 Fabric에 설치** and **처음 사용자 권장**. The latter remains the independent Fabric + API + Bed Defense profile installation flow.
+- Mode indices, initial default selection, persisted user preferences, gameDir resolution, profiles, saves/mods and rollback are unchanged.
+- Added actual WPF acceptance coverage for both visible labels and their unchanged installation-mode mapping.
+
 ## 0.2.0-alpha.13+26.3 — Single recovery beacon and two owner-bound bed revivals
 - On an active challenge's destroyed Spawn Bed, spawn **exactly one Bed Defense recovery beacon block at the original bed foot**, with a persistent green beam to the sky **without an iron/gold/emerald pyramid**. The block has vanilla beacon appearance only; it is **not** a vanilla BeaconBlock/BeaconBlockEntity, and cannot grant powers, accept beacon payments or open a normal beacon menu.
 - The custom beacon is unbreakable in Survival (negative mining hardness), impervious to ordinary explosions, immovable by pistons, has **no item/drop**, and its mining callback is rejected for all players including Creative. Normal placed Minecraft beacons are unchanged.
