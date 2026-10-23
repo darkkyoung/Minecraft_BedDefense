@@ -29,6 +29,18 @@ public partial class MainWindow
         NotesBox.Text = manifest.Notes; UpdateNotes(manifest.Notes);
         LatestText.Text = manifest.ModVersion;
         var checks = new List<string>();
+        // A copy-only UI change must not swap mode indexes or installation scopes.
+        if (ModeBox.Items.Count != 2 || ModeBox.SelectedIndex != 0
+            || (ModeBox.Items[0] as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() != "기존 Fabric에 설치"
+            || (ModeBox.Items[1] as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() != "처음 사용자 권장")
+            throw new IOException("설치 방식 명칭/기본 선택값이 요청과 다릅니다.");
+        if (!SelectedInstallation().IsExisting)
+            throw new IOException("기존 Fabric 옵션이 독립 환경으로 잘못 연결되었습니다.");
+        ModeBox.SelectedIndex = 1;
+        if (SelectedInstallation().IsExisting)
+            throw new IOException("처음 사용자 권장 옵션이 기존 Fabric 환경으로 잘못 연결되었습니다.");
+        ModeBox.SelectedIndex = 0;
+        checks.Add("PASS: exact Korean mode labels; existing Fabric default and independent installation mapping retained");
         // Theme persistence is exercised only under the disposable acceptance output.
         string appearancePath = Path.GetFullPath("ui-acceptance/appearance.json");
         if (Appearance.Read(appearancePath) != "Dark") throw new IOException("Missing preference did not default to Dark");
